@@ -1,0 +1,57 @@
+/* Pilot page in the homepage's dark style (builds on home.css + pricing-dark.css). */
+.pv-grid { display: grid; grid-template-columns: 1fr 1.05fr; gap: 16px; align-items: stretch; }
+.pv-panel, .pv-card { padding: clamp(28px, 4vw, 44px); }
+.pv-panel:hover, .pv-card:hover { transform: none; }
+.pv-h1 { margin-left: 0 !important; font-size: clamp(30px, 4.6vw, 60px) !important; }
+.pv-panel .pr-scene { height: 220px; margin: 8px -12px; }
+.pv-h2 { font-family: var(--hm-head); font-weight: 400; font-size: 16px; letter-spacing: 0.05em; color: #fff7ae; margin: 8px 0 18px; }
+
+/* Timeline */
+.pv-steps { list-style: none; padding: 0; margin: 0; position: relative; }
+.pv-line { position: absolute; left: 16px; top: 18px; bottom: 18px; width: 1.5px; background: rgba(255, 247, 174, 0.35); transform-origin: top; }
+.pv-steps li { position: relative; display: flex; gap: 16px; padding: 0 0 22px; }
+.pv-steps b { display: block; color: #fff; font-weight: 600; }
+.pv-steps p { margin: 3px 0 0; color: var(--hm-muted); font-size: 14.5px; line-height: 1.55; }
+.pv-num { flex: none; position: relative; width: 34px; height: 34px; border-radius: 50%; padding: 4px; background: #28282a; border: 1px solid rgba(255, 255, 255, 0.4); }
+.pv-num > span { display: grid; place-items: center; width: 100%; height: 100%; border-radius: 50%; background: #fff7ae; color: #1b1a12; font-weight: 700; font-size: 13px; }
+
+/* Form */
+.pv-form-title { font-family: var(--hm-head); font-weight: 400; font-size: clamp(18px, 2vw, 24px); letter-spacing: 0.04em; color: #fff7ae; margin: 0 0 22px; }
+.pv-field { display: block; margin: 0 0 18px; padding: 0; border: 0; min-width: 0; }
+.pv-field > span, .pv-field legend { display: block; font-weight: 500; font-size: 14px; color: #e6e6e6; margin-bottom: 8px; padding: 0; }
+.pv-field em { font-style: normal; color: var(--hm-muted); font-weight: 400; }
+.pv-field input, .pv-field textarea {
+  width: 100%; min-height: 48px; padding: 12px 16px; border-radius: 14px; background: #0a0a0b; border: 1px solid rgba(255, 255, 255, 0.18); color: #fff;
+  font: 400 15.5px/1.5 var(--hm-sans); transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+}
+.pv-field textarea { min-height: 110px; resize: vertical; }
+.pv-field input:hover, .pv-field textarea:hover { border-color: rgba(255, 255, 255, 0.32); }
+.pv-field input:focus-visible, .pv-field textarea:focus-visible { outline: none; border-color: #fff7ae; box-shadow: 0 0 0 3px rgba(255, 247, 174, 0.18); background: #0e0e10; }
+
+.pv-sizes { display: flex; flex-wrap: wrap; gap: 8px; }
+.pv-size { position: relative; display: inline-flex; align-items: center; min-height: 44px; padding: 0 18px; border-radius: 999px; background: #28282a; border: 1px solid rgba(255, 255, 255, 0.3); color: #c4c2c3; font-size: 14.5px; font-weight: 500; cursor: pointer; transition: color 0.2s ease, border-color 0.2s ease; }
+.pv-size:hover { border-color: rgba(255, 255, 255, 0.55); color: #fff; }
+.pv-size input { position: absolute; inset: 0; opacity: 0; margin: 0; cursor: pointer; }
+.pv-size:has(input:focus-visible) { outline: 2px solid #fff7ae; outline-offset: 2px; }
+.pv-size-bg { position: absolute; inset: -1px; border-radius: 999px; background: #fff7ae; }
+.pv-size-text { position: relative; }
+.pv-size.on { color: #1b1a12; border-color: #fff7ae; }
+
+.pv-note { color: var(--hm-muted); font-size: 13.5px; line-height: 1.55; margin: 4px 0 20px; }
+.pv-note a { color: #fff7ae; }
+.pv-submit .hm-btn { border: 0; cursor: pointer; font-family: var(--hm-sans); }
+.pv-submit .hm-btn:disabled { opacity: 0.7; cursor: progress; }
+.pv-error { display: flex; gap: 10px; align-items: flex-start; padding: 12px 16px; margin-bottom: 18px; border-radius: 14px; background: rgba(255, 99, 88, 0.1); border: 1px solid rgba(255, 99, 88, 0.45); color: #ffb4ad; font-size: 14.5px; }
+.pv-error svg { flex: none; width: 18px; height: 18px; margin-top: 1px; }
+
+/* Success */
+.pv-done { min-height: 100%; display: flex; flex-direction: column; justify-content: center; gap: 28px; }
+.pv-seal-wrap { position: relative; align-self: flex-start; }
+.pv-seal-wrap .hm-ripple { width: 200px; height: 200px; margin: -100px 0 0 -100px; }
+.pv-seal { position: relative; display: inline-flex; gap: 12px; align-items: center; padding: 14px 24px; border-radius: 16px; background: #fff7ae; color: #1b1a12; font-weight: 700; font-size: 20px;
+  box-shadow: 0 0 0 1px rgba(255, 247, 174, 0.2), 0 0 30px rgba(255, 247, 174, 0.3); }
+.pv-seal svg { width: 26px; height: 26px; }
+.pv-thanks { margin-left: 0 !important; margin-top: 0 !important; }
+.pv-actions { justify-content: flex-start; }
+
+@media (max-width: 1023px) { .pv-grid { grid-template-columns: 1fr; } }

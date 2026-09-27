@@ -1,0 +1,36 @@
+{
+  "name": "dpocopilot",
+  "version": "0.1.0",
+  "private": true,
+  "description": "DPO Copilot: NDPA 2023 compliance workspace for Nigerian DPCOs",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "test": "node --test lib/rules.test.ts",
+    "smoke": "node scripts/smoke.mjs",
+    "typecheck": "tsc --noEmit"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/anyathebrand-prog/dpocopilot.git"
+  },
+  "dependencies": {
+    "@electric-sql/pglite": "^0.5.8",
+    "@fontsource/atkinson-hyperlegible-next": "^5.3.0",
+    "@fontsource/source-serif-4": "^5.3.0",
+    "framer-motion": "^13.4.4",
+    "lucide-react": "^1.48.0",
+    "next": "^16.3.6",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "three": "^0.186.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "@types/three": "^0.186.0",
+    "typescript": "^5"
+  }
+}
