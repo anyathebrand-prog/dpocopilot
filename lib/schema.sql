@@ -518,3 +518,15 @@ create table if not exists import_jobs (
 create index if not exists cv_parent on content_versions (parent_type, parent_id, version_no desc);
 create index if not exists cv_review on content_versions (firm_id, status);
 create index if not exists audit_firm on audit_events (firm_id, occurred_at desc);
+
+-- Public site: "Request pilot access" submissions, read by DPO Copilot staff in the Secretary console.
+create table if not exists pilot_requests (
+  id uuid primary key default gen_random_uuid(),
+  name text not null,
+  email text not null,
+  firm text not null,
+  client_count text,
+  phone text,
+  message text,
+  created_at timestamptz not null default now()
+);

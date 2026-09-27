@@ -36,6 +36,16 @@ npm run smoke -- dev.log                   # end-to-end: onboarding → approval
 
 All V1 must-haves (F1–F18): firm workspace and roles, multi-client dashboard with the "Waiting for my review" queue, onboarding questionnaire → data inventory → proposed RoPA, the major-importance indicator, DPIA workflow with risk scoring and versioning, policy generator (3 templates), breaches with the 72-hour countdown, DSARs with the 30-day deadline, evidence vault and CAR readiness score, tasks and calendar, client portal with OTP sign-off, the AI copilot (drafting, rule-based gap analysis, cited Q&A), activity log, PDF/Word export, CSV import, and the Secretary console with publishing.
 
+## Fonts
+
+- **Rocpar** (headings on the public pages) is licensed "Free for Personal Use" only, so it is not in this repo. Copy `Rocpar.otf` into `public/fonts/` locally; without it headings fall back to Inter. Buy a commercial licence (exfont.com/rocpar.font) before launch.
+- **Geist Pixel Circle** (`public/fonts/`) is open-licensed (SIL OFL).
+- Inter and BubbledotICG-FinePos load from Google Fonts and OnlineWebFonts. Self-host them before launch to meet the "no assets from outside Nigeria" rule, and check Bubbledot's licence.
+
+## Public site
+
+`/` (landing, signed-out visitors only), `/pricing`, `/pilot` (request form; submissions appear in the Secretary console), `/privacy`, `/terms`. The privacy notice and terms are **drafts for legal review**: bracketed items (legal entity, DPO contact, hosting provider, retention periods, liability) must be filled in before launch.
+
 ## Defaults chosen for open questions
 
 These are the specs' open flags, answered with the least-surprising default. Change them as decisions land.

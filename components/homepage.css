@@ -1,0 +1,166 @@
+/* Homepage sections in the hero's style: stacked dark cards, Rocpar headings with a white-to-blue second line,
+   neumorphic icon nodes, light-blue accents, beam motion. Lives inside the page's .bh wrapper. */
+
+.bh .hp-card {
+  position: relative; width: 100%; max-width: 1600px; margin-top: 14px; border-radius: 20px; border: 1px solid rgba(255, 255, 255, 0.07);
+  background: #0d0b12; overflow: hidden; padding: clamp(56px, 8vw, 96px) clamp(20px, 4vw, 40px);
+}
+.bh .hp-card::before { content: ""; position: absolute; inset: 0; pointer-events: none; background: radial-gradient(ellipse 60% 45% at 50% 0%, rgba(40, 120, 200, 0.12), transparent 70%); }
+.bh .hp-inner { position: relative; z-index: 1; max-width: 1120px; margin: 0 auto; }
+.bh .hp-grid-bg::after {
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  background-image: linear-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+  background-size: 40px 40px;
+  -webkit-mask-image: radial-gradient(ellipse 70% 55% at 50% 0%, black, transparent 75%); mask-image: radial-gradient(ellipse 70% 55% at 50% 0%, black, transparent 75%);
+}
+
+/* Headings */
+.bh .hp-head { text-align: center; margin-bottom: clamp(36px, 6vw, 60px); }
+.bh .hp-kicker { display: inline-flex; align-items: center; padding: 6px 16px; border-radius: 999px; background: rgba(255, 255, 255, 0.06); border: 1px solid var(--border); color: var(--text-muted); font-size: 0.8rem; font-weight: 500; }
+.bh .hp-h2 { font-family: "Rocpar", "Inter", sans-serif; font-weight: 400; font-size: clamp(1.25rem, 3.1vw, 2.4rem); line-height: 1.25; letter-spacing: 0.02em; color: var(--text); margin: 20px auto 0; }
+.bh .hp-h2 strong { display: block; font-weight: 400; margin-top: 6px; background: linear-gradient(to right, #ffffff, #9ccbee); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
+.bh .hp-h2.big { font-size: clamp(1.8rem, 5vw, 3.6rem); }
+.bh .hp-sub { font-size: 0.95rem; line-height: 1.65; color: rgba(255, 255, 255, 0.45); max-width: 560px; margin: 18px auto 0; }
+
+/* Neumorphic icon node (same recipe as the hero's side nodes) */
+.bh .hp-node {
+  position: relative; display: inline-grid; place-items: center; width: 46px; height: 46px; border-radius: 50%; background: #1a1a24; flex: none;
+  box-shadow: 6px 6px 12px rgba(0, 0, 0, 0.4), -4px -4px 10px rgba(255, 255, 255, 0.03), inset 1px 1px 1px rgba(255, 255, 255, 0.05), inset 4px 4px 8px rgba(0, 0, 0, 0.4);
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+.bh .hp-node::after { content: ""; position: absolute; inset: -7px; border-radius: 50%; border: 1px dotted #26263a; pointer-events: none; }
+.bh .hp-node svg { width: 20px; height: 20px; color: rgba(255, 255, 255, 0.7); stroke-width: 1.5; }
+
+/* Three-up features */
+.bh .hp-cols { display: grid; grid-template-columns: repeat(3, 1fr); gap: clamp(24px, 4vw, 48px); }
+.bh .hp-feature { text-align: left; }
+.bh .hp-feature h3, .bh .hp-mod h3 { font-size: 1.02rem; font-weight: 500; color: var(--text); margin: 22px 0 8px; letter-spacing: -0.01em; }
+.bh .hp-feature p, .bh .hp-mod p { font-size: 0.9rem; line-height: 1.65; color: rgba(255, 255, 255, 0.45); margin: 0; }
+.bh .hp-feature:hover .hp-node { transform: translateY(-2px); box-shadow: 8px 8px 16px rgba(0, 0, 0, 0.5), -5px -5px 12px rgba(255, 255, 255, 0.05), 0 0 18px rgba(120, 195, 250, 0.18), inset 1px 1px 1px rgba(255, 255, 255, 0.07); }
+
+/* Problem tiles and module cards: plain dark boxes, cursor spotlight, hover lift */
+.bh .hp-prob-wrap, .bh .hp-mod-wrap { height: 100%; }
+.bh .hp-prob, .bh .hp-mod {
+  position: relative; overflow: hidden; height: 100%; text-align: left; padding: 28px 26px; border-radius: 18px; background: #111118; border: 1px solid var(--border);
+  transition: border-color 0.3s ease, transform 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.bh .hp-mod { padding: 26px 22px; border-radius: 16px; }
+.bh .hp-prob::before, .bh .hp-mod::before { content: ""; position: absolute; inset: 0; pointer-events: none; opacity: 0; transition: opacity 0.35s ease;
+  background: radial-gradient(260px circle at var(--mx, 50%) var(--my, 50%), rgba(120, 195, 250, 0.12), transparent 65%); }
+.bh .hp-prob > *, .bh .hp-mod > * { position: relative; }
+.bh .hp-prob:hover, .bh .hp-mod:hover { border-color: rgba(120, 195, 250, 0.35); transform: translateY(-3px); }
+.bh .hp-prob:hover::before, .bh .hp-mod:hover::before { opacity: 1; }
+.bh .hp-mod:hover .hp-node { box-shadow: 6px 6px 12px rgba(0, 0, 0, 0.4), 0 0 18px rgba(120, 195, 250, 0.22), inset 1px 1px 1px rgba(255, 255, 255, 0.06); }
+.bh .hp-mod:hover .hp-node svg { color: #cfe9ff; }
+
+.bh .hp-prob-top { display: flex; align-items: center; justify-content: space-between; }
+.bh .hp-num { font-family: var(--vh-display); font-size: 40px; line-height: 1; letter-spacing: 0.02em; color: #cfe6f8; text-shadow: 0 0 18px rgba(120, 195, 250, 0.35); }
+.bh .hp-prob h3 { font-size: 1.02rem; font-weight: 500; color: var(--text); margin: 22px 0 8px; letter-spacing: -0.01em; }
+.bh .hp-prob p { font-size: 0.9rem; line-height: 1.65; color: rgba(255, 255, 255, 0.45); margin: 0; }
+
+/* Module grid */
+.bh .hp-mods { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+
+/* A section without the outer card: content sits straight on the page */
+.bh .hp-card.hp-bare { background: transparent; border-color: transparent; }
+.bh .hp-card.hp-bare::before { display: none; }
+/* Without the box, the grid is drawn on the page and fades out on every side (no hard edge) */
+.bh .hp-card.hp-bare.hp-grid-bg { overflow: visible; }
+.bh .hp-card.hp-bare.hp-grid-bg::after {
+  background-image: linear-gradient(rgba(255, 255, 255, 0.06) 1px, transparent 1px), linear-gradient(90deg, rgba(255, 255, 255, 0.06) 1px, transparent 1px);
+  -webkit-mask-image: radial-gradient(ellipse 55% 60% at 50% 40%, black 30%, transparent 80%);
+  mask-image: radial-gradient(ellipse 55% 60% at 50% 40%, black 30%, transparent 80%);
+}
+
+/* Floating icon nodes, out of step with each other */
+.bh .hp-float .hp-node { animation: hpFloat 4.6s ease-in-out infinite; }
+.bh .hp-cols > :nth-child(2) .hp-node { animation-delay: -1.5s; }
+.bh .hp-cols > :nth-child(3) .hp-node { animation-delay: -3s; }
+@keyframes hpFloat { 0%, 100% { translate: 0 0; } 50% { translate: 0 -5px; } }
+
+/* Heading second line: a slow light sweep across the white-to-blue gradient */
+.bh .hp-h2 strong.hp-sweep {
+  background: linear-gradient(110deg, #ffffff 0%, #9ccbee 35%, #ffffff 48%, #9ccbee 60%, #9ccbee 100%);
+  background-size: 250% 100%; -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+  animation: hpSweep 7s ease-in-out infinite;
+}
+@keyframes hpSweep { 0%, 15% { background-position: 100% 0; } 55%, 100% { background-position: 0% 0; } }
+
+/* Approval flow: a beam travels the line and lights each step as it passes */
+.bh .hp-flow { max-width: 960px; margin: 0 auto; }
+.bh .hp-flow ol { position: relative; display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; list-style: none; margin: 0; padding: 0; }
+.bh .hp-flow ol::before { content: ""; position: absolute; top: 32px; left: 12.5%; right: 12.5%; height: 1px; background: linear-gradient(90deg, rgba(255, 255, 255, 0.15), rgba(255, 255, 255, 0.07)); }
+.bh .hp-flow ol::after {
+  content: ""; position: absolute; top: 31px; left: 3.5%; width: 18%; height: 3px; border-radius: 3px; pointer-events: none;
+  background: linear-gradient(90deg, transparent, rgba(59, 143, 217, 0.8), #fff, rgba(168, 220, 255, 0.8), transparent);
+  filter: drop-shadow(0 0 4px rgba(120, 195, 250, 0.8)); animation: hpBeam 4s linear infinite;
+}
+@keyframes hpBeam { 0% { left: 3.5%; opacity: 0; } 5% { opacity: 1; } 75% { left: 78.5%; opacity: 1; } 80%, 100% { left: 78.5%; opacity: 0; } }
+.bh .hp-step { position: relative; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 6px; }
+.bh .hp-step-node {
+  position: relative; z-index: 1; display: grid; place-items: center; width: 64px; height: 64px; border-radius: 50%; background: #1e1e2c; margin-bottom: 14px;
+  box-shadow: 8px 8px 16px rgba(0, 0, 0, 0.5), -6px -6px 14px rgba(255, 255, 255, 0.04), inset 1px 1px 2px rgba(255, 255, 255, 0.06), inset 6px 6px 12px rgba(0, 0, 0, 0.5);
+  animation: hpLight 4s ease-out infinite; animation-delay: calc(var(--i) * 1s);
+}
+.bh .hp-step-node svg { width: 24px; height: 24px; color: rgba(255, 255, 255, 0.75); stroke-width: 1.5; }
+@keyframes hpLight {
+  0% { box-shadow: 0 0 0 1px rgba(168, 220, 255, 0.5), 0 0 28px rgba(90, 180, 255, 0.55), inset 1px 1px 2px rgba(255, 255, 255, 0.08); }
+  30%, 100% { box-shadow: 8px 8px 16px rgba(0, 0, 0, 0.5), -6px -6px 14px rgba(255, 255, 255, 0.04), inset 1px 1px 2px rgba(255, 255, 255, 0.06), inset 6px 6px 12px rgba(0, 0, 0, 0.5); }
+}
+.bh .hp-step b { font-weight: 500; font-size: 1rem; color: var(--text); }
+.bh .hp-step > span:last-child { font-size: 0.85rem; line-height: 1.5; color: rgba(255, 255, 255, 0.45); max-width: 200px; }
+
+/* Stats */
+.bh .hp-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-top: clamp(40px, 6vw, 64px); }
+.bh .hp-stat { display: flex; flex-direction: column; gap: 8px; padding: 26px 22px; border-radius: 16px; background: #111118; border: 1px solid var(--border); text-align: left; }
+.bh .hp-stat-v { font-family: "Rocpar", "Inter", sans-serif; font-size: clamp(2rem, 3.6vw, 2.8rem); line-height: 1; letter-spacing: 0.02em; background: linear-gradient(to right, #ffffff, #9ccbee); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
+.bh .hp-stat-v small { font-family: "Inter", sans-serif; font-size: 0.4em; margin-left: 6px; letter-spacing: 0; }
+.bh .hp-stat-l { font-size: 0.85rem; color: rgba(255, 255, 255, 0.45); }
+
+/* Closing CTA: the hero's arc, mirrored from below */
+.bh .hp-cta { text-align: center; min-height: 480px; display: flex; align-items: center; }
+.bh .hp-cta::before { animation: hpBreathe 6s ease-in-out infinite; }
+@keyframes hpBreathe { 0%, 100% { opacity: 0.8; } 50% { opacity: 1; } }
+.bh .hp-cta::before {
+  background:
+    radial-gradient(circle at 50% 170%,
+      transparent 60%, rgba(40, 120, 200, 0.03) 63%, rgba(40, 120, 200, 0.08) 65%, rgba(40, 120, 200, 0.16) 67%, rgba(40, 120, 200, 0.28) 69%,
+      rgba(40, 120, 200, 0.40) 71%, rgba(40, 120, 200, 0.52) 73%, rgba(40, 120, 200, 0.64) 75%, rgba(40, 120, 200, 0.74) 77%, rgba(40, 120, 200, 0.82) 79%,
+      rgba(70, 160, 235, 0.92) 85%, rgba(120, 195, 250, 0.88) 87%, rgba(205, 235, 255, 0.92) 91%, rgba(240, 250, 255, 0.98) 93%, #ffffff 95%),
+    radial-gradient(circle at 50% 65%, rgba(40, 110, 180, 0.08) 0%, transparent 50%);
+}
+.bh .hp-cta-grid {
+  position: absolute; inset: 0; pointer-events: none;
+  background-image: linear-gradient(rgba(255, 255, 255, 0.07) 1px, transparent 1px), linear-gradient(90deg, rgba(255, 255, 255, 0.07) 1px, transparent 1px);
+  background-size: 40px 40px;
+  -webkit-mask-image: radial-gradient(circle at 50% 170%, transparent 60%, black 78%); mask-image: radial-gradient(circle at 50% 170%, transparent 60%, black 78%);
+}
+.bh .hp-cta .hp-inner { width: 100%; }
+.bh .hp-actions { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin-top: 32px; }
+.bh .hp-ghost { display: inline-flex; align-items: center; gap: 8px; padding: 12px 26px; border-radius: 999px; background: rgba(255, 255, 255, 0.06); border: 1px solid var(--border); color: #fff; font-weight: 500; font-size: 0.9rem; text-decoration: none; transition: background 0.2s ease; }
+.bh .hp-ghost svg { width: 16px; height: 16px; transition: transform 0.2s ease; }
+.bh .hp-ghost:hover { background: rgba(255, 255, 255, 0.12); }
+.bh .hp-ghost:hover svg { transform: translateX(3px); }
+.bh .hp-ghost:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
+
+/* Footer matches on the home page */
+.site:has(.bh) .site-footer { background: #0b1220; border-top-color: rgba(255, 255, 255, 0.08); color: #9aa6bd; margin-top: 0; }
+.site:has(.bh) .site-footer a { color: #dbe3f0; }
+
+@media (max-width: 1023px) {
+  .bh .hp-cols { grid-template-columns: 1fr; }
+  .bh .hp-mods, .bh .hp-stats { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 720px) {
+  .bh .hp-flow ol { grid-template-columns: repeat(2, 1fr); row-gap: 32px; }
+  .bh .hp-flow ol::before, .bh .hp-flow ol::after { display: none; }
+}
+@media (max-width: 480px) {
+  .bh .hp-card { border-radius: 16px; }
+  .bh .hp-mods, .bh .hp-stats { grid-template-columns: 1fr; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .bh .hp-flow ol::after, .bh .hp-step-node, .bh .hp-float .hp-node, .bh .hp-h2 strong.hp-sweep, .bh .hp-cta::before { animation: none; }
+  .bh .hp-mod, .bh .hp-prob, .bh .hp-node { transition: none; }
+  .bh .hp-mod:hover, .bh .hp-prob:hover { transform: none; }
+}

@@ -8,6 +8,7 @@ export default async function SignUp({ searchParams }: { searchParams: Promise<R
   const sp = await searchParams;
   return (
     <main id="main" className="auth">
+      <p style={{ textAlign: "center" }}><Link href="/">DPO Copilot home</Link></p>
       <h1>Create a firm account</h1>
       <p className="meta" style={{ textAlign: "center" }}>You will be the firm&apos;s first Firm Admin.</p>
       <Flash sp={sp} />

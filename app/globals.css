@@ -221,3 +221,39 @@ details.group > div { padding: 0 16px 16px; }
   .shell, .client-layout, .with-rail { display: block; }
   body { background: #fff; }
 }
+
+/* ---------- Public site ---------- */
+.site { background: var(--paper); }
+.site-inner { max-width: 1120px; margin: 0 auto; padding: 0 24px; }
+.hero { padding-top: 72px; padding-bottom: 64px; }
+.hero h1 { font-size: 40px; line-height: 48px; max-width: 18ch; margin-bottom: 16px; }
+.lead { font-size: 18px; line-height: 28px; color: var(--ink-700); max-width: 64ch; margin-bottom: 24px; }
+.site section > h2, .site-band h2 { font-size: 26px; line-height: 34px; }
+.site-band { background: var(--surface); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); padding: 48px 0; margin: 48px 0; }
+.site-cols { display: grid; grid-template-columns: repeat(3, 1fr); gap: 32px; }
+.site-cols.two { grid-template-columns: 1fr 1fr; align-items: center; }
+.site-cols h3 { margin-top: 0; }
+.site-modules { display: grid; grid-template-columns: 1fr 1fr; gap: 0 32px; margin: 0; }
+.site-modules > div { border-top: 1px solid var(--line); padding: 16px 0; }
+.site-modules dt { font-weight: 700; margin-bottom: 4px; }
+.site-modules dd { margin: 0; color: var(--ink-700); }
+.site-tiers { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin: 24px 0 40px; }
+.site-tiers .panel + .panel { margin-top: 0; }
+.site-tiers ul { padding-left: 20px; }
+.tier-main { border: 2px solid var(--stamp-700); }
+.site-footer { border-top: 1px solid var(--line); background: var(--surface); padding: 24px 0; margin-top: 64px; color: var(--ink-500); font-size: 14px; }
+.site-footer a { color: var(--ink-700); }
+.site-footer nav { gap: 16px; }
+@media (max-width: 1023px) {
+  .site-cols, .site-cols.two, .site-tiers { grid-template-columns: 1fr; }
+}
+@media (max-width: 639px) {
+  .site-inner { padding: 0 16px; }
+  .hero { padding-top: 40px; }
+  .hero h1 { font-size: 30px; line-height: 38px; }
+  .site-modules { grid-template-columns: 1fr; }
+  }
+
+/* Shared helpers: screen-reader-only text, three.js stamp scene container */
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.pr-scene { height: 300px; position: relative; }

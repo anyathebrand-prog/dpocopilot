@@ -1,0 +1,59 @@
+/* Dark-site header (logo circle, white nav pill, Sign in pill, mobile sheet menu) and shared dark tokens. */
+@font-face { font-family: "Geist Pixel Circle"; src: url("/fonts/GeistPixel-Circle.woff2") format("woff2"); font-weight: 400; font-display: swap; }
+
+.hm, .dh-bar, .bh {
+  --vh-bg: #000000; --vh-text: #ffffff; --vh-muted: #8e8e8e; --vh-nav-text: #2e2e2e; --vh-pill-dark: #28282a; --vh-sign-in-text: #c8c8c8;
+  --vh-nav-shadow: 0 4px 14px rgba(0, 0, 0, 0.16);
+  --vh-sans: "Inter", "Segoe UI", system-ui, sans-serif; --vh-display: "BubbledotICG-FinePos", "Geist Pixel Circle", monospace;
+}
+
+.vh-header { position: relative; z-index: 40; display: flex; align-items: center; justify-content: center; gap: clamp(18px, 2.8vw, 28px); width: 100%; max-width: 720px; flex-shrink: 0; font-family: var(--vh-sans); animation: vhSlideDown 0.7s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.vh-header a:focus-visible, .vh-header button:focus-visible, .vh-menu a:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
+.vh-logo { flex: none; width: clamp(40px, 4.4vw, 46px); height: clamp(40px, 4.4vw, 46px); border-radius: 50%; background: #fff; box-shadow: var(--vh-nav-shadow); display: grid; place-items: center; transition: transform 0.25s ease; }
+.vh-logo svg, .vh-logo img { width: 72%; height: 72%; object-fit: contain; }
+.vh-logo:hover { transform: scale(1.04); }
+.vh-nav { flex: 1; max-width: 430px; height: clamp(44px, 5.2vw, 48px); padding: 4px 8px; background: #fff; border-radius: 999px; box-shadow: var(--vh-nav-shadow); display: flex; align-items: center; justify-content: space-around; }
+.vh-nav a { position: relative; padding: 8px 10px; font-weight: 500; font-size: clamp(13px, 1.4vw, 15px); letter-spacing: -0.01em; color: var(--vh-nav-text); opacity: 0.5; text-decoration: none; transition: opacity 0.2s ease; }
+.vh-nav a:hover { opacity: 0.75; }
+.vh-nav a[aria-current="page"] { opacity: 1; }
+.vh-nav a[aria-current="page"]::after, .vh-menu a[aria-current="page"]::after {
+  content: ""; position: absolute; left: 50%; bottom: 5px; width: 3px; height: 3px; margin-left: -1.5px; border-radius: 50%;
+  background: #000; box-shadow: -5px 0 0 #000, 5px 0 0 #000;
+}
+.vh-signin { flex: none; height: clamp(44px, 5.2vw, 48px); padding: 0 22px; display: inline-flex; align-items: center; border-radius: 999px; background: var(--vh-pill-dark); color: var(--vh-sign-in-text); box-shadow: var(--vh-nav-shadow); font-weight: 500; font-size: clamp(13px, 1.4vw, 15px); text-decoration: none; transition: background 0.2s ease, color 0.2s ease, transform 0.2s ease; }
+.vh-signin:hover { background: #323234; color: #fff; transform: translateY(-1px); }
+.vh-burger { display: none; }
+
+@keyframes vhSlideDown { from { opacity: 0; transform: translateY(-18px); } to { opacity: 1; transform: none; } }
+@keyframes vhOverlayIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes vhMenuIn { from { opacity: 0; transform: translate(-50%, -10px) scale(0.97); } to { opacity: 1; transform: translate(-50%, 0) scale(1); } }
+@keyframes vhLinkIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+
+/* Mobile menu */
+.vh-overlay { position: fixed; inset: 0; z-index: 30; background: rgba(0, 0, 0, 0.62); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); animation: vhOverlayIn 0.28s ease both; }
+.vh-menu { position: fixed; z-index: 35; top: calc(clamp(16px, 2.4vh, 28px) + 60px); left: 50%; width: min(92vw, 420px); transform: translateX(-50%); background: #fff; border-radius: 28px; padding: 22px 18px 20px; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45); display: flex; flex-direction: column; font-family: var(--vh-sans); animation: vhMenuIn 0.38s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.vh-menu[hidden], .vh-overlay[hidden] { display: none; }
+.vh-menu a { position: relative; display: block; padding: 14px 8px 18px; text-align: center; font-weight: 500; font-size: 18px; letter-spacing: -0.01em; color: var(--vh-nav-text); text-decoration: none; animation: vhLinkIn 0.4s cubic-bezier(0.22, 1, 0.36, 1) both; animation-delay: calc(0.08s + var(--i, 0) * 0.05s); }
+.vh-menu a[aria-current="page"]::after { bottom: 8px; }
+.vh-menu .vh-menu-signin { margin-top: 10px; padding: 14px; border-radius: 999px; background: var(--vh-pill-dark); color: var(--vh-sign-in-text); }
+body.menu-open { overflow: hidden; }
+
+@media (max-width: 720px) {
+  .vh-nav, .vh-signin { display: none; }
+  .vh-header { justify-content: space-between; max-width: none; }
+  .vh-logo { width: 48px; height: 48px; }
+  .vh-burger { display: inline-flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px; width: 48px; height: 48px; border-radius: 50%; border: 0; background: var(--vh-pill-dark); cursor: pointer; box-shadow: var(--vh-nav-shadow); transition: background 0.25s ease; }
+  .vh-burger span { display: block; width: 18px; height: 1.5px; background: #fff; transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.2s ease, background 0.25s ease; }
+  .vh-burger.is-open { background: #fff; }
+  .vh-burger.is-open span { background: #000; }
+  .vh-burger.is-open span:nth-child(1) { transform: translateY(6.5px) rotate(45deg); }
+  .vh-burger.is-open span:nth-child(2) { opacity: 0; }
+  .vh-burger.is-open span:nth-child(3) { transform: translateY(-6.5px) rotate(-45deg); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .vh-header, .vh-menu, .vh-menu a, .vh-overlay { animation: none !important; opacity: 1; }
+  .vh-menu { transform: translateX(-50%); }
+}
+
+/* Header band on light pages: same header, on black */
+.dh-bar { background: #000; padding: clamp(16px, 2.4vh, 28px) clamp(14px, 3vw, 32px); display: flex; justify-content: center; font-family: var(--vh-sans); -webkit-font-smoothing: antialiased; }
