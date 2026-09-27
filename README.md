@@ -38,7 +38,7 @@ All V1 must-haves (F1–F18): firm workspace and roles, multi-client dashboard w
 
 ## Fonts
 
-- **Rocpar** (headings on the public pages) is licensed "Free for Personal Use" only, so it is not in this repo. Copy `Rocpar.otf` into `public/fonts/` locally; without it headings fall back to Inter. Buy a commercial licence (exfont.com/rocpar.font) before launch.
+- **Rocpar** (headings on the public pages, `public/fonts/Rocpar.otf`) is licensed "Free for Personal Use" only. Buy a commercial licence (exfont.com/rocpar.font) before launch.
 - **Geist Pixel Circle** (`public/fonts/`) is open-licensed (SIL OFL).
 - Inter and BubbledotICG-FinePos load from Google Fonts and OnlineWebFonts. Self-host them before launch to meet the "no assets from outside Nigeria" rule, and check Bubbledot's licence.
 

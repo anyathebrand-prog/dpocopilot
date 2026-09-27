@@ -6,5 +6,3 @@ next-env.d.ts
 .env*
 dev.log
 
-# Rocpar is "Free for Personal Use" only: keep it out of the public repo (see README)
-public/fonts/Rocpar.otf
