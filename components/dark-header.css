@@ -9,8 +9,9 @@
 
 .vh-header { position: relative; z-index: 40; display: flex; align-items: center; justify-content: center; gap: clamp(18px, 2.8vw, 28px); width: 100%; max-width: 720px; flex-shrink: 0; font-family: var(--vh-sans); animation: vhSlideDown 0.7s cubic-bezier(0.22, 1, 0.36, 1) both; }
 .vh-header a:focus-visible, .vh-header button:focus-visible, .vh-menu a:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
-.vh-logo { flex: none; width: clamp(40px, 4.4vw, 46px); height: clamp(40px, 4.4vw, 46px); border-radius: 50%; background: #fff; box-shadow: var(--vh-nav-shadow); display: grid; place-items: center; transition: transform 0.25s ease; }
-.vh-logo svg, .vh-logo img { width: 72%; height: 72%; object-fit: contain; }
+/* Logo: the teal DPO Copilot wordmark on a dark navy pill (teal on white would be too faint) */
+.vh-logo { flex: none; height: clamp(44px, 5.2vw, 48px); padding: 0 16px; border-radius: 999px; background: #0b1220; box-shadow: var(--vh-nav-shadow); display: flex; align-items: center; transition: transform 0.25s ease; }
+.vh-logo img { display: block; height: 52%; width: auto; }
 .vh-logo:hover { transform: scale(1.04); }
 .vh-nav { flex: 1; max-width: 430px; height: clamp(44px, 5.2vw, 48px); padding: 4px 8px; background: #fff; border-radius: 999px; box-shadow: var(--vh-nav-shadow); display: flex; align-items: center; justify-content: space-around; }
 .vh-nav a { position: relative; padding: 8px 10px; font-weight: 500; font-size: clamp(13px, 1.4vw, 15px); letter-spacing: -0.01em; color: var(--vh-nav-text); opacity: 0.5; text-decoration: none; transition: opacity 0.2s ease; }
@@ -41,7 +42,7 @@ body.menu-open { overflow: hidden; }
 @media (max-width: 720px) {
   .vh-nav, .vh-signin { display: none; }
   .vh-header { justify-content: space-between; max-width: none; }
-  .vh-logo { width: 48px; height: 48px; }
+  .vh-logo { height: 48px; }
   .vh-burger { display: inline-flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px; width: 48px; height: 48px; border-radius: 50%; border: 0; background: var(--vh-pill-dark); cursor: pointer; box-shadow: var(--vh-nav-shadow); transition: background 0.25s ease; }
   .vh-burger span { display: block; width: 18px; height: 1.5px; background: #fff; transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.2s ease, background 0.25s ease; }
   .vh-burger.is-open { background: #fff; }

@@ -3,7 +3,7 @@ import { usePathname } from "next/navigation";
 import { DarkHeader } from "./dark-header";
 
 // Pages that draw the dark header inside their own black layout.
-const OWN_HEADER = ["/", "/pricing", "/pilot", "/sign-in"];
+const OWN_HEADER = ["/", "/pricing", "/pilot", "/sign-in", "/sign-up"];
 // Signed-in areas keep their own sidebar navigation.
 const APP_AREAS = ["/app", "/portal", "/secretary", "/account"];
 

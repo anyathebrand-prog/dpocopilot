@@ -1,0 +1,36 @@
+/* Home hero: full-screen video, minimal black and white, headline block at the bottom over a white fade. Mobile first, 768px breakpoint. */
+.bh .vx {
+  position: relative; width: calc(100% + 28px); margin: -14px -14px 0; min-height: 100vh; min-height: 100dvh; background: #ffffff; color: #000;
+  display: flex; flex-direction: column; justify-content: space-between; overflow: hidden; font-family: "Inter", sans-serif;
+}
+.bh .vx-nav { position: relative; z-index: 50; display: flex; justify-content: center; padding: 16px; pointer-events: none; }
+.bh .vx-nav > * { pointer-events: auto; }
+.bh .vx-video { position: absolute; z-index: 0; top: 10%; left: 10%; width: 80%; height: 80%; }
+.bh .vx-video video { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+.bh .vx-foot {
+  position: relative; z-index: 30; display: flex; flex-direction: column; gap: 20px; padding: 64px 16px 24px;
+  background: linear-gradient(to top, #ffffff 0%, rgba(255, 255, 255, 0.8) 50%, transparent 100%);
+}
+.bh .vx-sub { display: flex; align-items: center; gap: 10px; margin: 0 0 14px; font-size: 13px; color: rgba(0, 0, 0, 0.55); }
+.bh .vx-dot { width: 8px; height: 8px; border-radius: 50%; background: #000; flex: none; }
+/* Rocpar (wide, all caps) is sized smaller than the spec's Inter so "DRAFTED AND APPROVED." stays on one line */
+.bh .vx-h1 { margin: 0; font-family: "Rocpar", "Inter", sans-serif; font-weight: 400; font-size: clamp(1.2rem, 5.8vw, 2.6rem); line-height: 1.15; letter-spacing: 0.02em; color: #0000ee; }
+.bh .vx-btns { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 24px; }
+.bh .vx-btn { display: inline-flex; align-items: center; height: 42px; padding: 0 22px; border-radius: 999px; font-size: 13px; font-weight: 500; text-decoration: none; transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease; }
+.bh .vx-dark { background: #000; color: #fff; border: 1px solid #000; }
+.bh .vx-dark:hover { background: #222; }
+.bh .vx-line { background: transparent; color: #000; border: 1px solid rgba(0, 0, 0, 0.35); }
+.bh .vx-line:hover { border-color: #000; }
+.bh .vx-btn:focus-visible { outline: 2px solid #000; outline-offset: 3px; }
+.bh .vx-tags { display: flex; flex-wrap: wrap; gap: 8px; list-style: none; margin: 0; padding: 0; }
+.bh .vx-tags li { padding: 6px 14px; border-radius: 999px; background: #fff; border: 1px solid rgba(0, 0, 0, 0.12); font-size: 11px; color: #000; }
+
+@media (min-width: 768px) {
+  .bh .vx-nav { padding: 24px 32px; }
+  .bh .vx-video { top: 0; left: 0; width: 100%; height: 100%; }
+  .bh .vx-foot { flex-direction: row; justify-content: space-between; align-items: flex-end; padding: 96px 32px 32px; }
+  .bh .vx-h1 { font-size: clamp(1.8rem, 4vw, 3.6rem); }
+  .bh .vx-tags { justify-content: flex-end; }
+}
+@media (prefers-reduced-motion: reduce) { .bh .vx-btn { transition: none; } }

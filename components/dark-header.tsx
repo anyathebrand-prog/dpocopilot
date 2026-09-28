@@ -6,17 +6,6 @@ import "./dark-header.css";
 
 const NAV: [string, string][] = [["/", "Home"], ["/#product", "Product"], ["/pricing", "Pricing"], ["/pilot", "Contact"]];
 
-/** Circular brand mark: a stamp seal (the product's "ink" motif). Swap for public/logo.webp when a logo exists. */
-function Mark() {
-  return (
-    <svg viewBox="0 0 48 48" aria-hidden="true">
-      <circle cx="24" cy="24" r="21" fill="none" stroke="#2a3f9d" strokeWidth="3" />
-      <circle cx="24" cy="24" r="15" fill="none" stroke="#2a3f9d" strokeWidth="1.5" strokeDasharray="2 3" />
-      <path d="M16.5 24.5l5 5 10-11" fill="none" stroke="#2a3f9d" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
-
 /** Dark-site header shared by the home and pricing pages: logo, white nav pill, Sign in, and the mobile sheet menu. */
 export function DarkHeader() {
   const [open, setOpen] = useState(false);
@@ -42,7 +31,10 @@ export function DarkHeader() {
       <link rel="stylesheet" href="https://db.onlinewebfonts.com/c/8cb707a9b8a73f8a7403336b861c3074?family=BubbledotICG-FinePos" precedence="default" />
 
       <header className="vh-header">
-        <Link href="/" className="vh-logo" aria-label="DPO Copilot home"><Mark /></Link>
+        <Link href="/" className="vh-logo" aria-label="DPO Copilot home">
+          {/* eslint-disable-next-line @next/next/no-img-element -- small static PNG, no optimisation needed */}
+          <img src="/logo.png" alt="" width={601} height={162} />
+        </Link>
         <nav className="vh-nav" aria-label="Site">
           {NAV.map(([href, label]) => <Link key={label} href={href} aria-current={current(href)}>{label}</Link>)}
         </nav>

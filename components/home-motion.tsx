@@ -4,31 +4,12 @@ import { motion, MotionConfig, type Variants } from "framer-motion";
 
 const ease = [0.22, 1, 0.36, 1] as const;
 
-/** Heading whose words rise in one by one when scrolled into view. Screen readers get the plain text. */
-export function AnimatedHeading({ text, className, as = "h2" }: { text: string; className?: string; as?: "h1" | "h2" | "h3" }) {
-  const Tag = motion[as] as ElementType;
-  const words = text.split(" ");
-  const parent: Variants = { hidden: {}, show: { transition: { staggerChildren: 0.07 } } };
-  const child: Variants = { hidden: { y: "0.7em", opacity: 0 }, show: { y: 0, opacity: 1, transition: { duration: 0.7, ease } } };
-  return (
-    <MotionConfig reducedMotion="user">
-      <Tag className={className} aria-label={text} variants={parent} initial="hidden" whileInView="show" viewport={{ once: true, amount: 0.6 }}>
-        {words.map((w, i) => (
-          <span key={i} aria-hidden="true" className="hm-word">
-            <motion.span variants={child} style={{ display: "inline-block" }}>{w}</motion.span>{i < words.length - 1 ? " " : ""}
-          </span>
-        ))}
-      </Tag>
-    </MotionConfig>
-  );
-}
-
-/** Cursor spotlight on .hm-tile and [data-spot] elements (sets --mx / --my), via one delegated listener. */
+/** Cursor spotlight on [data-spot] elements (sets --mx / --my), via one delegated listener. */
 export function HomeFX() {
   useEffect(() => {
     if (matchMedia("(prefers-reduced-motion: reduce)").matches || !matchMedia("(hover: hover)").matches) return;
     const onMove = (e: PointerEvent) => {
-      const tile = (e.target as HTMLElement).closest?.(".hm-tile, [data-spot]") as HTMLElement | null;
+      const tile = (e.target as HTMLElement).closest?.("[data-spot]") as HTMLElement | null;
       if (!tile) return;
       const r = tile.getBoundingClientRect();
       tile.style.setProperty("--mx", `${e.clientX - r.left}px`);
@@ -41,14 +22,15 @@ export function HomeFX() {
 }
 
 /** Two-line heading: the first line rises in, then the gradient second line follows with a light sweep. */
-export function SplitHeading({ line1, line2, className }: { line1: string; line2: string; className?: string }) {
+export function SplitHeading({ line1, line2, className, as = "h2" }: { line1: string; line2: string; className?: string; as?: "h1" | "h2" }) {
+  const Tag = motion[as] as ElementType;
   const line: Variants = { hidden: { y: "0.6em", opacity: 0, filter: "blur(6px)" }, show: (i: number) => ({ y: 0, opacity: 1, filter: "blur(0px)", transition: { duration: 0.8, ease, delay: i * 0.18 } }) };
   return (
     <MotionConfig reducedMotion="user">
-      <motion.h2 className={className} initial="hidden" whileInView="show" viewport={{ once: true, amount: 0.6 }}>
+      <Tag className={className} initial="hidden" whileInView="show" viewport={{ once: true, amount: 0.6 }}>
         <motion.span variants={line} custom={0} style={{ display: "block" }}>{line1}</motion.span>
         <motion.strong variants={line} custom={1} className="hp-sweep">{line2}</motion.strong>
-      </motion.h2>
+      </Tag>
     </MotionConfig>
   );
 }
