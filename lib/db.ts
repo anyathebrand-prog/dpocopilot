@@ -17,6 +17,11 @@ async function open(): Promise<Db> {
   const db = await PGlite.create(dir, { parsers: { [types.DATE]: (v: string) => v } });
   await db.exec(readFileSync(path.join(process.cwd(), "lib", "schema.sql"), "utf8"));
   await seed(db);
+  // PGlite's files can be left unreadable if the process dies mid-write, so close it cleanly on Ctrl+C / stop.
+  // ponytail: a hard kill (closing the terminal, taskkill /F) still can't be caught; real Postgres in production has no such risk.
+  const close = () => { db.close().finally(() => process.exit(0)); };
+  process.once("SIGINT", close);
+  process.once("SIGTERM", close);
   return db;
 }
 
