@@ -11,7 +11,7 @@ const ease = [0.16, 1, 0.3, 1] as const;
 const TAGS = ["NDPA 2023", "DPIA", "CAR readiness"];
 
 /** Full-screen hero: background video, the site header on top, and the headline block pinned to the bottom over a white fade. */
-export function VideoHero() {
+export function VideoHero({ dashboard }: { dashboard?: string }) {
   const video = useRef<HTMLVideoElement>(null);
   useEffect(() => {
     if (matchMedia("(prefers-reduced-motion: reduce)").matches) video.current?.pause();
@@ -21,7 +21,7 @@ export function VideoHero() {
     <MotionConfig reducedMotion="user">
       <section className="vx" aria-labelledby="vx-title">
         <motion.div className="vx-nav" initial={{ y: -16, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ duration: 0.8, ease }}>
-          <DarkHeader />
+          <DarkHeader dashboard={dashboard} />
         </motion.div>
 
         <motion.div className="vx-video" aria-hidden="true" initial={{ opacity: 0, scale: 1.05 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 1.8, ease }}>

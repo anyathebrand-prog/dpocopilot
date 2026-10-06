@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { redirect } from "next/navigation";
 import {
   ClipboardList, ListTree, FileSearch, FileText, ShieldAlert, UserSearch, FolderCheck, CalendarClock,
   LayoutDashboard, Users, Smartphone, Copy, AlarmClock, MessageSquareWarning, Pencil, UserCheck, Stamp, Signature, ArrowRight,
@@ -67,11 +66,10 @@ function Head({ kicker, line1, line2, sub }: { kicker: string; line1: string; li
 
 export default async function Home() {
   const u = await getUser();
-  if (u) redirect(home(u));
   return (
     <div className="bh bh-home">
       <HomeFX />
-      <VideoHero />
+      <VideoHero dashboard={u ? home(u) : undefined} />
 
       <section className="hp-card hp-bare">
         <div className="hp-inner">

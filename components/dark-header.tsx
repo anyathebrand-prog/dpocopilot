@@ -7,7 +7,8 @@ import "./dark-header.css";
 const NAV: [string, string][] = [["/", "Home"], ["/#product", "Product"], ["/pricing", "Pricing"], ["/pilot", "Contact"]];
 
 /** Dark-site header shared by the home and pricing pages: logo, white nav pill, Sign in, and the mobile sheet menu. */
-export function DarkHeader() {
+/** `dashboard`: signed-in user's home; swaps the Sign in button for a Dashboard link. */
+export function DarkHeader({ dashboard }: { dashboard?: string }) {
   const [open, setOpen] = useState(false);
   const path = usePathname();
   const current = (href: string) => (href === path ? "page" : undefined);
@@ -38,7 +39,7 @@ export function DarkHeader() {
         <nav className="vh-nav" aria-label="Site">
           {NAV.map(([href, label]) => <Link key={label} href={href} aria-current={current(href)}>{label}</Link>)}
         </nav>
-        <Link href="/sign-in" className="vh-signin">Sign in</Link>
+        <Link href={dashboard ?? "/sign-in"} className="vh-signin">{dashboard ? "Dashboard" : "Sign in"}</Link>
         <button type="button" className={`vh-burger ${open ? "is-open" : ""}`} aria-expanded={open} aria-controls="vh-menu" aria-label={open ? "Close menu" : "Open menu"} onClick={() => setOpen(!open)}>
           <span /><span /><span />
         </button>
@@ -49,7 +50,7 @@ export function DarkHeader() {
         {NAV.map(([href, label], i) => (
           <Link key={label} href={href} style={{ "--i": i } as CSSProperties} aria-current={current(href)} onClick={() => setOpen(false)}>{label}</Link>
         ))}
-        <Link href="/sign-in" className="vh-menu-signin" style={{ "--i": NAV.length } as CSSProperties} onClick={() => setOpen(false)}>Sign in</Link>
+        <Link href={dashboard ?? "/sign-in"} className="vh-menu-signin" style={{ "--i": NAV.length } as CSSProperties} onClick={() => setOpen(false)}>{dashboard ? "Dashboard" : "Sign in"}</Link>
       </nav>
     </>
   );

@@ -4,7 +4,7 @@ import { requireContact } from "@/lib/auth";
 import { q, one } from "@/lib/db";
 import { reference } from "@/lib/breach";
 import { fmtDate, fmtWAT } from "@/lib/rules";
-import { Flash, Deadline, Chip, Banner } from "@/components/ui";
+import { Flash, Deadline, Chip, Banner, Bar } from "@/components/ui";
 
 export default async function PortalHome({ searchParams }: { searchParams: Promise<Record<string, string>> }) {
   const u = await requireContact();
@@ -26,7 +26,10 @@ export default async function PortalHome({ searchParams }: { searchParams: Promi
   return (
     <>
       <Flash sp={sp} />
-      <h1 style={{ fontSize: 24 }}>Your compliance file is <span className="num">{score!.pct}%</span> ready</h1>
+      <section className="cx-ready">
+        <h1>Your compliance file is <span className="cx-ready-pct num">{score!.pct}%</span> ready</h1>
+        <Bar pct={score!.pct} label={`Compliance file ${score!.pct}% ready`} />
+      </section>
       <p className="meta">Managed by {u.firm_name}</p>
       <h2>To do</h2>
       {todo === 0 && <p>You&apos;re all caught up.</p>}
@@ -48,7 +51,7 @@ export default async function PortalHome({ searchParams }: { searchParams: Promi
         <Link className="btn secondary" style={{ width: "100%" }} href="/portal/log-request">Log a data subject request</Link>
       </div>
       <h2>More</h2>
-      <p><Link href="/portal/documents">Documents</Link> · <Link href="/portal/evidence">Evidence requests</Link> · <Link href="/portal/questionnaire">Onboarding answers</Link></p>
+      <div className="cx-links"><Link href="/portal/documents">Documents</Link><Link href="/portal/evidence">Evidence requests</Link><Link href="/portal/questionnaire">Onboarding answers</Link></div>
       {reports.length > 0 && (
         <>
           <h2>What you&apos;ve reported</h2>
