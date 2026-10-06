@@ -2,7 +2,7 @@
 import { redirect } from "next/navigation";
 import { q, one, tx } from "./db";
 import { hashPassword, verifyPassword, sha256, verifyTotp } from "./crypto";
-import { createSession, destroySession, getUser, pendingMfaUser, markMfaPassed, audit, clientIp } from "./auth";
+import { createSession, destroySession, getUser, pendingMfaUser, markMfaPassed, audit, clientIp, home } from "./auth";
 import { str, flash } from "./form";
 
 // ponytail: in-memory login throttle (one app instance). Move to the rate_limits table (schema §2) when running 2+ instances.
@@ -15,6 +15,12 @@ function throttled(key: string) {
 const fail = (key: string) => { const a = attempts.get(key) ?? { n: 0, since: Date.now() }; a.n++; attempts.set(key, a); };
 
 const validPassword = (p: string) => p.length >= 10;
+
+/** After sign-in: straight to the user's own home (the public homepage no longer redirects signed-in users). */
+async function toHome(): Promise<never> {
+  const u = await getUser();
+  redirect(u ? home(u) : "/sign-in");
+}
 
 export async function signIn(fd: FormData) {
   const email = str(fd, "email").toLowerCase(), password = String(fd.get("password") ?? "");
@@ -33,7 +39,8 @@ export async function signIn(fd: FormData) {
   attempts.delete(key);
   await createSession(u.id, !u.mfa_enabled, u.platform_role === "secretary" ? 2 : 12);
   await audit({ id: u.id, firm_id: m?.firm_id ?? c?.firm_id ?? "", role: m?.role, kind: m ? "firm" : c ? "contact" : "secretary" }, "login", "user", u.id, { firm_id: m?.firm_id ?? c?.firm_id ?? null });
-  redirect(u.mfa_enabled ? "/sign-in/verify" : "/");
+  if (u.mfa_enabled) redirect("/sign-in/verify");
+  await toHome();
 }
 
 export async function verifyMfa(fd: FormData) {
@@ -42,7 +49,7 @@ export async function verifyMfa(fd: FormData) {
   if (throttled(`mfa|${p.id}`)) { await destroySession(); redirect(flash("/sign-in", "Too many wrong codes. Sign in again later.", "error")); }
   if (!verifyTotp(p.mfa_secret, str(fd, "code"))) { fail(`mfa|${p.id}`); redirect(flash("/sign-in/verify", "That code didn't work. Check your authenticator app and try again.", "error")); }
   await markMfaPassed();
-  redirect("/");
+  await toHome();
 }
 
 export async function setupMfa(fd: FormData) {
@@ -90,7 +97,7 @@ export async function acceptInvite(fd: FormData) {
     return id;
   });
   await createSession(userId, true);
-  redirect("/");
+  await toHome();
 }
 
 export async function signOut() {
