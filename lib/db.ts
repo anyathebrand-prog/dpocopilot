@@ -1,6 +1,6 @@
 import { readFileSync, mkdirSync } from "node:fs";
 import path from "node:path";
-import { seed } from "./seed";
+import { seed, ensureSchedule2 } from "./seed";
 
 // Real Postgres 16 when DATABASE_URL is set (each DPCO install, TRD §5). Without it, embedded PGlite in ./data
 // so local dev runs with no install. The SQL is plain Postgres either way.
@@ -14,6 +14,7 @@ async function open(): Promise<Db> {
   const db = process.env.DATABASE_URL ? await openPostgres(process.env.DATABASE_URL) : await openPGlite();
   await db.exec(readFileSync(path.join(process.cwd(), "lib", "schema.sql"), "utf8"));
   await seed(db);
+  await ensureSchedule2(db);
   return db;
 }
 

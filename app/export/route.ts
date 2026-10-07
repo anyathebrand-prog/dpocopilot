@@ -94,9 +94,13 @@ export async function GET(req: Request) {
     const year = ` · ${auditYear} audit`;
     await audit(u, "export", "car_checklist", clientId, { client_id: clientId, details: { format, audit_year: auditYear } });
     return page("CAR readiness checklist", `<h1>CAR readiness checklist${year}</h1>${stamp}<p>Overall readiness: <b>${r.overall.pct}%</b> (${r.overall.complete} of ${r.overall.applicable} applicable items complete)</p>` +
-      (risk ? `<p>Risk score: <b>${risk.score} / 100 (${riskLabel(risk.rating)})</b>. Item risk follows status: Missing high, In progress medium, Complete low.</p>` : "") +
-      Object.entries(CAR_CATEGORIES).map(([k, l]) => { const cat = items.filter((i) => i.category_key === k); const cr = carRisk(cat as { category_key: string; status: string }[]);
-        return `<h2>${l} (${r.byCategory[k].pct}%${cr ? `, ${riskLabel(cr.rating)} risk` : ""})</h2><table><tr><th>Item</th><th>Status</th><th>Risk</th><th>Recommendation</th></tr>${cat.map((i) => `<tr><td>${esc(i.item_text)}</td><td>${label[i.status]}${i.na_reason ? `: ${esc(i.na_reason)}` : ""}</td><td>${riskLabel(carItemRisk(i.status))}</td><td>${esc(i.recommendation ?? "")}</td></tr>`).join("")}</table>`; }).join(""),
+      (risk ? `<p>Risk score: <b>${risk.score} / 100 (${riskLabel(risk.rating)})</b>. Item risk follows status and question priority: Missing high, In progress medium, Complete low; a Medium-priority question drops one level.</p>` : "") +
+      Object.entries(CAR_CATEGORIES).filter(([k]) => items.some((i) => i.category_key === k)).map(([k, l]) => {
+        const cat = items.filter((i) => i.category_key === k); const cr = carRisk(cat as { category_key: string; status: string; priority: string | null }[]);
+        const row = (i: any, n: number) => (i.section && i.section !== cat[n - 1]?.section ? `<tr><th colspan="7">${esc(i.section)}</th></tr>` : "") +
+          `<tr><td>${esc(i.item_text)}</td><td>${riskLabel(i.priority)}</td><td>${esc(i.answer ?? "")}</td><td>${esc(i.evidence_notes ?? "")}</td><td>${label[i.status]}${i.na_reason ? `: ${esc(i.na_reason)}` : ""}</td><td>${riskLabel(carItemRisk(i.status, i.priority))}</td><td>${esc(i.recommendation ?? "")}</td></tr>`;
+        return `<h2>${l} (${r.byCategory[k].pct}%${cr ? `, ${riskLabel(cr.rating)} risk` : ""})</h2><table><tr><th>Audit parameter</th><th>Priority</th><th>Answer / facts</th><th>Evidence / documents</th><th>Status</th><th>Risk</th><th>Recommendation</th></tr>${cat.map(row).join("")}</table>`;
+      }).join(""),
       format, slug(`${client!.name}-car-readiness-${auditYear}`));
   }
   return denied();

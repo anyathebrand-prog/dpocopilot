@@ -136,3 +136,12 @@ test("CAR risk: item risk follows status; score over applicable items, N/A ignor
   assert.deepEqual(carRisk(it("in_progress", "complete")), { score: 25, rating: "medium" });
   assert.equal(carRisk(it("not_applicable")), null);
 });
+
+test("CAR risk with Schedule 2 priority: Medium priority drops a level; High-priority items weigh double", () => {
+  assert.equal(carItemRisk("missing", "high"), "high"); assert.equal(carItemRisk("missing", "medium"), "medium");
+  assert.equal(carItemRisk("in_progress", "high"), "medium"); assert.equal(carItemRisk("in_progress", "medium"), "low");
+  assert.equal(carItemRisk("complete", "medium"), "low"); assert.equal(carItemRisk("missing", null), "high");
+  const it = (...x: [string, string][]) => x.map(([status, priority]) => ({ category_key: "governance", status, priority }));
+  assert.deepEqual(carRisk(it(["missing", "high"], ["complete", "medium"])), { score: 67, rating: "high" });
+  assert.deepEqual(carRisk(it(["complete", "high"], ["missing", "medium"])), { score: 33, rating: "medium" });
+});

@@ -83,15 +83,17 @@ export function riskLevel(score: number) {
 
 // ---------- CAR readiness (FR8.4–8.5) ----------
 
+/** The six parts of the NDP Audit Questionnaire (GAID Schedule 2). Checklists started on the older template use five of them. */
 export const CAR_CATEGORIES: Record<string, string> = {
-  governance: "People and process (governance)",
-  technology: "Technology (data security controls and standards)",
-  accountability_risk: "Accountability and basic risk evaluation",
-  cross_border_transfer: "Cross-border data transfer",
-  data_processors: "Data processors",
+  governance: "Part 1: People and process (governance)",
+  principles: "Part 2: Data protection principles and lawful basis",
+  technology: "Part 3: Technology and security controls",
+  accountability_risk: "Part 4: Accountability and risk evaluation",
+  cross_border_transfer: "Part 5: Cross-border data transfer",
+  data_processors: "Part 6: Data processors (third parties)",
 };
 
-type CarItem = { category_key: string; status: string };
+type CarItem = { category_key: string; status: string; priority?: string | null };
 export type Score = { complete: number; applicable: number; pct: number };
 
 function score(items: CarItem[]): Score {
@@ -106,17 +108,29 @@ export function readiness(items: CarItem[]) {
   return { overall: score(items), byCategory };
 }
 
-/** CAR item risk follows its status: Missing = high, In progress = medium, Complete = low; Not applicable carries none. */
+/** CAR item risk from its status, lowered by the question's priority: Missing is high risk, In progress medium,
+ *  Complete low; a Medium-priority question drops one level (Low-priority two). Not applicable carries none.
+ *  Items without a priority (older template) count as High priority. */
 export type CarRisk = "high" | "medium" | "low";
-export const carItemRisk = (status: string): CarRisk | null =>
-  status === "missing" ? "high" : status === "in_progress" ? "medium" : status === "complete" ? "low" : null;
+const LEVELS: CarRisk[] = ["low", "medium", "high"];
+export function carItemRisk(status: string, priority?: string | null): CarRisk | null {
+  const base = ({ missing: 2, in_progress: 1, complete: 0 } as Record<string, number>)[status];
+  if (base === undefined) return null;
+  return LEVELS[Math.max(0, base - (priority === "medium" ? 1 : priority === "low" ? 2 : 0))];
+}
 
-/** Risk score 0–100 over applicable items (Missing 1, In progress 0.5, Complete 0), rated High ≥ 50, Medium ≥ 20, else Low.
- *  ponytail: provisional bands, like the DPIA score; tune with the first pilot DPCOs. */
+/** Risk score 0–100 over applicable items (Missing 1, In progress 0.5, Complete 0), High-priority questions counting double,
+ *  rated High ≥ 50, Medium ≥ 20, else Low. ponytail: provisional bands and weights; tune with the first pilot DPCOs. */
 export function carRisk(items: CarItem[]): { score: number; rating: CarRisk } | null {
-  const w = items.map((i) => ({ missing: 1, in_progress: 0.5, complete: 0 } as Record<string, number>)[i.status]).filter((x) => x !== undefined);
-  if (!w.length) return null;
-  const score = Math.round((100 * w.reduce((a, b) => a + b, 0)) / w.length);
+  let sum = 0, total = 0;
+  for (const i of items) {
+    const s = ({ missing: 1, in_progress: 0.5, complete: 0 } as Record<string, number>)[i.status];
+    if (s === undefined) continue;
+    const w = i.priority === "high" ? 2 : 1;
+    sum += s * w; total += w;
+  }
+  if (!total) return null;
+  const score = Math.round((100 * sum) / total);
   return { score, rating: score >= 50 ? "high" : score >= 20 ? "medium" : "low" };
 }
 

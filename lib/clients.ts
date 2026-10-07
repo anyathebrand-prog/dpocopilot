@@ -5,8 +5,8 @@ export const defaultAuditYear = () => new Date().getFullYear() - 1;
 
 /** Create a client's CAR checklist for one audit year from the published template. Safe to repeat. */
 export async function startCarYear(t: Tx, firmId: string, clientId: string, year: number) {
-  await t.query(`insert into client_car_items (firm_id, client_id, audit_year, template_item_id, category_key, item_text, position, auto_link_rule)
-    select $1, $2, $3, id, category_key, text, position, auto_link_rule from car_template_items where status = 'published' on conflict do nothing`, [firmId, clientId, year]);
+  await t.query(`insert into client_car_items (firm_id, client_id, audit_year, template_item_id, category_key, section, item_text, priority, position, auto_link_rule)
+    select $1, $2, $3, id, category_key, section, text, priority, position, auto_link_rule from car_template_items where status = 'published' on conflict do nothing`, [firmId, clientId, year]);
 }
 
 /** New client = record + questionnaire + CAR checklist copied from the published template (schema §8 op 3). */

@@ -1,36 +1,11 @@
 import type { Db } from "./db";
 import { hashPassword } from "./crypto";
+import { SCHEDULE_2 } from "./car-template";
+import type { Tx } from "./db";
 
 // Platform content seed (schema §10.1). Runs once, on an empty database.
 // The regulatory library below is a PARAPHRASED SEED for testing, clearly versioned "v0-seed".
 // The Secretary must replace it with the official gazetted text before firms rely on it.
-
-const CAR: [string, string, string | null][] = [
-  ["governance", "Data Protection Officer designated and documented", null],
-  ["governance", "Data protection policies and procedures approved and current", "approved_policies"],
-  ["governance", "Privacy notice published", "approved_policies"],
-  ["governance", "Staff data protection training records", null],
-  ["governance", "Data subject request procedure in place", null],
-  ["governance", "Breach response procedure in place", null],
-  ["governance", "RoPA current and maintained", "ropa_current"],
-  ["technology", "Encryption of personal data at rest and in transit", null],
-  ["technology", "Access controls and periodic user access reviews", null],
-  ["technology", "Backup and recovery arrangements", null],
-  ["technology", "Retention and deletion schedule applied", null],
-  ["technology", "Security incident logging and monitoring", null],
-  ["accountability_risk", "Lawful basis documented for each processing activity", "ropa_lawful_basis"],
-  ["accountability_risk", "DPIAs completed for high-risk processing", "dpias"],
-  ["accountability_risk", "Risk register with mitigation plans", "dpias"],
-  ["accountability_risk", "Evidence of periodic compliance reviews", null],
-  ["accountability_risk", "Prior audit findings closed out", null],
-  ["accountability_risk", "Major-importance status assessed and NDPC registration completed where applicable", null],
-  ["cross_border_transfer", "Inventory of personal data transferred outside Nigeria", "ropa_transfers"],
-  ["cross_border_transfer", "Legal basis or safeguard documented for each transfer", "ropa_transfers"],
-  ["cross_border_transfer", "Records of transfers maintained", null],
-  ["data_processors", "List of data processors and what they process", "ropa_recipients"],
-  ["data_processors", "Contracts with processors include data protection clauses", null],
-  ["data_processors", "Due diligence or risk assessment records for key processors", null],
-];
 
 const NDPA: [string, string, string][] = [
   ["Section 24", "Principles of processing", "Personal data must be processed fairly, lawfully and transparently; collected for specified, explicit and legitimate purposes; adequate, relevant and limited to what is necessary; kept accurate; retained no longer than necessary; and secured with appropriate technical and organisational measures. Controllers and processors owe a duty of care and must be able to demonstrate accountability."],
@@ -49,13 +24,28 @@ const NDPA: [string, string, string][] = [
   ["Section 65", "Data controller or processor of major importance", "Means a controller or processor domiciled, resident or operating in Nigeria that processes, or intends to process, personal data of more than such number of data subjects within Nigeria as the Commission may prescribe, or any other class the Commission designates as processing personal data of particular value or significance to the economy, society or security of Nigeria."],
 ];
 
+async function insertSchedule2(t: Tx) {
+  for (const [i, [cat, section, text, priority, rule]] of SCHEDULE_2.entries())
+    await t.query("insert into car_template_items (category_key, section, text, priority, position, auto_link_rule, status) values ($1,$2,$3,$4,$5,$6,'published')",
+      [cat, section, text, priority, i, rule]);
+}
+
+/** One-time switch of an existing database to the Schedule 2 template. The old items are retired, not deleted, so
+ *  checklists already started on them keep working; only new checklists use Schedule 2. Runs on start; no-op once done. */
+export async function ensureSchedule2(db: Db) {
+  if (await db.query("select 1 from car_template_items where priority is not null limit 1").then((r) => r.rows.length)) return;
+  await db.transaction(async (t) => {
+    await t.query("update car_template_items set status = 'retired', retire_pending = false where status <> 'retired'");
+    await insertSchedule2(t);
+  });
+}
+
 export async function seed(db: Db) {
   const { rows } = await db.query<{ n: number }>("select count(*)::int as n from car_template_items");
   if (rows[0].n > 0) return;
 
   await db.transaction(async (t) => {
-    for (const [i, [cat, text, rule]] of CAR.entries())
-      await t.query("insert into car_template_items (category_key, text, position, auto_link_rule, status) values ($1,$2,$3,$4,'published')", [cat, text, i, rule]);
+    await insertSchedule2(t);
 
     await t.query("insert into platform_settings (key, published_value) values ('dsar_response_days','30') on conflict do nothing");
 

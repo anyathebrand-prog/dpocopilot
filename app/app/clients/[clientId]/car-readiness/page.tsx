@@ -6,7 +6,7 @@ import { startCarYear } from "@/lib/clients";
 import { readiness, CAR_CATEGORIES, carItemRisk, carRisk } from "@/lib/rules";
 import { str, opt, flash } from "@/lib/form";
 import { Flash, Hidden, Chip, Bar, Banner, Empty } from "@/components/ui";
-import { Submit } from "@/components/client";
+import { Submit, Confirm } from "@/components/client";
 import { INSTALL } from "@/lib/install";
 
 const STATUSES = [["complete", "Complete"], ["in_progress", "In progress"], ["missing", "Missing"], ["not_applicable", "Not applicable"]];
@@ -43,6 +43,22 @@ async function setActiveYear(fd: FormData) {
   redirect(flash(yearPath(client.id, year), `${year} is now the active audit year`));
 }
 
+/** Replace one year's checklist on the earlier template with Schedule 2. That year's statuses start fresh;
+ *  evidence requests are kept but unlinked from the removed items. */
+async function switchTemplate(fd: FormData) {
+  "use server";
+  const { user, client } = await requireClient(str(fd, "client_id"), { write: true });
+  const year = validYear(str(fd, "year"));
+  if (!year) redirect(`/app/clients/${client.id}/car-readiness`);
+  await tx(async (t) => {
+    await t.query("update evidence_requests set car_item_id = null where car_item_id in (select id from client_car_items where client_id = $1 and audit_year = $2)", [client.id, year]);
+    await t.query("delete from client_car_items where client_id = $1 and audit_year = $2", [client.id, year]);
+    await startCarYear(t, client.firm_id, client.id, year);
+  });
+  await audit(user, "update", "car_checklist", client.id, { client_id: client.id, details: { audit_year: year, template: "schedule_2" } });
+  redirect(flash(yearPath(client.id, year), `${year} checklist switched to the Schedule 2 template`));
+}
+
 async function setStatus(fd: FormData) {
   "use server";
   const item = await one("select * from client_car_items where id = $1", [str(fd, "item_id")]);
@@ -52,8 +68,8 @@ async function setStatus(fd: FormData) {
   const status = str(fd, "status"), reason = opt(fd, "na_reason");
   if (!STATUSES.some(([s]) => s === status)) redirect(back);
   if (status === "not_applicable" && !reason) redirect(flash(`${back}#i-${item.id}`, "Give a reason when marking an item Not applicable.", "error"));
-  await q("update client_car_items set status = $2, na_reason = $3, recommendation = $5, is_new = false, updated_by = $4 where id = $1",
-    [item.id, status, status === "not_applicable" ? reason : null, user.id, opt(fd, "recommendation")]);
+  await q("update client_car_items set status = $2, na_reason = $3, recommendation = $5, answer = $6, evidence_notes = $7, is_new = false, updated_by = $4 where id = $1",
+    [item.id, status, status === "not_applicable" ? reason : null, user.id, opt(fd, "recommendation"), opt(fd, "answer"), opt(fd, "evidence_notes")]);
   await audit(user, "update", "car_item", item.id, { client_id: item.client_id, details: { status, recommendation: !!opt(fd, "recommendation") } });
   redirect(flash(back, "Checklist updated"));
 }
@@ -100,8 +116,10 @@ export default async function Car({ params, searchParams }: { params: Promise<{ 
   const items = await q(`select i.*, (select count(*)::int from evidence_requests e where e.car_item_id = i.id and e.status = 'accepted') as accepted,
       (select count(*)::int from evidence_requests e where e.car_item_id = i.id and e.status <> 'accepted') as pending
     from client_car_items i where i.client_id = $1 and i.audit_year = $2 order by i.category_key, i.position`, [clientId, year]);
-  const r = readiness(items as { category_key: string; status: string }[]);
-  const risk = carRisk(items as { category_key: string; status: string }[]);
+  type It = { category_key: string; status: string; priority: string | null };
+  const r = readiness(items as It[]);
+  const risk = carRisk(items as It[]);
+  const oldTemplate = items.length > 0 && items.every((i) => !i.priority);
   const sug = await suggestions(clientId);
   const ro = !!client.archived_at;
   const b = `/app/clients/${clientId}`;
@@ -136,30 +154,40 @@ export default async function Car({ params, searchParams }: { params: Promise<{ 
         ? <Banner>You&apos;re viewing {year}. The active year is {active}: the dashboard, client portal, gaps and evidence requests use that one.
             {!ro && <form action={setActiveYear} style={{ marginTop: 8 }}>{h}<Submit className="btn secondary">Make {year} the active year</Submit></form>}</Banner>
         : <p className="meta">Active audit year: covers processing from 1 January to 31 December {year}.</p>}
+      {oldTemplate && (
+        <Banner kind="warn">This {year} checklist uses the earlier 25-item template. New checklists use the NDP Audit Questionnaire (GAID Schedule 2).
+          {!ro && <div style={{ marginTop: 8 }}><Confirm action={switchTemplate} label="Switch to Schedule 2" title={`Switch ${year} to Schedule 2?`}
+            body={`The ${year} checklist is replaced by the 69 Schedule 2 questions, all set to Missing. Statuses, answers, recommendations and Not applicable reasons on the current items are removed. Evidence requests stay, but are no longer linked to an item.`}>{h}</Confirm></div>}
+        </Banner>
+      )}
       <section className="panel" style={{ marginBottom: 24 }}>
         <p style={{ fontSize: 22, margin: "0 0 8px" }}><b className="num">{r.overall.pct}%</b> ready · <span className="num">{r.overall.complete} of {r.overall.applicable}</span> applicable items complete</p>
         <Bar pct={r.overall.pct} />
-        {risk && <p style={{ margin: "12px 0 0" }}>Risk score <b className="num">{risk.score}</b> / 100 <Chip status={`risk_${risk.rating}`} /> <span className="meta">From item statuses: Missing is high risk, In progress medium, Complete low.</span></p>}
+        {risk && <p style={{ margin: "12px 0 0" }}>Risk score <b className="num">{risk.score}</b> / 100 <Chip status={`risk_${risk.rating}`} /> <span className="meta">From status and question priority: Missing is high risk, In progress medium, Complete low; a Medium-priority question drops one level. High-priority questions count double.</span></p>}
         <p className="caption" style={{ marginTop: 8 }}>Items marked Not applicable are left out of both scores. {INSTALL.name} does not file the CAR with the NDPC.</p>
       </section>
-      {Object.entries(CAR_CATEGORIES).map(([k, label]) => (
+      {Object.entries(CAR_CATEGORIES).filter(([k]) => items.some((i) => i.category_key === k)).map(([k, label]) => (
         <details key={k} className="group" open>
-          <summary><span>{label}</span><span className="row" style={{ gap: 8 }}>{(() => { const cr = carRisk(items.filter((i) => i.category_key === k) as { category_key: string; status: string }[]); return cr && <Chip status={`risk_${cr.rating}`} />; })()}<span className="num meta">{r.byCategory[k].pct}% · {r.byCategory[k].complete}/{r.byCategory[k].applicable}</span></span></summary>
+          <summary><span>{label}</span><span className="row" style={{ gap: 8 }}>{(() => { const cr = carRisk(items.filter((i) => i.category_key === k) as It[]); return cr && <Chip status={`risk_${cr.rating}`} />; })()}<span className="num meta">{r.byCategory[k].pct}% · {r.byCategory[k].complete}/{r.byCategory[k].applicable}</span></span></summary>
           <div>
-            {items.filter((i) => i.category_key === k).map((i) => {
+            {items.filter((i) => i.category_key === k).map((i, n, list) => {
               const s = i.auto_link_rule && !i.link_state ? sug[i.auto_link_rule] : null;
+              const itemRisk = carItemRisk(i.status, i.priority);
               return (
                 <div key={i.id} id={`i-${i.id}`} style={{ borderTop: "1px solid var(--line)", padding: "12px 0" }}>
+                  {i.section && i.section !== list[n - 1]?.section && <h4 style={{ margin: "4px 0 12px" }}>{i.section}</h4>}
                   <div className="spread">
                     <div>
                       <b>{i.item_text}</b> {i.is_new && <span className="chip review">New item</span>}
+                      {i.priority && <span className="meta"> · {i.priority === "high" ? "High" : i.priority === "medium" ? "Medium" : "Low"} priority</span>}
                       <div className="meta">
                         {i.accepted > 0 && `${i.accepted} accepted evidence · `}{i.pending > 0 && `${i.pending} evidence request${i.pending > 1 ? "s" : ""} open · `}
                         {i.link_state === "confirmed" && "Platform records confirmed · "}
                         {i.status === "not_applicable" && `Not applicable: ${i.na_reason}`}
                       </div>
+                      {ro && (i.answer || i.evidence_notes) && <p className="small" style={{ margin: "6px 0 0" }}>{i.answer && <><b>Answer:</b> {i.answer} </>}{i.evidence_notes && <><b>Evidence:</b> {i.evidence_notes}</>}</p>}
                     </div>
-                    <span className="row" style={{ gap: 6 }}>{carItemRisk(i.status) && <Chip status={`risk_${carItemRisk(i.status)}`} />}<Chip status={i.status} /></span>
+                    <span className="row" style={{ gap: 6 }}>{itemRisk && <Chip status={`risk_${itemRisk}`} />}<Chip status={i.status} /></span>
                   </div>
                   {i.recommendation && ro && <p className="small" style={{ margin: "6px 0 0" }}><b>Recommendation:</b> {i.recommendation}</p>}
                   {s && !ro && (
@@ -174,6 +202,8 @@ export default async function Car({ params, searchParams }: { params: Promise<{ 
                       <Hidden values={{ item_id: i.id }} />
                       <label className="small">Status <select name="status" defaultValue={i.status} style={{ width: "auto", display: "block" }}>{STATUSES.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></label>
                       <label className="small" style={{ flex: 1, minWidth: 200 }}>Reason if not applicable <input name="na_reason" defaultValue={i.na_reason ?? ""} /></label>
+                      <label className="small" style={{ flex: "1 1 260px" }}>Answer / facts <input name="answer" defaultValue={i.answer ?? ""} placeholder="Yes, No, or the facts (e.g. a number or name)" /></label>
+                      <label className="small" style={{ flex: "1 1 260px" }}>Evidence / documents <input name="evidence_notes" defaultValue={i.evidence_notes ?? ""} placeholder="Documents seen or requested" /></label>
                       <label className="small" style={{ flexBasis: "100%" }}>Recommendation <span className="meta">(shown to the client and in exports)</span>
                         <textarea name="recommendation" rows={2} defaultValue={i.recommendation ?? ""} placeholder={RECOMMEND_HINT[i.status]} style={{ display: "block" }} />
                       </label>

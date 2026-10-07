@@ -324,6 +324,13 @@ create table if not exists car_template_items (
   retire_pending boolean not null default false
 );
 
+-- Schedule 2 template (lib/car-template.ts): a sixth part, question priority and Part 4 sub-sections.
+alter table car_template_items drop constraint if exists car_template_items_category_key_check;
+alter table car_template_items add constraint car_template_items_category_key_check
+  check (category_key in ('governance','principles','technology','accountability_risk','cross_border_transfer','data_processors'));
+alter table car_template_items add column if not exists priority text check (priority in ('high','medium','low'));
+alter table car_template_items add column if not exists section text;
+
 create table if not exists client_car_items (
   id uuid primary key default gen_random_uuid(),
   firm_id uuid not null references firms,
@@ -344,6 +351,11 @@ create table if not exists client_car_items (
 -- CAR readiness extras: the audit year being prepared (per client) and the consultant's recommendation per item.
 alter table clients add column if not exists car_audit_year int check (car_audit_year between 2019 and 2100);
 alter table client_car_items add column if not exists recommendation text;
+-- Copied from the template item, plus the consultant's answer ("Yes / No / Facts") and evidence noted for the item.
+alter table client_car_items add column if not exists priority text check (priority in ('high','medium','low'));
+alter table client_car_items add column if not exists section text;
+alter table client_car_items add column if not exists answer text;
+alter table client_car_items add column if not exists evidence_notes text;
 
 -- One CAR checklist per client per audit year (expand + backfill; idempotent, runs on every start).
 -- clients.car_audit_year is the ACTIVE year: dashboard, portal, gaps and evidence read that year's checklist.
