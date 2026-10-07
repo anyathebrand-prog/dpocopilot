@@ -32,3 +32,16 @@
   .bh .blog-card, .bh .blog-more svg { transition: none; }
   .bh .blog-card:hover { transform: none; }
 }
+
+/* Rich body: numbered steps, bold, links and tables */
+.bh .blog-body h3 { font-size: 1.15rem; font-weight: 600; margin: 28px 0 0; }
+.bh .blog-body ol { margin: 16px 0 0; padding-left: 24px; }
+.bh .blog-body li::marker { color: #2a6aa8; font-weight: 600; }
+.bh .blog-body strong { font-weight: 600; color: var(--page-ink); }
+.bh .blog-body a { color: #2a6aa8; text-decoration: underline; text-underline-offset: 3px; }
+.bh .blog-body a:hover { color: var(--page-ink); }
+.bh .blog-table { margin: 20px 0 0; overflow-x: auto; border-radius: 14px; border: 1px solid var(--page-line-strong); }
+.bh .blog-table table { width: 100%; border-collapse: collapse; font-size: 0.92rem; line-height: 1.5; }
+.bh .blog-table th { background: #0b1220; color: #e6e8f0; text-align: left; font-weight: 600; padding: 10px 14px; white-space: nowrap; }
+.bh .blog-table td { padding: 10px 14px; border-top: 1px solid var(--page-line-strong); vertical-align: top; }
+.bh .blog-table tbody tr:nth-child(even) td { background: rgba(11, 18, 32, 0.03); }

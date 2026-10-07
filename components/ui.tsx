@@ -74,9 +74,8 @@ export function Seal({ v, sig }: { v: { version_no: number; approved_by_name: st
   );
 }
 
-/** Renders the plain-text document format: "# ", "## " headings and "- " bullets; highlights [To be completed].
- *  `bare` drops the legal-document sheet styling (blog posts). */
-export function Doc({ body, className = "", bare }: { body: string; className?: string; bare?: boolean }) {
+/** Renders the plain-text document format: "# ", "## " headings and "- " bullets; highlights [To be completed]. */
+export function Doc({ body, className = "" }: { body: string; className?: string }) {
   const blocks: ReactNode[] = [];
   let list: string[] = [];
   const mark = (s: string, k: number) => s.split(TODO).flatMap((part, i) => (i ? [<span key={`${k}-${i}`} className="todo">{TODO}</span>, part] : [part]));
@@ -89,7 +88,7 @@ export function Doc({ body, className = "", bare }: { body: string; className?: 
     else if (line.trim()) blocks.push(<p key={i}>{mark(line, i)}</p>);
   });
   flush(-1);
-  return <article className={bare ? className : `sheet ${className}`}>{blocks}</article>;
+  return <article className={`sheet ${className}`}>{blocks}</article>;
 }
 
 export function Empty({ children }: { children: ReactNode }) {

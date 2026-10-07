@@ -20,7 +20,7 @@ export default async function EditPost({ params, searchParams }: { params: Promi
       <form action={savePost} className="panel" style={{ maxWidth: 820 }}>{h}
         <Field label="Title" required><input name="title" defaultValue={p?.title ?? ""} required maxLength={160} /></Field>
         <Field label="Summary" help="One or two sentences. Shown on the blog list and in search results."><textarea name="summary" defaultValue={p?.summary ?? ""} rows={2} maxLength={300} /></Field>
-        <Field label="Body" help={'Start a line with "## " for a heading or "- " for a bullet point. Leave a blank line between paragraphs.'}>
+        <Field label="Body" help={'Lines starting "## " are headings, "- " bullets, "1. " numbered steps, "| a | b |" table rows (first row is the header). Use **bold** and [link text](https://…). Leave a blank line between paragraphs.'}>
           <textarea name="body" defaultValue={p?.body ?? ""} rows={18} />
         </Field>
         <Field label="Cover image" help="Optional. JPG, PNG or WebP, up to 2 MB. Wide images (about 1600 × 900) look best.">

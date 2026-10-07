@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { one } from "@/lib/db";
 import { DarkHeader } from "@/components/dark-header";
-import { Doc } from "@/components/ui";
+import { BlogBody } from "@/components/blog-body";
 import { fmtWAT } from "@/lib/rules";
 import "@/components/site-base.css";
 import "@/components/homepage.css";
@@ -31,7 +31,7 @@ export default async function Post({ params }: { params: Promise<{ slug: string 
           {p.summary && <p className="blog-lede">{p.summary}</p>}
           {/* eslint-disable-next-line @next/next/no-img-element -- stored cover, any size */}
           {p.has_cover && <img className="blog-cover" src={`/blog/${p.slug}/cover`} alt="" />}
-          <Doc body={p.body} bare className="blog-body" />
+          <BlogBody body={p.body} />
         </div>
       </section>
     </div>
