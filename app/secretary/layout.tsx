@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { House, Library, Scale, SlidersHorizontal, ListChecks, Send, LogOut } from "lucide-react";
+import { House, Library, Scale, SlidersHorizontal, ListChecks, Send, LogOut, Newspaper } from "lucide-react";
 import { requireSecretary } from "@/lib/auth";
 import { signOut } from "@/lib/auth-actions";
 import { NavLink } from "@/components/client";
@@ -25,6 +25,7 @@ export default async function SecretaryLayout({ children }: { children: ReactNod
           <NavLink href="/secretary/settings"><SlidersHorizontal aria-hidden />Platform settings</NavLink>
           <NavLink href="/secretary/car-template"><ListChecks aria-hidden />CAR checklist template</NavLink>
           <NavLink href="/secretary/publish"><Send aria-hidden />Publish and history</NavLink>
+          <NavLink href="/secretary/blog"><Newspaper aria-hidden />Blog</NavLink>
         </nav>
       </aside>
       <div className="main">

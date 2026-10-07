@@ -545,3 +545,18 @@ create table if not exists pilot_requests (
   message text,
   created_at timestamptz not null default now()
 );
+
+-- Public blog, written in the Secretary console (lib/blog.ts). Cover image kept in the row: small, public, no client data.
+create table if not exists blog_posts (
+  id uuid primary key default gen_random_uuid(),
+  slug text not null unique,
+  title text not null,
+  summary text not null default '',
+  body text not null default '',
+  cover bytea,
+  cover_mime text,
+  status text not null default 'draft' check (status in ('draft','published')),
+  published_at timestamptz,
+  created_by uuid not null references users,
+  updated_at timestamptz not null default now()
+);

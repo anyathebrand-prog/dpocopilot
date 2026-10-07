@@ -4,7 +4,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState, type CSSProperties } from "react";
 import "./dark-header.css";
 
-const NAV: [string, string][] = [["/", "Home"], ["/#product", "Product"], ["/pricing", "Pricing"], ["/pilot", "Contact"]];
+const NAV: [string, string][] = [["/", "Home"], ["/#product", "Product"], ["/pricing", "Pricing"], ["/blog", "Blog"], ["/pilot", "Contact"]];
 
 /** Dark-site header shared by the home and pricing pages: logo, white nav pill, Sign in, and the mobile sheet menu. */
 /** `dashboard`: signed-in user's home; swaps the Sign in button for a Dashboard link.
@@ -12,7 +12,7 @@ const NAV: [string, string][] = [["/", "Home"], ["/#product", "Product"], ["/pri
 export function DarkHeader({ dashboard, brand }: { dashboard?: string; brand?: { name: string; logo: string } }) {
   const [open, setOpen] = useState(false);
   const path = usePathname();
-  const current = (href: string) => (href === path ? "page" : undefined);
+  const current = (href: string) => (href === path || (href === "/blog" && path.startsWith("/blog/")) ? "page" : undefined);
 
   useEffect(() => {
     document.body.classList.toggle("menu-open", open);

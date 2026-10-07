@@ -74,13 +74,14 @@ export function Seal({ v, sig }: { v: { version_no: number; approved_by_name: st
   );
 }
 
-/** Renders the plain-text document format: "# ", "## " headings and "- " bullets; highlights [To be completed]. */
-export function Doc({ body, className = "" }: { body: string; className?: string }) {
+/** Renders the plain-text document format: "# ", "## " headings and "- " bullets; highlights [To be completed].
+ *  `bare` drops the legal-document sheet styling (blog posts). */
+export function Doc({ body, className = "", bare }: { body: string; className?: string; bare?: boolean }) {
   const blocks: ReactNode[] = [];
   let list: string[] = [];
   const mark = (s: string, k: number) => s.split(TODO).flatMap((part, i) => (i ? [<span key={`${k}-${i}`} className="todo">{TODO}</span>, part] : [part]));
   const flush = (k: number) => { if (list.length) { blocks.push(<ul key={`ul${k}`}>{list.map((l, i) => <li key={i}>{mark(l, i)}</li>)}</ul>); list = []; } };
-  body.split("\n").forEach((line, i) => {
+  body.split(/\r?\n/).forEach((line, i) => {
     if (line.startsWith("- ")) { list.push(line.slice(2)); return; }
     flush(i);
     if (line.startsWith("# ")) blocks.push(<h1 key={i}>{mark(line.slice(2), i)}</h1>);
@@ -88,7 +89,7 @@ export function Doc({ body, className = "" }: { body: string; className?: string
     else if (line.trim()) blocks.push(<p key={i}>{mark(line, i)}</p>);
   });
   flush(-1);
-  return <article className={`sheet ${className}`}>{blocks}</article>;
+  return <article className={bare ? className : `sheet ${className}`}>{blocks}</article>;
 }
 
 export function Empty({ children }: { children: ReactNode }) {
