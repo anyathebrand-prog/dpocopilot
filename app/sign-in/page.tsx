@@ -8,15 +8,16 @@ import { Reveal } from "@/components/reveal";
 import "@/components/site-base.css";
 import "@/components/homepage.css";
 import "@/components/site-pages.css";
+import { INSTALL, headerBrand } from "@/lib/install";
 
-export const metadata = { title: "Sign in · DPO Copilot" };
+export const generateMetadata = () => ({ title: `Sign in · ${INSTALL.name}` });
 
 export default async function SignIn({ searchParams }: { searchParams: Promise<Record<string, string>> }) {
   const sp = await searchParams;
   return (
     <div className="bh" style={{ minHeight: "100dvh" }}>
       <HomeFX />
-      <div className="bh-top"><DarkHeader /></div>
+      <div className="bh-top"><DarkHeader brand={headerBrand} /></div>
       <main id="main" className="hp-card hp-bare hp-grid-bg">
         <div className="hp-inner">
           <div className="hp-head">

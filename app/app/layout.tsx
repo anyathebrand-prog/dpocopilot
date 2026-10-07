@@ -6,6 +6,7 @@ import { one } from "@/lib/db";
 import { signOut } from "@/lib/auth-actions";
 import { NavLink } from "@/components/client";
 import "@/components/console.css";
+import { INSTALL } from "@/lib/install";
 
 export default async function FirmLayout({ children }: { children: ReactNode }) {
   const u = await requireFirm();
@@ -19,7 +20,7 @@ export default async function FirmLayout({ children }: { children: ReactNode }) 
           <summary className="brand">
             <span className="cx-brand-row">
               {/* eslint-disable-next-line @next/next/no-img-element -- small static PNG */}
-              <img src="/logo.png" alt="DPO Copilot" width={601} height={162} />
+              <img src={INSTALL.logo} alt={INSTALL.name} />
               <span className="menu-toggle cx-menu" aria-label="Menu"><Menu aria-hidden /></span>
             </span>
             <span className="cx-pill">{u.firm_name}</span>

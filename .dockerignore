@@ -1,0 +1,10 @@
+node_modules
+.next
+data
+.git
+.agents
+.claude
+brag-output
+deploy
+dev.log
+.env*

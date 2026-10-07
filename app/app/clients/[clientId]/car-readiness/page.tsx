@@ -6,6 +6,7 @@ import { readiness, CAR_CATEGORIES } from "@/lib/rules";
 import { str, opt, flash } from "@/lib/form";
 import { Flash, Hidden, Chip, Bar } from "@/components/ui";
 import { Submit } from "@/components/client";
+import { INSTALL } from "@/lib/install";
 
 const STATUSES = [["complete", "Complete"], ["in_progress", "In progress"], ["missing", "Missing"], ["not_applicable", "Not applicable"]];
 
@@ -79,7 +80,7 @@ export default async function Car({ params, searchParams }: { params: Promise<{ 
       <section className="panel" style={{ marginBottom: 24 }}>
         <p style={{ fontSize: 22, margin: "0 0 8px" }}><b className="num">{r.overall.pct}%</b> ready · <span className="num">{r.overall.complete} of {r.overall.applicable}</span> applicable items complete</p>
         <Bar pct={r.overall.pct} />
-        <p className="caption" style={{ marginTop: 8 }}>Items marked Not applicable are left out of the score. DPO Copilot does not file the CAR with the NDPC.</p>
+        <p className="caption" style={{ marginTop: 8 }}>Items marked Not applicable are left out of the score. {INSTALL.name} does not file the CAR with the NDPC.</p>
       </section>
       {Object.entries(CAR_CATEGORIES).map(([k, label]) => (
         <details key={k} className="group" open>

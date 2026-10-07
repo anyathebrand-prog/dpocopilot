@@ -7,8 +7,9 @@ import "./dark-header.css";
 const NAV: [string, string][] = [["/", "Home"], ["/#product", "Product"], ["/pricing", "Pricing"], ["/pilot", "Contact"]];
 
 /** Dark-site header shared by the home and pricing pages: logo, white nav pill, Sign in, and the mobile sheet menu. */
-/** `dashboard`: signed-in user's home; swaps the Sign in button for a Dashboard link. */
-export function DarkHeader({ dashboard }: { dashboard?: string }) {
+/** `dashboard`: signed-in user's home; swaps the Sign in button for a Dashboard link.
+ *  `brand`: a DPCO's own install (lib/install.ts headerBrand): their logo only, no marketing nav. */
+export function DarkHeader({ dashboard, brand }: { dashboard?: string; brand?: { name: string; logo: string } }) {
   const [open, setOpen] = useState(false);
   const path = usePathname();
   const current = (href: string) => (href === path ? "page" : undefined);
@@ -22,6 +23,15 @@ export function DarkHeader({ dashboard }: { dashboard?: string }) {
     addEventListener("resize", onResize);
     return () => { removeEventListener("keydown", onKey); removeEventListener("resize", onResize); document.body.classList.remove("menu-open"); };
   }, [open]);
+
+  if (brand) return (
+    <header className="vh-header">
+      <Link href="/sign-in" className="vh-logo" aria-label={`${brand.name} sign in`}>
+        {/* eslint-disable-next-line @next/next/no-img-element -- per-install logo, any size */}
+        <img src={brand.logo} alt={brand.name} />
+      </Link>
+    </header>
+  );
 
   return (
     <>

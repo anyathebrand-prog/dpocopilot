@@ -3,6 +3,7 @@ import { verifyMfa } from "@/lib/auth-actions";
 import { pendingMfaUser } from "@/lib/auth";
 import { Flash, Field } from "@/components/ui";
 import { Submit } from "@/components/client";
+import { INSTALL } from "@/lib/install";
 
 export default async function Verify({ searchParams }: { searchParams: Promise<Record<string, string>> }) {
   if (!(await pendingMfaUser())) redirect("/sign-in");
@@ -12,7 +13,7 @@ export default async function Verify({ searchParams }: { searchParams: Promise<R
       <h1>Two-step sign-in</h1>
       <Flash sp={sp} />
       <form action={verifyMfa} className="panel">
-        <Field label="6-digit code" help="Open your authenticator app and enter the code for DPO Copilot.">
+        <Field label="6-digit code" help={`Open your authenticator app and enter the code for ${INSTALL.name}.`}>
           <input name="code" className="otp" inputMode="numeric" autoComplete="one-time-code" pattern="\d{6}" maxLength={6} required autoFocus />
         </Field>
         <Submit>Verify</Submit>

@@ -1,4 +1,4 @@
-import type { PGlite } from "@electric-sql/pglite";
+import type { Db } from "./db";
 import { hashPassword } from "./crypto";
 
 // Platform content seed (schema §10.1). Runs once, on an empty database.
@@ -49,7 +49,7 @@ const NDPA: [string, string, string][] = [
   ["Section 65", "Data controller or processor of major importance", "Means a controller or processor domiciled, resident or operating in Nigeria that processes, or intends to process, personal data of more than such number of data subjects within Nigeria as the Commission may prescribe, or any other class the Commission designates as processing personal data of particular value or significance to the economy, society or security of Nigeria."],
 ];
 
-export async function seed(db: PGlite) {
+export async function seed(db: Db) {
   const { rows } = await db.query<{ n: number }>("select count(*)::int as n from car_template_items");
   if (rows[0].n > 0) return;
 

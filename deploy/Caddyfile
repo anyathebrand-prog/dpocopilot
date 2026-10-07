@@ -1,0 +1,12 @@
+# HTTPS certificates for the DPCO's domain are issued and renewed automatically.
+{$DOMAIN} {
+	encode zstd gzip
+	# The DPCO's logo (BRAND_LOGO=/brand/logo.png), dropped into deploy/brand/.
+	handle /brand/* {
+		root * /srv
+		file_server
+	}
+	handle {
+		reverse_proxy app:3000
+	}
+}

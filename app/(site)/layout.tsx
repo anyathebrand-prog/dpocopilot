@@ -1,7 +1,12 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { redirect } from "next/navigation";
+import { INSTALL } from "@/lib/install";
+import { getUser, home } from "@/lib/auth";
 
-export default function SiteLayout({ children }: { children: ReactNode }) {
+export default async function SiteLayout({ children }: { children: ReactNode }) {
+  // A DPCO's own install has no marketing site: everything starts at sign-in.
+  if (INSTALL.singleFirm) { const u = await getUser(); redirect(u ? home(u) : "/sign-in"); }
   return (
     <div className="site">
       <main id="main">{children}</main>

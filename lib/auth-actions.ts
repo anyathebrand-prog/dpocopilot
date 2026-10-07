@@ -4,6 +4,7 @@ import { q, one, tx } from "./db";
 import { hashPassword, verifyPassword, sha256, verifyTotp } from "./crypto";
 import { createSession, destroySession, getUser, pendingMfaUser, markMfaPassed, audit, clientIp, home } from "./auth";
 import { str, flash } from "./form";
+import { signUpOpen } from "./install";
 
 // ponytail: in-memory login throttle (one app instance). Move to the rate_limits table (schema §2) when running 2+ instances.
 const attempts = new Map<string, { n: number; since: number }>();
@@ -15,6 +16,7 @@ function throttled(key: string) {
 const fail = (key: string) => { const a = attempts.get(key) ?? { n: 0, since: Date.now() }; a.n++; attempts.set(key, a); };
 
 const validPassword = (p: string) => p.length >= 10;
+
 
 /** After sign-in: straight to the user's own home (the public homepage no longer redirects signed-in users). */
 async function toHome(): Promise<never> {
@@ -64,10 +66,12 @@ export async function setupMfa(fd: FormData) {
 }
 
 export async function signUp(fd: FormData) {
+  const token = str(fd, "token"), back = token ? `/sign-up?token=${encodeURIComponent(token)}` : "/sign-up";
+  if (!(await signUpOpen(token))) redirect(flash("/sign-in", "This workspace is already set up. Sign in, or ask your firm administrator for an invitation.", "error"));
   const name = str(fd, "name"), email = str(fd, "email").toLowerCase(), password = String(fd.get("password") ?? ""), firm = str(fd, "firm");
-  if (!name || !firm || !/^\S+@\S+\.\S+$/.test(email)) redirect(flash("/sign-up", "Enter your name, a valid email and your firm's name.", "error"));
-  if (!validPassword(password)) redirect(flash("/sign-up", "Use a password of at least 10 characters.", "error"));
-  if (await one("select 1 from users where lower(email) = $1", [email])) redirect(flash("/sign-up", "An account with this email exists. Sign in instead.", "error"));
+  if (!name || !firm || !/^\S+@\S+\.\S+$/.test(email)) redirect(flash(back, "Enter your name, a valid email and your firm's name.", "error"));
+  if (!validPassword(password)) redirect(flash(back, "Use a password of at least 10 characters.", "error"));
+  if (await one("select 1 from users where lower(email) = $1", [email])) redirect(flash(back, "An account with this email exists. Sign in instead.", "error"));
   const ids = await tx(async (t) => {
     const u = await t.query<{ id: string }>("insert into users (name, email, password_hash) values ($1,$2,$3) returning id", [name, email, hashPassword(password)]);
     const f = await t.query<{ id: string }>("insert into firms (name, created_by) values ($1,$2) returning id", [firm, u.rows[0].id]);

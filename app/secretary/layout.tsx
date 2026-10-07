@@ -4,6 +4,7 @@ import { requireSecretary } from "@/lib/auth";
 import { signOut } from "@/lib/auth-actions";
 import { NavLink } from "@/components/client";
 import "@/components/console.css";
+import { INSTALL } from "@/lib/install";
 
 export default async function SecretaryLayout({ children }: { children: ReactNode }) {
   const u = await requireSecretary();
@@ -14,7 +15,7 @@ export default async function SecretaryLayout({ children }: { children: ReactNod
       <aside className="sidebar">
         <div className="brand">
           {/* eslint-disable-next-line @next/next/no-img-element -- small static PNG */}
-          <img src="/logo.png" alt="DPO Copilot" width={601} height={162} />
+          <img src={INSTALL.logo} alt={INSTALL.name} />
           <span className="cx-pill">Secretary console</span>
         </div>
         <nav className="nav" aria-label="Secretary">
