@@ -220,7 +220,7 @@ for (const path of ["/app/ask", "/app/settings/activity", "/app/settings/team", 
   p = await admin.get(path); assert.equal(p.status, 200, path);
 }
 ok("remaining firm pages render");
-for (const path of ["/portal", "/portal/documents", "/portal/evidence", "/portal/questionnaire", "/account"]) { p = await contact.get(path); assert.equal(p.status, 200, path); }
+for (const path of ["/portal", "/portal/documents", "/portal/evidence", "/portal/questionnaire", "/portal/car", "/portal/ropa", "/portal/deadlines", "/account"]) { p = await contact.get(path); assert.equal(p.status, 200, path); }
 ok("portal pages render");
 for (const path of ["/secretary", "/secretary/library", "/secretary/criteria", "/secretary/settings", "/secretary/publish"]) { p = await sec.get(path); assert.equal(p.status, 200, path); }
 ok("secretary pages render");
