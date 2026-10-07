@@ -1,7 +1,7 @@
 // Run: npm test  (Node 22.18+ strips TypeScript types natively)
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { parseWATLocal, breachDeadline, dsarDeadline, deadlineState, countdown, readiness, findGaps, evaluateMI, parseCSV, todayWAT, carReminderStage, carItemRisk, carRisk } from "./rules.ts";
+import { parseWATLocal, breachDeadline, dsarDeadline, deadlineState, countdown, readiness, findGaps, evaluateMI, parseCSV, todayWAT, carReminderStage, carItemRisk, carRisk, assurance, maturityLevel, remediationDue } from "./rules.ts";
 import { buildInventory, missingRequired } from "./questionnaire.ts";
 
 test("breach deadline is 72h after awareness, entered in WAT", () => {
@@ -158,4 +158,13 @@ Valid until: 11 March 2027`), { body: "Institute of Data Protection Professional
     { body: "PECB", number: "4821-77", issued: "2024-06-05", expires: "2027-06-04" });
   assert.deepEqual(findDates("March 3, 2025 and 2026-01-31 and 31/02/2025"), [{ at: 0, date: "2025-03-03" }, { at: 18, date: "2026-01-31" }]);
   assert.deepEqual(parseCertificate("Certified Data Protection Officer"), { body: null, number: null, issued: null, expires: null });
+});
+
+test("CAR report: assurance bands, maturity levels, remediation target dates", () => {
+  assert.deepEqual([0, 19, 20, 49, 50, 79, 80, 100].map(assurance), ["Substantial", "Substantial", "Reasonable", "Reasonable", "Limited", "Limited", "No assurance", "No assurance"]);
+  assert.equal(assurance(null), "Not assessed");
+  assert.deepEqual([0, 19, 20, 39, 40, 59, 60, 79, 80, 100].map(maturityLevel), [1, 1, 2, 2, 3, 3, 4, 4, 5, 5]);
+  assert.equal(remediationDue("2026-10-07", "high"), "2026-11-06");
+  assert.equal(remediationDue("2026-10-07", "medium"), "2027-01-05");
+  assert.equal(remediationDue("2026-10-07", "low"), "2027-04-05");
 });

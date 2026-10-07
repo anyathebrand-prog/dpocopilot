@@ -6,7 +6,11 @@ const config: NextConfig = {
   outputFileTracingExcludes: { "*": ["data/**"] },
   serverExternalPackages: ["@electric-sql/pglite", "pg", "unpdf"],
   turbopack: { root: __dirname },
-  experimental: { serverActions: { bodySizeLimit: "25mb" } },
+  experimental: {
+    serverActions: { bodySizeLimit: "25mb" },
+    // Off: on Windows the dev server is often force-stopped, which left this cache corrupt (every nested route 404ed).
+    turbopackFileSystemCacheForDev: false,
+  },
 };
 
 export default config;

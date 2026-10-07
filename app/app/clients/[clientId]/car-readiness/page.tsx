@@ -3,7 +3,9 @@ import { redirect } from "next/navigation";
 import { requireClient, audit } from "@/lib/auth";
 import { q, one, tx } from "@/lib/db";
 import { startCarYear } from "@/lib/clients";
-import { readiness, CAR_CATEGORIES, carItemRisk, carRisk } from "@/lib/rules";
+import { readiness, CAR_CATEGORIES, carItemRisk, carRisk, maturityLevel, MATURITY, todayWAT } from "@/lib/rules";
+import { answersOf } from "@/lib/data";
+import { defaultBackground } from "@/lib/car-report";
 import { str, opt, flash } from "@/lib/form";
 import { Flash, Hidden, Chip, Bar, Banner, Empty } from "@/components/ui";
 import { Submit, Confirm } from "@/components/client";
@@ -93,6 +95,22 @@ async function saveFinding(fd: FormData) {
   redirect(flash(back, "Finding saved"));
 }
 
+/** The consultant's narrative and sign-off inputs for one year's audit report. */
+async function saveReportDetails(fd: FormData) {
+  "use server";
+  const { user, client } = await requireClient(str(fd, "client_id"), { write: true });
+  const year = validYear(str(fd, "year"));
+  if (!year) redirect(`/app/clients/${client.id}/car-readiness`);
+  const m = Number(str(fd, "maturity_override"));
+  const verified = /^\d{4}-\d{2}-\d{2}$/.test(str(fd, "verified_on")) ? str(fd, "verified_on") : null;
+  await q(`insert into car_reports (client_id, audit_year, background, conclusion_notes, verified_on, maturity_override, updated_by) values ($1,$2,$3,$4,$5,$6,$7)
+    on conflict (client_id, audit_year) do update set background = excluded.background, conclusion_notes = excluded.conclusion_notes, verified_on = excluded.verified_on,
+      maturity_override = excluded.maturity_override, updated_by = excluded.updated_by, updated_at = now()`,
+    [client.id, year, opt(fd, "background"), opt(fd, "conclusion_notes"), verified, m >= 1 && m <= 5 ? m : null, user.id]);
+  await audit(user, "update", "car_report", client.id, { client_id: client.id, details: { audit_year: year } });
+  redirect(flash(`${yearPath(client.id, year)}#report`, "Report details saved"));
+}
+
 async function setStatus(fd: FormData) {
   "use server";
   const item = await one("select * from client_car_items where id = $1", [str(fd, "item_id")]);
@@ -156,6 +174,14 @@ export default async function Car({ params, searchParams }: { params: Promise<{ 
   const oldTemplate = items.length > 0 && items.every((i) => !i.priority);
   const findings = await q("select * from car_findings where client_id = $1 and audit_year = $2 order by status, created_at", [clientId, year]);
   const openHigh = findings.filter((f) => f.status === "open" && f.risk === "high").length;
+  const rep = (await one("select * from car_reports where client_id = $1 and audit_year = $2", [clientId, year])) ?? {};
+  const firm = (await one("select ndpc_licence_no, signatory_name from firms where id = $1", [client.firm_id]))!;
+  const answers = await answersOf(clientId);
+  const suggestedBackground = defaultBackground(String(answers.org_legal_name || client.name), answers);
+  const open = items.filter((i) => i.status === "missing" || i.status === "in_progress");
+  const noRecommendation = open.filter((i) => !i.recommendation).length, noObservation = open.filter((i) => !i.na_reason).length;
+  const autoMaturity = maturityLevel(r.overall.pct);
+  const exp = (kind: string, format: string) => `/export?kind=${kind}&client=${clientId}&year=${year}&format=${format}`;
   const sug = await suggestions(clientId);
   const ro = !!client.archived_at;
   const b = `/app/clients/${clientId}`;
@@ -296,6 +322,37 @@ export default async function Car({ params, searchParams }: { params: Promise<{ 
             </div>
           </form>
         )}
+      </section>
+      <section id="report" className="panel" style={{ marginTop: 32 }}>
+        <h3 style={{ marginTop: 0 }}>Audit report and remediation plan · {year}</h3>
+        <p className="meta" style={{ marginTop: 0 }}>Generated from this checklist, the other findings, the client&apos;s onboarding answers and RoPA, and your firm profile. Save the details below, then generate.</p>
+        {(!firm.ndpc_licence_no || !firm.signatory_name) && <Banner kind="warn">Your firm profile has no {!firm.ndpc_licence_no ? "NDPC licence number" : ""}{!firm.ndpc_licence_no && !firm.signatory_name ? " or " : ""}{!firm.signatory_name ? "report signatory" : ""} yet; the report will show &quot;Not stated&quot;. A Firm Admin can add them in <Link href="/app/settings/firm">Firm profile</Link>.</Banner>}
+        {(noRecommendation > 0 || noObservation > 0) && <Banner kind="warn">{noObservation > 0 && <>{noObservation} open item{noObservation > 1 ? "s have" : " has"} no non-conformity/observation (the report states the status instead). </>}{noRecommendation > 0 && <>{noRecommendation} open item{noRecommendation > 1 ? "s have" : " has"} no recommendation (a standard corrective-action line is used).</>}</Banner>}
+        {!ro && (
+          <form action={saveReportDetails}>
+            {h}
+            <label className="small" style={{ display: "block" }}>Background (section 1.1)
+              <textarea name="background" rows={5} defaultValue={rep.background ?? suggestedBackground} style={{ display: "block" }} />
+            </label>
+            <label className="small" style={{ display: "block", marginTop: 8 }}>Conclusion notes (optional, added to section 7.0)
+              <textarea name="conclusion_notes" rows={3} defaultValue={rep.conclusion_notes ?? ""} style={{ display: "block" }} />
+            </label>
+            <div className="row" style={{ alignItems: "flex-end", marginTop: 8 }}>
+              <label className="small">Verification date <input type="date" name="verified_on" defaultValue={rep.verified_on ?? todayWAT()} style={{ display: "block" }} /></label>
+              <label className="small">Maturity level <select name="maturity_override" defaultValue={rep.maturity_override ?? ""} style={{ display: "block", width: "auto" }}>
+                <option value="">Automatic: Level {autoMaturity} ({MATURITY[autoMaturity - 1][1]})</option>
+                {MATURITY.map(([n, name]) => <option key={n} value={n}>Level {n}: {name}</option>)}
+              </select></label>
+              <Submit className="btn secondary">Save report details</Submit>
+            </div>
+          </form>
+        )}
+        <div className="row" style={{ marginTop: 16 }}>
+          <a className="btn" href={exp("car-report", "pdf")} target="_blank">Generate audit report (PDF)</a>
+          <a className="btn secondary" href={exp("car-report", "doc")}>Report (Word)</a>
+          <a className="btn" href={exp("car-plan", "pdf")} target="_blank">Remediation plan (PDF)</a>
+          <a className="btn secondary" href={exp("car-plan", "doc")}>Plan (Word)</a>
+        </div>
       </section>
       </>}
     </>

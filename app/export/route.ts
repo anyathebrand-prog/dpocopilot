@@ -4,6 +4,7 @@ import { getVersion, signatureFor } from "@/lib/data";
 import { dpiaText, LAWFUL_BASIS } from "@/lib/templates";
 import { fmtWAT, riskLevel, readiness, CAR_CATEGORIES, carItemRisk, carRisk } from "@/lib/rules";
 import { TODO } from "@/lib/templates";
+import { loadCarReport, carReportHtml, remediationPlanHtml } from "@/lib/car-report";
 
 // F15 export. ponytail: PDF = print-ready HTML the browser saves as PDF; Word = HTML served as .doc, which Word opens.
 // Swap for Playwright PDF + the `docx` package (TRD §1) when tagged PDFs or native .docx become a requirement.
@@ -14,8 +15,8 @@ h1{font-size:26px;line-height:34px}h2{font-size:20px;margin-top:28px}.todo{backg
 .meta{font:13px/18px Arial,sans-serif;color:#5f6878}table{border-collapse:collapse;width:100%;font:13px/18px Arial,sans-serif}
 td,th{border:1px solid #c9ced6;padding:6px;text-align:left;vertical-align:top}.noprint{margin:16px 0}@media print{.noprint{display:none}}`;
 
-function page(title: string, inner: string, format: string, filename: string) {
-  const html = `<!doctype html><html lang="en-NG"><head><meta charset="utf-8"><title>${title}</title><style>${CSS}</style></head><body>
+function page(title: string, inner: string, format: string, filename: string, css = CSS) {
+  const html = `<!doctype html><html lang="en-NG"><head><meta charset="utf-8"><title>${title}</title><style>${css}</style></head><body>
     ${format === "pdf" ? `<div class="noprint"><button onclick="print()">Print or save as PDF</button></div>` : ""}${inner}</body></html>`;
   return new Response(html, {
     headers: format === "doc"
@@ -80,6 +81,16 @@ export async function GET(req: Request) {
       ["Recipients", (r) => r.recipients], ["Transfers outside Nigeria", (r) => (r.has_transfer ? `Yes. ${r.transfer_safeguard ?? "No safeguard recorded"}` : "No")], ["Retention", (r) => r.retention_period], ["Security measures", (r) => r.security_measures], ["System / owner", (r) => r.system_owner]];
     await audit(u, "export", "ropa", clientId, { client_id: clientId, details: { format } });
     return page("Record of processing activities", `<h1>Record of processing activities</h1>${stamp}<table><tr>${cols.map(([h]) => `<th>${h}</th>`).join("")}</tr>${rows.map((r) => `<tr>${cols.map(([, f]) => `<td>${esc(f(r))}</td>`).join("")}</tr>`).join("")}</table>`, format, slug(`${client!.name}-ropa`));
+  }
+
+  if (kind === "car-report" || kind === "car-plan") {
+    const asked = Number(url.searchParams.get("year"));
+    const year: number = Number.isInteger(asked) && asked >= 2019 && asked <= 2100 ? asked : client!.car_audit_year;
+    const d = await loadCarReport(clientId, year);
+    if (!d) return new Response(`No CAR readiness has been recorded for ${year}.`, { status: 404, headers: { "content-type": "text/plain; charset=utf-8" } });
+    const r = kind === "car-report" ? carReportHtml(d) : remediationPlanHtml(d);
+    await audit(u, "export", kind === "car-report" ? "car_report" : "remediation_plan", clientId, { client_id: clientId, details: { format, audit_year: year } });
+    return page(r.title, r.body, format, slug(r.title), r.css);
   }
 
   if (kind === "car") {

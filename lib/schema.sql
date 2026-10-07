@@ -27,6 +27,16 @@ create table if not exists firms (
   created_at timestamptz not null default now()
 );
 
+-- Firm (DPCO) profile, used on audit reports (lib/car-report.ts).
+alter table firms add column if not exists address text;
+alter table firms add column if not exists website text;
+alter table firms add column if not exists email text;
+alter table firms add column if not exists phone text;
+alter table firms add column if not exists ndpc_licence_no text;
+alter table firms add column if not exists signatory_name text;
+alter table firms add column if not exists signatory_credentials text;
+alter table firms add column if not exists signatory_title text;
+
 create table if not exists memberships (
   id uuid primary key default gen_random_uuid(),
   firm_id uuid not null references firms,
@@ -606,3 +616,16 @@ create table if not exists car_findings (
   updated_at timestamptz not null default now()
 );
 create index if not exists car_findings_client_year on car_findings (client_id, audit_year);
+
+-- CAR audit report details per client and audit year: the consultant's narrative and sign-off inputs.
+create table if not exists car_reports (
+  client_id uuid not null references clients,
+  audit_year int not null,
+  background text,
+  conclusion_notes text,
+  verified_on date,
+  maturity_override int check (maturity_override between 1 and 5),
+  updated_by uuid references users,
+  updated_at timestamptz not null default now(),
+  primary key (client_id, audit_year)
+);

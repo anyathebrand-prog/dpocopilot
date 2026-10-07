@@ -134,6 +134,28 @@ export function carRisk(items: CarItem[]): { score: number; rating: CarRisk } | 
   return { score, rating: score >= 50 ? "high" : score >= 20 ? "medium" : "low" };
 }
 
+// ---------- CAR audit report and remediation plan ----------
+
+/** Assurance rating for one audit area from its CAR risk score (0–100). ponytail: provisional bands; tune with pilot DPCOs. */
+export function assurance(score: number | null | undefined) {
+  if (score === null || score === undefined) return "Not assessed";
+  return score < 20 ? "Substantial" : score < 50 ? "Reasonable" : score < 80 ? "Limited" : "No assurance";
+}
+
+export const MATURITY: [number, string, string][] = [
+  [1, "Initial", "Data protection practices are largely informal or undocumented; most required controls are not yet in place."],
+  [2, "Foundational", "Foundational awareness and initial structures exist, but people, culture, processes, records and technical controls require further strengthening."],
+  [3, "Defined", "Key policies, roles and processes are defined and partly operating; evidence and consistency across the organisation need strengthening."],
+  [4, "Managed", "Controls are largely implemented, evidenced and monitored; remaining gaps are specific and being managed."],
+  [5, "Optimised", "Data protection is embedded, measured and continuously improved across the organisation."],
+];
+
+/** Maturity level (1–5) from overall CAR readiness %. */
+export const maturityLevel = (readinessPct: number) => (readinessPct < 20 ? 1 : readinessPct < 40 ? 2 : readinessPct < 60 ? 3 : readinessPct < 80 ? 4 : 5);
+
+/** Remediation target date by risk: High 30 days, Medium 90, Low 180 after the report date. */
+export const remediationDue = (reportDate: string, risk: string) => addDays(reportDate, risk === "high" ? 30 : risk === "medium" ? 90 : 180);
+
 // ---------- Gap rules (FR12.2) — deterministic; AI only explains ----------
 
 export type GapInput = {

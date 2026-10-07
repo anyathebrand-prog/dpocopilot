@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { Users, ListChecks, Calendar, MessageSquareText, Upload, Settings, Bell, Menu, LayoutList, LogOut } from "lucide-react";
+import { Users, ListChecks, Calendar, MessageSquareText, Upload, Settings, Bell, Menu, LayoutList, LogOut, Building2 } from "lucide-react";
 import { requireFirm, isAdmin, ROLE_LABEL } from "@/lib/auth";
 import { one } from "@/lib/db";
 import { signOut } from "@/lib/auth-actions";
@@ -31,6 +31,7 @@ export default async function FirmLayout({ children }: { children: ReactNode }) 
             <NavLink href="/app/calendar"><Calendar aria-hidden />Calendar</NavLink>
             <NavLink href="/app/ask"><MessageSquareText aria-hidden />Ask</NavLink>
             {isAdmin(u) && <NavLink href="/app/import"><Upload aria-hidden />Import</NavLink>}
+            {isAdmin(u) && <NavLink href="/app/settings/firm"><Building2 aria-hidden />Firm profile</NavLink>}
             {isAdmin(u) && <NavLink href="/app/settings/team"><Users aria-hidden />Team</NavLink>}
             {isAdmin(u) && <NavLink href="/app/settings/activity"><Settings aria-hidden />Activity log</NavLink>}
           </nav>
