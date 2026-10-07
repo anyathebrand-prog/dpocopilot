@@ -9,17 +9,18 @@ import { Submit } from "@/components/client";
 async function create(fd: FormData) {
   "use server";
   const { user, client } = await requireClient(str(fd, "client_id"), { write: true });
-  const title = str(fd, "title"), ropa = all(fd, "ropa");
+  const title = str(fd, "title"), ropa = all(fd, "ropa"), year = Number(str(fd, "assessment_year"));
   const self = `/app/clients/${client.id}/dpias/new`;
   if (!title) redirect(flash(self, "Enter a title.", "error"));
+  if (!Number.isInteger(year) || year < 2019 || year > 2100) redirect(flash(self, "Enter the assessment year as four digits, for example 2026.", "error"));
   if (!ropa.length) redirect(flash(self, "Select at least one processing activity.", "error"));
   const valid = await q("select id from ropa_entries where client_id = $1 and id = any($2::uuid[])", [client.id, ropa]);
   if (valid.length !== ropa.length) redirect("/forbidden");
   const id = await tx(async (t) => {
-    const d = await t.query<{ id: string }>("insert into dpias (firm_id, client_id, title, created_by) values ($1,$2,$3,$4) returning id", [client.firm_id, client.id, title, user.id]);
+    const d = await t.query<{ id: string }>("insert into dpias (firm_id, client_id, title, assessment_year, created_by) values ($1,$2,$3,$4,$5) returning id", [client.firm_id, client.id, title, year, user.id]);
     for (const r of ropa) await t.query("insert into dpia_ropa (dpia_id, ropa_entry_id) values ($1,$2)", [d.rows[0].id, r]);
     await t.query("insert into content_versions (firm_id, client_id, parent_type, parent_id, version_no, body, created_by) values ($1,$2,'dpia',$3,1,'{}',$4)", [client.firm_id, client.id, d.rows[0].id, user.id]);
-    await audit(user, "create", "dpia", d.rows[0].id, { client_id: client.id }, t);
+    await audit(user, "create", "dpia", d.rows[0].id, { client_id: client.id, details: { assessment_year: year } }, t);
     return d.rows[0].id;
   });
   redirect(`/app/clients/${client.id}/dpias/${id}?ok=DPIA+started`);
@@ -38,6 +39,9 @@ export default async function NewDpia({ params, searchParams }: { params: Promis
         <form action={create} style={{ maxWidth: 640 }}>
           <Hidden values={{ client_id: clientId }} />
           <Field label="Title" required><input name="title" required defaultValue={ropa.find((r) => r.id === sp.ropa)?.purpose ?? ""} /></Field>
+          <Field label="Assessment year" required help="The year this DPIA assesses. Used to look DPIAs up by year.">
+            <input type="number" name="assessment_year" min={2019} max={2100} required defaultValue={Number(sp.year) || new Date().getFullYear()} style={{ width: 140 }} />
+          </Field>
           <fieldset>
             <legend>Processing activities covered (required)</legend>
             {ropa.map((r) => (

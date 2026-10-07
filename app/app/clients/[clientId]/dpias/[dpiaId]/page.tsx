@@ -42,9 +42,12 @@ async function setReviewDate(fd: FormData) {
   const d = await one("select id, client_id from dpias where id = $1", [str(fd, "dpia_id")]);
   if (!d) redirect("/forbidden");
   const { user } = await requireClient(d.client_id, { write: true });
-  await q("update dpias set review_date = $2 where id = $1", [d.id, opt(fd, "review_date")]);
-  await audit(user, "update", "dpia", d.id, { client_id: d.client_id, details: { review_date: opt(fd, "review_date") } });
-  redirect(flash(`/app/clients/${d.client_id}/dpias/${d.id}`, "Review date saved. It appears on the calendar."));
+  const back = `/app/clients/${d.client_id}/dpias/${d.id}`;
+  const year = Number(str(fd, "assessment_year"));
+  if (!Number.isInteger(year) || year < 2019 || year > 2100) redirect(flash(back, "Enter the assessment year as four digits, for example 2026.", "error"));
+  await q("update dpias set review_date = $2, assessment_year = $3 where id = $1", [d.id, opt(fd, "review_date"), year]);
+  await audit(user, "update", "dpia", d.id, { client_id: d.client_id, details: { review_date: opt(fd, "review_date"), assessment_year: year } });
+  redirect(flash(back, "Saved. The review date appears on the calendar."));
 }
 
 export default async function Dpia({ params, searchParams }: { params: Promise<{ clientId: string; dpiaId: string }>; searchParams: Promise<Record<string, string>> }) {
@@ -69,8 +72,8 @@ export default async function Dpia({ params, searchParams }: { params: Promise<{
 
   return (
     <>
-      <nav className="meta" aria-label="Breadcrumb"><Link href={`/app/clients/${clientId}/dpias`}>DPIAs</Link> / {d.title}</nav>
-      <h2 style={{ marginTop: 8 }}>{d.title} <Chip status={v.status} ai={v.ai_generated} /></h2>
+      <nav className="meta" aria-label="Breadcrumb"><Link href={`/app/clients/${clientId}/dpias`}>DPIAs</Link> / <Link href={`/app/clients/${clientId}/dpias?year=${d.assessment_year}`}>{d.assessment_year}</Link> / {d.title}</nav>
+      <h2 style={{ marginTop: 8 }}>{d.title} <span className="meta" style={{ fontSize: "0.7em" }}>· {d.assessment_year}</span> <Chip status={v.status} ai={v.ai_generated} /></h2>
       <p className="meta">Covers: {ropa.map((r, i) => <span key={r.id}>{i > 0 && ", "}<Link href={`/app/clients/${clientId}/ropa/${r.id}`}>{r.purpose}</Link>{r.state === "archived" && " (archived)"}</span>)}</p>
       <Flash sp={sp} />
       {viewingOld && <Banner>You are viewing version {v.version_no}. <Link href={back}>Go to the current version</Link></Banner>}
@@ -130,11 +133,12 @@ export default async function Dpia({ params, searchParams }: { params: Promise<{
           {!viewingOld && !client.archived_at && <ReviewBar v={v} user={user} back={back} signoff />}
           {editable && step !== "scoring" && <AiPanel v={v} back={`${back}?step=${step}`} step={step} label="Draft this step with AI" />}
           <section className="panel">
-            <h3>Review date</h3>
+            <h3>Year and review</h3>
             <form action={setReviewDate}>
               <Hidden values={{ dpia_id: d.id }} />
+              <Field label="Assessment year"><input type="number" name="assessment_year" min={2019} max={2100} required defaultValue={d.assessment_year} disabled={!!client.archived_at} style={{ width: 140 }} /></Field>
               <Field label="Next review"><input type="date" name="review_date" defaultValue={d.review_date ?? ""} disabled={!!client.archived_at} /></Field>
-              {!client.archived_at && <Submit className="btn secondary">Save review date</Submit>}
+              {!client.archived_at && <Submit className="btn secondary">Save</Submit>}
             </form>
           </section>
           <Versions versions={await versionsOf("dpia", d.id)} current={v.id} base={back} />

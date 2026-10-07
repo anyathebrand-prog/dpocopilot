@@ -162,6 +162,11 @@ create table if not exists dpias (
   created_at timestamptz not null default now()
 );
 
+-- DPIA assessment year (expand + backfill from the creation date in WAT; idempotent).
+alter table dpias add column if not exists assessment_year int check (assessment_year between 2019 and 2100);
+update dpias set assessment_year = extract(year from created_at at time zone 'Africa/Lagos')::int where assessment_year is null;
+alter table dpias alter column assessment_year set not null;
+
 create table if not exists dpia_ropa (
   dpia_id uuid not null references dpias on delete cascade,
   ropa_entry_id uuid not null references ropa_entries,
