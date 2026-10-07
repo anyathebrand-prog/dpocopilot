@@ -5,7 +5,7 @@ export type Question = {
   key: string;
   label: string;
   help?: string;
-  type: "text" | "textarea" | "number" | "yesno" | "multi" | "list" | "select";
+  type: "text" | "textarea" | "number" | "yesno" | "multi" | "list" | "select" | "email" | "tel";
   options?: { value: string; label: string; sensitive?: boolean }[];
   required?: boolean;
 };
@@ -22,6 +22,10 @@ export const SECTIONS: Section[] = [
     { key: "org_staff_count", label: "Number of staff", type: "number" },
     { key: "org_department_count", label: "Number of departments", type: "number" },
     { key: "org_departments", label: "List of departments. One per line", help: "For example: Human Resources, Finance, Customer Service, IT.", type: "list" },
+    { key: "dpo_name", label: "Name of Data Protection Officer", type: "text" },
+    { key: "dpo_phone", label: "Phone number of Data Protection Officer", type: "tel" },
+    { key: "dpo_email", label: "Email of Data Protection Officer", type: "email" },
+    { key: "dpo_cdpo", label: "CDPO certification details", help: "Certifying body, certificate number, and issue and expiry dates.", type: "textarea" },
   ]},
   { key: "subjects", title: "People whose data you hold", questions: [
     { key: "subjects", label: "Whose personal data do you collect?", type: "multi", required: true, options: opts("Employees", "Job applicants", "Customers", "Prospective customers", "Patients", "Students", "Website visitors", "Suppliers' staff", "Children") },

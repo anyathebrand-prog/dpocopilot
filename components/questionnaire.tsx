@@ -49,7 +49,8 @@ export function Questionnaire({ answers, s, base, clientId, readOnly, portal, up
                 ) : qn.type === "textarea" || qn.type === "list" ? (
                   <textarea name={qn.key} defaultValue={Array.isArray(v) ? v.join("\n") : (v as string) ?? ""} />
                 ) : (
-                  <input name={qn.key} type={qn.type === "number" ? "number" : "text"} inputMode={qn.type === "number" ? "numeric" : undefined} min={qn.type === "number" ? 0 : undefined} defaultValue={(v as string) ?? ""} />
+                  <input name={qn.key} type={qn.type === "number" || qn.type === "email" || qn.type === "tel" ? qn.type : "text"} inputMode={qn.type === "number" ? "numeric" : undefined}
+                    autoComplete={qn.type === "email" ? "email" : qn.type === "tel" ? "tel" : undefined} min={qn.type === "number" ? 0 : undefined} defaultValue={(v as string) ?? ""} />
                 )}
               </Field>
             );
