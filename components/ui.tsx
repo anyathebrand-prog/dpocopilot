@@ -34,6 +34,7 @@ const ITEM_CHIPS: Record<string, [string, string, typeof Pencil]> = {
   proposed: ["draft", "Proposed", Pencil], active: ["approved", "Active", Stamp], archived: ["na", "Archived", CircleSlash],
   onboarding: ["progress", "Onboarding", CircleDashed], closed: ["na", "Closed", CircleSlash], done: ["complete", "Done", CircleCheck],
   high: ["overdue", "High", TriangleAlert], medium: ["progress", "Medium", CircleAlert], low: ["neutral", "Low", Info],
+  risk_high: ["overdue", "High risk", TriangleAlert], risk_medium: ["progress", "Medium risk", CircleAlert], risk_low: ["complete", "Low risk", CircleCheck],
   resolved: ["complete", "Resolved", CircleCheck],
 };
 

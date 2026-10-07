@@ -1,7 +1,7 @@
 // Run: npm test  (Node 22.18+ strips TypeScript types natively)
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { parseWATLocal, breachDeadline, dsarDeadline, deadlineState, countdown, readiness, findGaps, evaluateMI, parseCSV, todayWAT, carReminderStage } from "./rules.ts";
+import { parseWATLocal, breachDeadline, dsarDeadline, deadlineState, countdown, readiness, findGaps, evaluateMI, parseCSV, todayWAT, carReminderStage, carItemRisk, carRisk } from "./rules.ts";
 import { buildInventory, missingRequired } from "./questionnaire.ts";
 
 test("breach deadline is 72h after awareness, entered in WAT", () => {
@@ -124,4 +124,15 @@ test("CAR reminder stages: 30/14/7/1/0 days, missed runs catch up, nothing outsi
   assert.equal(carReminderStage("2027-03-31", "2027-03-30"), 1);
   assert.equal(carReminderStage("2027-03-31", "2027-03-31"), 0);
   assert.equal(carReminderStage("2027-03-31", "2027-04-01"), null); // past
+});
+
+test("CAR risk: item risk follows status; score over applicable items, N/A ignored", () => {
+  assert.equal(carItemRisk("missing"), "high"); assert.equal(carItemRisk("in_progress"), "medium");
+  assert.equal(carItemRisk("complete"), "low"); assert.equal(carItemRisk("not_applicable"), null);
+  const it = (...s: string[]) => s.map((status) => ({ category_key: "governance", status }));
+  assert.deepEqual(carRisk(it("missing", "missing")), { score: 100, rating: "high" });
+  assert.deepEqual(carRisk(it("missing", "complete", "not_applicable")), { score: 50, rating: "high" });
+  assert.deepEqual(carRisk(it("in_progress", "complete", "complete")), { score: 17, rating: "low" });
+  assert.deepEqual(carRisk(it("in_progress", "complete")), { score: 25, rating: "medium" });
+  assert.equal(carRisk(it("not_applicable")), null);
 });

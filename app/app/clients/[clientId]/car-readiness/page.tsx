@@ -2,13 +2,30 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { requireClient, audit } from "@/lib/auth";
 import { q, one } from "@/lib/db";
-import { readiness, CAR_CATEGORIES } from "@/lib/rules";
+import { readiness, CAR_CATEGORIES, carItemRisk, carRisk } from "@/lib/rules";
 import { str, opt, flash } from "@/lib/form";
 import { Flash, Hidden, Chip, Bar } from "@/components/ui";
 import { Submit } from "@/components/client";
 import { INSTALL } from "@/lib/install";
 
 const STATUSES = [["complete", "Complete"], ["in_progress", "In progress"], ["missing", "Missing"], ["not_applicable", "Not applicable"]];
+const RECOMMEND_HINT: Record<string, string> = {
+  missing: "What the client needs to put in place, who should own it, and by when.",
+  in_progress: "What is still needed to complete this item.",
+  complete: "Optional: anything to maintain or improve before next year.",
+  not_applicable: "Optional.",
+};
+
+async function setAuditYear(fd: FormData) {
+  "use server";
+  const { user, client } = await requireClient(str(fd, "client_id"), { write: true });
+  const back = `/app/clients/${client.id}/car-readiness`;
+  const year = Number(str(fd, "year"));
+  if (!Number.isInteger(year) || year < 2019 || year > 2100) redirect(flash(back, "Enter the audit year as four digits, for example 2026.", "error"));
+  await q("update clients set car_audit_year = $2 where id = $1", [client.id, year]);
+  await audit(user, "update", "client", client.id, { client_id: client.id, details: { car_audit_year: year } });
+  redirect(flash(back, `Audit year set to ${year}`));
+}
 
 async function setStatus(fd: FormData) {
   "use server";
@@ -19,8 +36,9 @@ async function setStatus(fd: FormData) {
   const status = str(fd, "status"), reason = opt(fd, "na_reason");
   if (!STATUSES.some(([s]) => s === status)) redirect(back);
   if (status === "not_applicable" && !reason) redirect(flash(`${back}#i-${item.id}`, "Give a reason when marking an item Not applicable.", "error"));
-  await q("update client_car_items set status = $2, na_reason = $3, is_new = false, updated_by = $4 where id = $1", [item.id, status, status === "not_applicable" ? reason : null, user.id]);
-  await audit(user, "update", "car_item", item.id, { client_id: item.client_id, details: { status } });
+  await q("update client_car_items set status = $2, na_reason = $3, recommendation = $5, is_new = false, updated_by = $4 where id = $1",
+    [item.id, status, status === "not_applicable" ? reason : null, user.id, opt(fd, "recommendation")]);
+  await audit(user, "update", "car_item", item.id, { client_id: item.client_id, details: { status, recommendation: !!opt(fd, "recommendation") } });
   redirect(flash(back, "Checklist updated"));
 }
 
@@ -64,6 +82,7 @@ export default async function Car({ params, searchParams }: { params: Promise<{ 
       (select count(*)::int from evidence_requests e where e.car_item_id = i.id and e.status <> 'accepted') as pending
     from client_car_items i where i.client_id = $1 order by i.category_key, i.position`, [clientId]);
   const r = readiness(items as { category_key: string; status: string }[]);
+  const risk = carRisk(items as { category_key: string; status: string }[]);
   const sug = await suggestions(clientId);
   const ro = !!client.archived_at;
   const b = `/app/clients/${clientId}`;
@@ -80,11 +99,18 @@ export default async function Car({ params, searchParams }: { params: Promise<{ 
       <section className="panel" style={{ marginBottom: 24 }}>
         <p style={{ fontSize: 22, margin: "0 0 8px" }}><b className="num">{r.overall.pct}%</b> ready · <span className="num">{r.overall.complete} of {r.overall.applicable}</span> applicable items complete</p>
         <Bar pct={r.overall.pct} />
-        <p className="caption" style={{ marginTop: 8 }}>Items marked Not applicable are left out of the score. {INSTALL.name} does not file the CAR with the NDPC.</p>
+        {risk && <p style={{ margin: "12px 0 0" }}>Risk score <b className="num">{risk.score}</b> / 100 <Chip status={`risk_${risk.rating}`} /> <span className="meta">From item statuses: Missing is high risk, In progress medium, Complete low.</span></p>}
+        <p className="caption" style={{ marginTop: 8 }}>Items marked Not applicable are left out of both scores. {INSTALL.name} does not file the CAR with the NDPC.</p>
+        <form action={setAuditYear} className="row" style={{ marginTop: 16, alignItems: "flex-end" }}>
+          <Hidden values={{ client_id: clientId }} />
+          <label className="small">Audit year <input type="number" name="year" min={2019} max={2100} defaultValue={client.car_audit_year ?? new Date().getFullYear() - 1} required style={{ width: 120, display: "block" }} disabled={ro} /></label>
+          {!ro && <Submit className="btn secondary">Save year</Submit>}
+          <span className="meta">{client.car_audit_year ? `Preparing the CAR for ${client.car_audit_year} (processing from 1 January to 31 December ${client.car_audit_year}).` : "Not set yet. The CAR covers the previous calendar year."}</span>
+        </form>
       </section>
       {Object.entries(CAR_CATEGORIES).map(([k, label]) => (
         <details key={k} className="group" open>
-          <summary><span>{label}</span><span className="num meta">{r.byCategory[k].pct}% · {r.byCategory[k].complete}/{r.byCategory[k].applicable}</span></summary>
+          <summary><span>{label}</span><span className="row" style={{ gap: 8 }}>{(() => { const cr = carRisk(items.filter((i) => i.category_key === k) as { category_key: string; status: string }[]); return cr && <Chip status={`risk_${cr.rating}`} />; })()}<span className="num meta">{r.byCategory[k].pct}% · {r.byCategory[k].complete}/{r.byCategory[k].applicable}</span></span></summary>
           <div>
             {items.filter((i) => i.category_key === k).map((i) => {
               const s = i.auto_link_rule && !i.link_state ? sug[i.auto_link_rule] : null;
@@ -99,8 +125,9 @@ export default async function Car({ params, searchParams }: { params: Promise<{ 
                         {i.status === "not_applicable" && `Not applicable: ${i.na_reason}`}
                       </div>
                     </div>
-                    <Chip status={i.status} />
+                    <span className="row" style={{ gap: 6 }}>{carItemRisk(i.status) && <Chip status={`risk_${carItemRisk(i.status)}`} />}<Chip status={i.status} /></span>
                   </div>
+                  {i.recommendation && ro && <p className="small" style={{ margin: "6px 0 0" }}><b>Recommendation:</b> {i.recommendation}</p>}
                   {s && !ro && (
                     <form action={linkDecision} className="rule-row info" style={{ marginTop: 8 }}>
                       <Hidden values={{ item_id: i.id }} />
@@ -113,6 +140,9 @@ export default async function Car({ params, searchParams }: { params: Promise<{ 
                       <Hidden values={{ item_id: i.id }} />
                       <label className="small">Status <select name="status" defaultValue={i.status} style={{ width: "auto", display: "block" }}>{STATUSES.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></label>
                       <label className="small" style={{ flex: 1, minWidth: 200 }}>Reason if not applicable <input name="na_reason" defaultValue={i.na_reason ?? ""} /></label>
+                      <label className="small" style={{ flexBasis: "100%" }}>Recommendation <span className="meta">(shown to the client and in exports)</span>
+                        <textarea name="recommendation" rows={2} defaultValue={i.recommendation ?? ""} placeholder={RECOMMEND_HINT[i.status]} style={{ display: "block" }} />
+                      </label>
                       <Submit className="btn secondary">Save</Submit>
                       <Link className="btn quiet" href={`${b}/evidence?item=${i.id}`}>Request evidence</Link>
                     </form>

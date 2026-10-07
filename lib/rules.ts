@@ -106,6 +106,20 @@ export function readiness(items: CarItem[]) {
   return { overall: score(items), byCategory };
 }
 
+/** CAR item risk follows its status: Missing = high, In progress = medium, Complete = low; Not applicable carries none. */
+export type CarRisk = "high" | "medium" | "low";
+export const carItemRisk = (status: string): CarRisk | null =>
+  status === "missing" ? "high" : status === "in_progress" ? "medium" : status === "complete" ? "low" : null;
+
+/** Risk score 0–100 over applicable items (Missing 1, In progress 0.5, Complete 0), rated High ≥ 50, Medium ≥ 20, else Low.
+ *  ponytail: provisional bands, like the DPIA score; tune with the first pilot DPCOs. */
+export function carRisk(items: CarItem[]): { score: number; rating: CarRisk } | null {
+  const w = items.map((i) => ({ missing: 1, in_progress: 0.5, complete: 0 } as Record<string, number>)[i.status]).filter((x) => x !== undefined);
+  if (!w.length) return null;
+  const score = Math.round((100 * w.reduce((a, b) => a + b, 0)) / w.length);
+  return { score, rating: score >= 50 ? "high" : score >= 20 ? "medium" : "low" };
+}
+
 // ---------- Gap rules (FR12.2) — deterministic; AI only explains ----------
 
 export type GapInput = {

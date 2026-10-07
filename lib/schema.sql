@@ -342,6 +342,10 @@ create table if not exists client_car_items (
   check (status <> 'not_applicable' or na_reason is not null)
 );
 
+-- CAR readiness extras: the audit year being prepared (per client) and the consultant's recommendation per item.
+alter table clients add column if not exists car_audit_year int check (car_audit_year between 2019 and 2100);
+alter table client_car_items add column if not exists recommendation text;
+
 create table if not exists evidence_requests (
   id uuid primary key default gen_random_uuid(),
   firm_id uuid not null references firms,

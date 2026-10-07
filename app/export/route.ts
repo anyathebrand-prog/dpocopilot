@@ -2,7 +2,7 @@ import { getUser, clientScope, scopeArgs, audit } from "@/lib/auth";
 import { q, one } from "@/lib/db";
 import { getVersion, signatureFor } from "@/lib/data";
 import { dpiaText, LAWFUL_BASIS } from "@/lib/templates";
-import { fmtWAT, riskLevel, readiness, CAR_CATEGORIES } from "@/lib/rules";
+import { fmtWAT, riskLevel, readiness, CAR_CATEGORIES, carItemRisk, carRisk } from "@/lib/rules";
 import { TODO } from "@/lib/templates";
 
 // F15 export. ponytail: PDF = print-ready HTML the browser saves as PDF; Word = HTML served as .doc, which Word opens.
@@ -71,7 +71,7 @@ export async function GET(req: Request) {
 
   const clientId = url.searchParams.get("client") ?? "";
   if (!/^[0-9a-f-]{36}$/.test(clientId) || !(await canSeeClient(clientId))) return denied();
-  const client = await one("select name from clients where id = $1", [clientId]);
+  const client = await one("select name, car_audit_year from clients where id = $1", [clientId]);
   const stamp = `<p class="meta">${esc(client!.name)} · exported ${fmtWAT(new Date())} by ${esc(u.name)}</p>`;
 
   if (kind === "ropa") {
@@ -86,9 +86,14 @@ export async function GET(req: Request) {
     const items = await q("select * from client_car_items where client_id = $1 order by category_key, position", [clientId]);
     const r = readiness(items as { category_key: string; status: string }[]);
     const label: Record<string, string> = { complete: "Complete", in_progress: "In progress", missing: "Missing", not_applicable: "Not applicable" };
+    const riskLabel = (x: string | null | undefined) => (x ? x[0].toUpperCase() + x.slice(1) : "—");
+    const risk = carRisk(items as { category_key: string; status: string }[]);
+    const year = client!.car_audit_year ? ` · ${client!.car_audit_year} audit` : "";
     await audit(u, "export", "car_checklist", clientId, { client_id: clientId, details: { format } });
-    return page("CAR readiness checklist", `<h1>CAR readiness checklist</h1>${stamp}<p>Overall readiness: <b>${r.overall.pct}%</b> (${r.overall.complete} of ${r.overall.applicable} applicable items complete)</p>` +
-      Object.entries(CAR_CATEGORIES).map(([k, l]) => `<h2>${l} (${r.byCategory[k].pct}%)</h2><table>${items.filter((i) => i.category_key === k).map((i) => `<tr><td>${esc(i.item_text)}</td><td>${label[i.status]}${i.na_reason ? `: ${esc(i.na_reason)}` : ""}</td></tr>`).join("")}</table>`).join(""),
+    return page("CAR readiness checklist", `<h1>CAR readiness checklist${year}</h1>${stamp}<p>Overall readiness: <b>${r.overall.pct}%</b> (${r.overall.complete} of ${r.overall.applicable} applicable items complete)</p>` +
+      (risk ? `<p>Risk score: <b>${risk.score} / 100 (${riskLabel(risk.rating)})</b>. Item risk follows status: Missing high, In progress medium, Complete low.</p>` : "") +
+      Object.entries(CAR_CATEGORIES).map(([k, l]) => { const cat = items.filter((i) => i.category_key === k); const cr = carRisk(cat as { category_key: string; status: string }[]);
+        return `<h2>${l} (${r.byCategory[k].pct}%${cr ? `, ${riskLabel(cr.rating)} risk` : ""})</h2><table><tr><th>Item</th><th>Status</th><th>Risk</th><th>Recommendation</th></tr>${cat.map((i) => `<tr><td>${esc(i.item_text)}</td><td>${label[i.status]}${i.na_reason ? `: ${esc(i.na_reason)}` : ""}</td><td>${riskLabel(carItemRisk(i.status))}</td><td>${esc(i.recommendation ?? "")}</td></tr>`).join("")}</table>`; }).join(""),
       format, slug(`${client!.name}-car-readiness`));
   }
   return denied();
