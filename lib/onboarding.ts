@@ -2,7 +2,9 @@
 import { redirect } from "next/navigation";
 import { q, one, tx } from "./db";
 import { getUser, requireClient, audit, notifyTeam, send, type User } from "./auth";
-import { SECTIONS, missingRequired, buildInventory } from "./questionnaire";
+import { SECTIONS, CERT_FILLS, missingRequired, buildInventory } from "./questionnaire";
+import { storeFile } from "./files";
+import { parseCertificate, pdfText } from "./certificate";
 import { answersOf } from "./data";
 import { evaluateMI, type Criterion } from "./rules";
 import { str, flash } from "./form";
@@ -24,18 +26,42 @@ export async function saveSection(fd: FormData) {
   const i = Number(str(fd, "s"));
   const section = SECTIONS[i];
   if (!section) redirect(base);
+  const self = `${base}?s=${i}`;
+  const put = (key: string, v: unknown) => q(`insert into answers (client_id, question_key, answer, updated_by) values ($1,$2,$3,$4)
+      on conflict (client_id, question_key) do update set answer = excluded.answer, updated_by = excluded.updated_by, updated_at = now()`, [clientId, key, JSON.stringify(v), u.id]);
+  // Attached files first: a newly attached certificate PDF fills the detail fields it can read; the rest keep what was typed.
+  const filled: Record<string, string> = {};
+  let note = "";
+  for (const qn of section.questions.filter((x) => x.type === "file")) {
+    const f = fd.get(qn.key);
+    if (!(f instanceof File) || !f.size) continue; // nothing new attached: keep the current file
+    if (!f.name.toLowerCase().endsWith(".pdf")) redirect(flash(self, "Attach the certificate as a PDF file.", "error"));
+    const client = await one<{ id: string; firm_id: string }>("select id, firm_id from clients where id = $1", [clientId]);
+    const r = await storeFile(u, client!, f, null);
+    if ("error" in r) redirect(flash(self, r.error, "error"));
+    await put(qn.key, { file_id: r.id, name: f.name.slice(0, 200) });
+    const fills = CERT_FILLS[qn.key];
+    if (!fills) continue;
+    const d = parseCertificate(await pdfText(new Uint8Array(await f.arrayBuffer())));
+    const read = (Object.keys(fills) as (keyof typeof fills)[]).filter((k) => d[k]);
+    for (const k of read) filled[fills[k]] = d[k]!;
+    const names = { body: "certifying body", number: "certificate number", issued: "issue date", expires: "expiry date" };
+    note = read.length ? ` Read from the certificate: ${read.map((k) => names[k]).join(", ")}. Please check them.`
+      : " The certificate is attached, but no details could be read from it (it may be a scanned image). Please fill them in.";
+  }
   for (const qn of section.questions) {
-    const v = qn.type === "multi" ? fd.getAll(qn.key).map(String) : str(fd, qn.key);
+    if (qn.type === "file") continue;
+    const v = filled[qn.key] ?? (qn.type === "multi" ? fd.getAll(qn.key).map(String) : str(fd, qn.key));
     if ((Array.isArray(v) && !v.length) || v === "") await q("delete from answers where client_id = $1 and question_key = $2", [clientId, qn.key]);
-    else await q(`insert into answers (client_id, question_key, answer, updated_by) values ($1,$2,$3,$4)
-      on conflict (client_id, question_key) do update set answer = excluded.answer, updated_by = excluded.updated_by, updated_at = now()`, [clientId, qn.key, JSON.stringify(v), u.id]);
+    else await put(qn.key, v);
   }
   await q("update questionnaires set status = 'in_progress' where client_id = $1 and status in ('not_sent','sent')", [clientId]);
   await audit(u, "update", "questionnaire", clientId, { client_id: clientId, details: { section: section.key } });
   const time = new Intl.DateTimeFormat("en-GB", { timeZone: "Africa/Lagos", hour: "2-digit", minute: "2-digit" }).format(new Date());
-  const next = str(fd, "go") === "exit" ? i : Math.min(i + 1, SECTIONS.length - 1);
-  if (str(fd, "go") === "exit" && u.kind === "contact") redirect(flash("/portal", `Saved ${time}. You can continue any time.`));
-  redirect(flash(`${base}?s=${next}`, `Saved ${time}`));
+  // Stay on the section after reading a certificate, so the details can be checked.
+  const next = str(fd, "go") === "exit" || note ? i : Math.min(i + 1, SECTIONS.length - 1);
+  if (str(fd, "go") === "exit" && u.kind === "contact") redirect(flash("/portal", `Saved ${time}.${note} You can continue any time.`));
+  redirect(flash(`${base}?s=${next}`, `Saved ${time}.${note}`));
 }
 
 /** FR3.4–3.5: completing builds the inventory, proposes RoPA entries and runs the major-importance indicator. Re-running only adds what is new. */

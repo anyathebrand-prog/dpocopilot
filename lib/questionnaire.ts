@@ -5,13 +5,18 @@ export type Question = {
   key: string;
   label: string;
   help?: string;
-  type: "text" | "textarea" | "number" | "yesno" | "multi" | "list" | "select" | "email" | "tel" | "url";
+  type: "text" | "textarea" | "number" | "yesno" | "multi" | "list" | "select" | "email" | "tel" | "url" | "date" | "file";
   options?: { value: string; label: string; sensitive?: boolean }[];
   required?: boolean;
 };
 export type Section = { key: string; title: string; questions: Question[] };
 
 const opts = (...xs: string[]) => xs.map((x) => ({ value: x, label: x }));
+
+/** Which answers a certificate PDF fills, by the detail read from it (lib/certificate.ts). */
+export const CERT_FILLS: Record<string, Record<"body" | "number" | "issued" | "expires", string>> = {
+  dpo_cdpo_file: { body: "dpo_cdpo_body", number: "dpo_cdpo_number", issued: "dpo_cdpo_issued", expires: "dpo_cdpo_expires" },
+};
 
 export const SECTIONS: Section[] = [
   { key: "organisation", title: "Organisation details", questions: [
@@ -28,7 +33,11 @@ export const SECTIONS: Section[] = [
     { key: "dpo_name", label: "Name of Data Protection Officer", type: "text" },
     { key: "dpo_phone", label: "Phone number of Data Protection Officer", type: "tel" },
     { key: "dpo_email", label: "Email of Data Protection Officer", type: "email" },
-    { key: "dpo_cdpo", label: "CDPO certification details", help: "Certifying body, certificate number, and issue and expiry dates.", type: "textarea" },
+    { key: "dpo_cdpo_file", label: "CDPO certificate (PDF)", help: "Attach the certificate. The certifying body, certificate number and dates below are filled in from it automatically; check them.", type: "file" },
+    { key: "dpo_cdpo_body", label: "Certifying body", type: "text" },
+    { key: "dpo_cdpo_number", label: "Certificate number", type: "text" },
+    { key: "dpo_cdpo_issued", label: "Issue date", type: "date" },
+    { key: "dpo_cdpo_expires", label: "Expiry date", type: "date" },
   ]},
   { key: "subjects", title: "People whose data you hold", questions: [
     { key: "subjects", label: "Whose personal data do you collect?", type: "multi", required: true, options: opts("Employees", "Job applicants", "Customers", "Prospective customers", "Patients", "Students", "Website visitors", "Suppliers' staff", "Children") },

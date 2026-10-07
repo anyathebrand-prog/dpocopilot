@@ -145,3 +145,17 @@ test("CAR risk with Schedule 2 priority: Medium priority drops a level; High-pri
   assert.deepEqual(carRisk(it(["missing", "high"], ["complete", "medium"])), { score: 67, rating: "high" });
   assert.deepEqual(carRisk(it(["complete", "high"], ["missing", "medium"])), { score: 33, rating: "medium" });
 });
+
+test("CDPO certificate: labelled details, date formats, fallbacks", async () => {
+  const { parseCertificate, findDates } = await import("./certificate.ts");
+  assert.deepEqual(parseCertificate(`Institute of Data Protection Professionals of Nigeria
+This is to certify that Chinwe Okeke has been awarded the Certified Data Protection Officer (CDPO) credential
+Certificate No: CDPO/2025/118
+Date of Issue: 12th March 2025
+Valid until: 11 March 2027`), { body: "Institute of Data Protection Professionals of Nigeria", number: "CDPO/2025/118", issued: "2025-03-12", expires: "2027-03-11" });
+  // Known body anywhere; numeric dates day-first; unlabelled dates -> earliest issued, latest expiry.
+  assert.deepEqual(parseCertificate("PECB Certified Data Protection Officer\nCredential ID: 4821-77\n05/06/2024   04/06/2027"),
+    { body: "PECB", number: "4821-77", issued: "2024-06-05", expires: "2027-06-04" });
+  assert.deepEqual(findDates("March 3, 2025 and 2026-01-31 and 31/02/2025"), [{ at: 0, date: "2025-03-03" }, { at: 18, date: "2026-01-31" }]);
+  assert.deepEqual(parseCertificate("Certified Data Protection Officer"), { body: null, number: null, issued: null, expires: null });
+});

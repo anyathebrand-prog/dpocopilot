@@ -40,18 +40,25 @@ function clamScan(buf: Buffer): Promise<boolean | null> {
 }
 
 export async function storeUpload(u: User, client: { id: string; firm_id: string }, file: File, evidenceRequestId: string): Promise<string | null> {
-  if (!file || !file.size) return "Choose a file.";
+  const r = await storeFile(u, client, file, evidenceRequestId);
+  return "error" in r ? r.error : null;
+}
+
+/** Validate, scan and store one upload for a client; returns the file id, or a message for the user. */
+export async function storeFile(u: User, client: { id: string; firm_id: string }, file: File, evidenceRequestId: string | null): Promise<{ id: string } | { error: string }> {
+  const fail = (error: string) => ({ error });
+  if (!file || !file.size) return fail("Choose a file.");
   const ext = file.name.split(".").pop()?.toLowerCase() ?? "";
-  if (!ALLOWED[ext]) return `${file.name}: this file type isn't allowed. Use PDF, Word, Excel, CSV, text or a photo.`;
-  if (file.size > MAX) return `${file.name} is larger than 25 MB.`;
+  if (!ALLOWED[ext]) return fail(`${file.name}: this file type isn't allowed. Use PDF, Word, Excel, CSV, text or a photo.`);
+  if (file.size > MAX) return fail(`${file.name} is larger than 25 MB.`);
   const buf = Buffer.from(await file.arrayBuffer());
   let clean: boolean | null;
-  try { clean = await clamScan(buf); } catch { return "The virus scanner is unavailable. Try again shortly."; }
+  try { clean = await clamScan(buf); } catch { return fail("The virus scanner is unavailable. Try again shortly."); }
   if (clean === false) {
     await audit(u, "create", "file_rejected", null, { client_id: client.id, firm_id: client.firm_id, details: { reason: "infected" } });
-    return `${file.name} was rejected by the security scan.`;
+    return fail(`${file.name} was rejected by the security scan.`);
   }
-  if (clean === null && process.env.NODE_ENV === "production") return "File uploads are disabled until the virus scanner is configured.";
+  if (clean === null && process.env.NODE_ENV === "production") return fail("File uploads are disabled until the virus scanner is configured.");
   const id = randomUUID();
   const rel = path.join(client.firm_id, client.id, id);
   mkdirSync(path.join(ROOT, client.firm_id, client.id), { recursive: true });
@@ -59,7 +66,7 @@ export async function storeUpload(u: User, client: { id: string; firm_id: string
   await q(`insert into files (id, firm_id, client_id, evidence_request_id, original_name, mime, size_bytes, sha256, storage_path, scan_status, uploaded_by)
     values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`, [id, client.firm_id, client.id, evidenceRequestId, file.name.slice(0, 200), ALLOWED[ext], file.size, sha256(buf), rel, clean ? "clean" : "unscanned", u.id]);
   await audit(u, "create", "file", id, { client_id: client.id, firm_id: client.firm_id, details: { evidence_request: evidenceRequestId } });
-  return null;
+  return { id };
 }
 
 export const readStored = (rel: string) => readFileSync(path.join(ROOT, rel));

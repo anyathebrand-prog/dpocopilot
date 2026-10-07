@@ -46,10 +46,17 @@ export function Questionnaire({ answers, s, base, clientId, readOnly, portal, up
               <Field key={qn.key} label={qn.label + byFirm} help={qn.help} required={qn.required}>
                 {qn.type === "select" ? (
                   <select name={qn.key} defaultValue={(v as string) ?? ""}><option value="">Choose…</option>{qn.options!.map((o) => <option key={o.value}>{o.value}</option>)}</select>
+                ) : qn.type === "file" ? (
+                  <>
+                    {(v as { file_id?: string } | undefined)?.file_id && (
+                      <p className="small" style={{ margin: "0 0 6px" }}>Attached: <a href={`/files/${(v as { file_id: string }).file_id}`}>{(v as unknown as { name: string }).name}</a>. Attach a new PDF to replace it.</p>
+                    )}
+                    <input type="file" name={qn.key} accept=".pdf,application/pdf" />
+                  </>
                 ) : qn.type === "textarea" || qn.type === "list" ? (
                   <textarea name={qn.key} defaultValue={Array.isArray(v) ? v.join("\n") : (v as string) ?? ""} />
                 ) : (
-                  <input name={qn.key} type={qn.type === "number" || qn.type === "email" || qn.type === "tel" ? qn.type : "text"} inputMode={qn.type === "number" ? "numeric" : qn.type === "url" ? "url" : undefined}
+                  <input name={qn.key} type={qn.type === "number" || qn.type === "email" || qn.type === "tel" || qn.type === "date" ? qn.type : "text"} inputMode={qn.type === "number" ? "numeric" : qn.type === "url" ? "url" : undefined}
                     autoComplete={qn.type === "email" ? "email" : qn.type === "tel" ? "tel" : qn.type === "url" ? "url" : undefined} min={qn.type === "number" ? 0 : undefined} defaultValue={(v as string) ?? ""} />
                 )}
               </Field>

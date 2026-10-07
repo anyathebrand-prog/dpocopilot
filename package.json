@@ -25,7 +25,8 @@
     "pg": "^8.23.1",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
-    "three": "^0.186.1"
+    "three": "^0.186.1",
+    "unpdf": "^1.8.1"
   },
   "devDependencies": {
     "@types/node": "^22",
