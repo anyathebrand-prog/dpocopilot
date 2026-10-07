@@ -5,7 +5,7 @@ export type Question = {
   key: string;
   label: string;
   help?: string;
-  type: "text" | "textarea" | "number" | "yesno" | "multi" | "list" | "select" | "email" | "tel";
+  type: "text" | "textarea" | "number" | "yesno" | "multi" | "list" | "select" | "email" | "tel" | "url";
   options?: { value: string; label: string; sensitive?: boolean }[];
   required?: boolean;
 };
@@ -17,6 +17,9 @@ export const SECTIONS: Section[] = [
   { key: "organisation", title: "Organisation details", questions: [
     { key: "org_legal_name", label: "Registered name of the organisation", type: "text", required: true },
     { key: "org_address", label: "Head office address", type: "text" },
+    { key: "org_phone", label: "Phone", type: "tel" },
+    { key: "org_email", label: "Email", type: "email" },
+    { key: "org_website", label: "Website", help: "For example: www.example.ng", type: "url" },
     { key: "org_branch", label: "Branch name", type: "text" },
     { key: "org_sector", label: "Sector", type: "select", required: true, options: opts("Financial services", "Health", "Education", "Telecoms", "Government or public sector", "Retail or e-commerce", "Technology", "Other") },
     { key: "org_staff_count", label: "Number of staff", type: "number" },
