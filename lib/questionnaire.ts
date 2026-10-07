@@ -19,6 +19,8 @@ export const SECTIONS: Section[] = [
     { key: "org_address", label: "Head office address", type: "text" },
     { key: "org_sector", label: "Sector", type: "select", required: true, options: opts("Financial services", "Health", "Education", "Telecoms", "Government or public sector", "Retail or e-commerce", "Technology", "Other") },
     { key: "org_staff_count", label: "Number of staff", type: "number" },
+    { key: "org_department_count", label: "Number of departments", type: "number" },
+    { key: "org_departments", label: "List of departments. One per line", help: "For example: Human Resources, Finance, Customer Service, IT.", type: "list" },
   ]},
   { key: "subjects", title: "People whose data you hold", questions: [
     { key: "subjects", label: "Whose personal data do you collect?", type: "multi", required: true, options: opts("Employees", "Job applicants", "Customers", "Prospective customers", "Patients", "Students", "Website visitors", "Suppliers' staff", "Children") },
