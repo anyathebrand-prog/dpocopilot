@@ -411,11 +411,24 @@ create table if not exists notifications (
   id uuid primary key default gen_random_uuid(),
   firm_id uuid not null references firms,
   recipient_user_id uuid not null references users,
-  kind text not null check (kind in ('breach_reported','dsar_logged','evidence_submitted','signed_off','questionnaire_completed')),
+  kind text not null check (kind in ('breach_reported','dsar_logged','evidence_submitted','signed_off','questionnaire_completed','car_due')),
   message text not null,
   link text not null,
   read_at timestamptz,
   created_at timestamptz not null default now()
+);
+
+-- Existing databases: widen the kind check above (schema.sql re-runs on every start; no migrations yet).
+alter table notifications drop constraint if exists notifications_kind_check;
+alter table notifications add constraint notifications_kind_check check (kind in ('breach_reported','dsar_logged','evidence_submitted','signed_off','questionnaire_completed','car_due'));
+
+-- One row per CAR reminder stage sent (lib/reminders.ts). Keyed on the due date, so a new date starts a fresh cycle.
+create table if not exists car_reminders (
+  client_id uuid not null references clients on delete cascade,
+  due_on date not null,
+  days_before int not null,
+  sent_at timestamptz not null default now(),
+  primary key (client_id, due_on, days_before)
 );
 
 create table if not exists outbound_messages (

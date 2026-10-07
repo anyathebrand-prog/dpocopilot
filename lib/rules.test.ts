@@ -1,7 +1,7 @@
 // Run: npm test  (Node 22.18+ strips TypeScript types natively)
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { parseWATLocal, breachDeadline, dsarDeadline, deadlineState, countdown, readiness, findGaps, evaluateMI, parseCSV, todayWAT } from "./rules.ts";
+import { parseWATLocal, breachDeadline, dsarDeadline, deadlineState, countdown, readiness, findGaps, evaluateMI, parseCSV, todayWAT, carReminderStage } from "./rules.ts";
 import { buildInventory, missingRequired } from "./questionnaire.ts";
 
 test("breach deadline is 72h after awareness, entered in WAT", () => {
@@ -114,4 +114,14 @@ test("library ingestion splits pasted text into citable sections", async () => {
   assert.deepEqual(s.map((x) => x.section_ref), ["Full text", "Section 40", "Section 41(1)"]);
   assert.equal(s[1].heading, "Personal data breaches");
   assert.equal(s[1].body, "Notify within 72 hours.\nMore.");
+});
+
+test("CAR reminder stages: 30/14/7/1/0 days, missed runs catch up, nothing outside the window", () => {
+  assert.equal(carReminderStage("2027-03-31", "2027-02-28"), null); // 31 days out
+  assert.equal(carReminderStage("2027-03-31", "2027-03-01"), 30);
+  assert.equal(carReminderStage("2027-03-31", "2027-03-21"), 14); // 10 days left: catch-up
+  assert.equal(carReminderStage("2027-03-31", "2027-03-24"), 7);
+  assert.equal(carReminderStage("2027-03-31", "2027-03-30"), 1);
+  assert.equal(carReminderStage("2027-03-31", "2027-03-31"), 0);
+  assert.equal(carReminderStage("2027-03-31", "2027-04-01"), null); // past
 });

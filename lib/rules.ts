@@ -37,6 +37,20 @@ export const breachDeadline = (awareAt: Date) => new Date(+awareAt + 72 * HOUR);
 /** FR16.3: DSAR response due `days` after date received (default 30, Secretary setting). */
 export const dsarDeadline = (receivedOn: string, days: number) => addDays(receivedOn, days);
 
+/** Whole days from `today` to `date` (both 'YYYY-MM-DD'); negative once past. */
+export const daysUntil = (date: string, today: string) => Math.round((Date.parse(date) - Date.parse(today)) / DAY);
+
+/** CAR filing reminders go out 30, 14, 7 and 1 day(s) before, and on the day. */
+export const CAR_REMINDER_DAYS = [30, 14, 7, 1, 0];
+
+/** The reminder stage due for a CAR date, or null outside the 30-day window. A missed run catches up
+ *  with the latest stage (due in 10 days → the 14-day reminder), so each stage is sent at most once. */
+export function carReminderStage(due: string, today: string): number | null {
+  const left = daysUntil(due, today);
+  if (left < 0 || left > CAR_REMINDER_DAYS[0]) return null;
+  return Math.min(...CAR_REMINDER_DAYS.filter((d) => d >= left));
+}
+
 /** Date-only deadlines fall due at the end of that day in WAT. */
 export const endOfDayWAT = (date: string) => new Date(`${date}T23:59:59${WAT_OFFSET}`);
 

@@ -3,14 +3,14 @@ import { ShieldAlert } from "lucide-react";
 import { requireContact } from "@/lib/auth";
 import { q, one } from "@/lib/db";
 import { reference } from "@/lib/breach";
-import { fmtDate, fmtWAT } from "@/lib/rules";
+import { fmtDate, fmtWAT, todayWAT, carReminderStage } from "@/lib/rules";
 import { Flash, Deadline, Chip, Banner, Bar } from "@/components/ui";
 
 export default async function PortalHome({ searchParams }: { searchParams: Promise<Record<string, string>> }) {
   const u = await requireContact();
   const sp = await searchParams;
   const id = u.client_id!;
-  const client = await one("select name, archived_at from clients where id = $1", [id]);
+  const client = await one("select name, archived_at, car_filing_due_on from clients where id = $1", [id]);
   const score = await one<{ pct: number }>(`select coalesce(round(100.0 * count(*) filter (where status = 'complete') / nullif(count(*) filter (where status <> 'not_applicable'), 0)), 0)::int as pct from client_car_items where client_id = $1`, [id]);
   const qn = await one("select status from questionnaires where client_id = $1", [id]);
   const evidence = await q("select id, title, due_on, status from evidence_requests where client_id = $1 and status in ('open','rejected') order by due_on nulls last", [id]);
@@ -31,6 +31,12 @@ export default async function PortalHome({ searchParams }: { searchParams: Promi
         <Bar pct={score!.pct} label={`Compliance file ${score!.pct}% ready`} />
       </section>
       <p className="meta">Managed by {u.firm_name}</p>
+      {client!.car_filing_due_on && carReminderStage(client!.car_filing_due_on, todayWAT()) !== null && (
+        <Banner kind="warn">
+          <b>Compliance Audit Return</b> · {u.firm_name} files it with the NDPC for you.
+          <Deadline due={client!.car_filing_due_on} dateOnly prefix="Filing due" soonHours={7 * 24} />
+        </Banner>
+      )}
       <h2>To do</h2>
       {todo === 0 && <p>You&apos;re all caught up.</p>}
       {qn!.status !== "completed" && (
