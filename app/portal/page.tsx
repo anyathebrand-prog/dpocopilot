@@ -11,7 +11,7 @@ export default async function PortalHome({ searchParams }: { searchParams: Promi
   const sp = await searchParams;
   const id = u.client_id!;
   const client = await one("select name, archived_at, car_filing_due_on from clients where id = $1", [id]);
-  const score = await one<{ pct: number }>(`select coalesce(round(100.0 * count(*) filter (where status = 'complete') / nullif(count(*) filter (where status <> 'not_applicable'), 0)), 0)::int as pct from client_car_items where client_id = $1`, [id]);
+  const score = await one<{ pct: number }>(`select coalesce(round(100.0 * count(*) filter (where status = 'complete') / nullif(count(*) filter (where status <> 'not_applicable'), 0)), 0)::int as pct from client_car_items where client_id = $1 and audit_year = (select car_audit_year from clients where id = $1)`, [id]);
   const qn = await one("select status from questionnaires where client_id = $1", [id]);
   const evidence = await q("select id, title, due_on, status from evidence_requests where client_id = $1 and status in ('open','rejected') order by due_on nulls last", [id]);
   const signoffs = await q(`select s.id, v.parent_type, v.parent_id, coalesce(d.title, dp.title) as title from signoff_requests s join content_versions v on v.id = s.version_id

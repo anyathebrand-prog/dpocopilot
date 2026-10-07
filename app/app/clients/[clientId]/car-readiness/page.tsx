@@ -1,10 +1,11 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { requireClient, audit } from "@/lib/auth";
-import { q, one } from "@/lib/db";
+import { q, one, tx } from "@/lib/db";
+import { startCarYear } from "@/lib/clients";
 import { readiness, CAR_CATEGORIES, carItemRisk, carRisk } from "@/lib/rules";
 import { str, opt, flash } from "@/lib/form";
-import { Flash, Hidden, Chip, Bar } from "@/components/ui";
+import { Flash, Hidden, Chip, Bar, Banner, Empty } from "@/components/ui";
 import { Submit } from "@/components/client";
 import { INSTALL } from "@/lib/install";
 
@@ -16,15 +17,30 @@ const RECOMMEND_HINT: Record<string, string> = {
   not_applicable: "Optional.",
 };
 
-async function setAuditYear(fd: FormData) {
+const validYear = (v: unknown) => { const y = Number(v); return Number.isInteger(y) && y >= 2019 && y <= 2100 ? y : null; };
+const yearPath = (clientId: string, year: number) => `/app/clients/${clientId}/car-readiness?year=${year}`;
+
+/** Create the checklist for an audit year that has none yet, from the current published template. */
+async function startYear(fd: FormData) {
   "use server";
   const { user, client } = await requireClient(str(fd, "client_id"), { write: true });
-  const back = `/app/clients/${client.id}/car-readiness`;
-  const year = Number(str(fd, "year"));
-  if (!Number.isInteger(year) || year < 2019 || year > 2100) redirect(flash(back, "Enter the audit year as four digits, for example 2026.", "error"));
+  const year = validYear(str(fd, "year"));
+  if (!year) redirect(flash(`/app/clients/${client.id}/car-readiness`, "Enter the audit year as four digits, for example 2026.", "error"));
+  await tx((t) => startCarYear(t, client.firm_id, client.id, year));
+  await audit(user, "create", "car_checklist", client.id, { client_id: client.id, details: { audit_year: year } });
+  redirect(flash(yearPath(client.id, year), `${year} checklist started`));
+}
+
+/** The active year is the checklist the dashboard, client portal, gaps and evidence requests use. */
+async function setActiveYear(fd: FormData) {
+  "use server";
+  const { user, client } = await requireClient(str(fd, "client_id"), { write: true });
+  const year = validYear(str(fd, "year"));
+  if (!year || !(await one("select 1 from client_car_items where client_id = $1 and audit_year = $2 limit 1", [client.id, year])))
+    redirect(flash(`/app/clients/${client.id}/car-readiness`, "Start that year's checklist before making it active.", "error"));
   await q("update clients set car_audit_year = $2 where id = $1", [client.id, year]);
   await audit(user, "update", "client", client.id, { client_id: client.id, details: { car_audit_year: year } });
-  redirect(flash(back, `Audit year set to ${year}`));
+  redirect(flash(yearPath(client.id, year), `${year} is now the active audit year`));
 }
 
 async function setStatus(fd: FormData) {
@@ -32,7 +48,7 @@ async function setStatus(fd: FormData) {
   const item = await one("select * from client_car_items where id = $1", [str(fd, "item_id")]);
   if (!item) redirect("/forbidden");
   const { user } = await requireClient(item.client_id, { write: true });
-  const back = `/app/clients/${item.client_id}/car-readiness`;
+  const back = yearPath(item.client_id, item.audit_year);
   const status = str(fd, "status"), reason = opt(fd, "na_reason");
   if (!STATUSES.some(([s]) => s === status)) redirect(back);
   if (status === "not_applicable" && !reason) redirect(flash(`${back}#i-${item.id}`, "Give a reason when marking an item Not applicable.", "error"));
@@ -50,7 +66,7 @@ async function linkDecision(fd: FormData) {
   const confirm = str(fd, "op") === "confirm";
   await q(`update client_car_items set link_state = $2, status = case when $3 then 'complete' else status end, is_new = false, updated_by = $4 where id = $1`, [item.id, confirm ? "confirmed" : "dismissed", confirm, user.id]);
   await audit(user, "update", "car_item", item.id, { client_id: item.client_id, details: { suggested_evidence: confirm ? "confirmed" : "dismissed" } });
-  redirect(flash(`/app/clients/${item.client_id}/car-readiness`, confirm ? "Suggested evidence confirmed" : "Suggestion dismissed"));
+  redirect(flash(yearPath(item.client_id, item.audit_year), confirm ? "Suggested evidence confirmed" : "Suggestion dismissed"));
 }
 
 /** FR8.6: where platform records already satisfy an item, suggest them for the reviewer to confirm. */
@@ -78,35 +94,53 @@ export default async function Car({ params, searchParams }: { params: Promise<{ 
   const { clientId } = await params;
   const sp = await searchParams;
   const { client } = await requireClient(clientId);
+  const active: number = client.car_audit_year;
+  const year = validYear(sp.year) ?? active;
+  const years = (await q<{ y: number }>("select distinct audit_year as y from client_car_items where client_id = $1 order by 1 desc", [clientId])).map((r) => r.y);
   const items = await q(`select i.*, (select count(*)::int from evidence_requests e where e.car_item_id = i.id and e.status = 'accepted') as accepted,
       (select count(*)::int from evidence_requests e where e.car_item_id = i.id and e.status <> 'accepted') as pending
-    from client_car_items i where i.client_id = $1 order by i.category_key, i.position`, [clientId]);
+    from client_car_items i where i.client_id = $1 and i.audit_year = $2 order by i.category_key, i.position`, [clientId, year]);
   const r = readiness(items as { category_key: string; status: string }[]);
   const risk = carRisk(items as { category_key: string; status: string }[]);
   const sug = await suggestions(clientId);
   const ro = !!client.archived_at;
   const b = `/app/clients/${clientId}`;
+  const h = <Hidden values={{ client_id: clientId, year: String(year) }} />;
   return (
     <>
       <div className="spread">
-        <h2 style={{ marginTop: 0 }}>CAR readiness</h2>
-        <div className="row">
-          <a className="btn secondary" href={`/export?kind=car&client=${clientId}&format=pdf`} target="_blank">Export PDF</a>
-          <a className="btn secondary" href={`/export?kind=car&client=${clientId}&format=doc`}>Export Word</a>
-        </div>
+        <h2 style={{ marginTop: 0 }}>CAR readiness · {year}</h2>
+        {items.length > 0 && (
+          <div className="row">
+            <a className="btn secondary" href={`/export?kind=car&client=${clientId}&year=${year}&format=pdf`} target="_blank">Export PDF</a>
+            <a className="btn secondary" href={`/export?kind=car&client=${clientId}&year=${year}&format=doc`}>Export Word</a>
+          </div>
+        )}
       </div>
       <Flash sp={sp} />
+      <form method="get" className="row" style={{ alignItems: "flex-end", margin: "8px 0 16px" }} aria-label="Audit year">
+        <label className="small">Audit year <input type="number" name="year" min={2019} max={2100} defaultValue={year} required style={{ width: 120, display: "block" }} /></label>
+        <button className="btn secondary">Open</button>
+        {years.length > 0 && <nav className="row" aria-label="Recorded years" style={{ gap: 6 }}>
+          {years.map((y) => <Link key={y} href={yearPath(clientId, y)} className={`btn ${y === year ? "" : "quiet"}`} aria-current={y === year ? "page" : undefined}>{y}{y === active ? " (active)" : ""}</Link>)}
+        </nav>}
+      </form>
+      {items.length === 0 ? (
+        <Empty>
+          <p><b>No CAR readiness has been recorded for {year}.</b></p>
+          <p>{years.length ? `Recorded years: ${years.join(", ")}.` : "No years recorded yet."}</p>
+          {!ro && <form action={startYear}>{h}<Submit>Start the {year} checklist</Submit></form>}
+        </Empty>
+      ) : <>
+      {year !== active
+        ? <Banner>You&apos;re viewing {year}. The active year is {active}: the dashboard, client portal, gaps and evidence requests use that one.
+            {!ro && <form action={setActiveYear} style={{ marginTop: 8 }}>{h}<Submit className="btn secondary">Make {year} the active year</Submit></form>}</Banner>
+        : <p className="meta">Active audit year: covers processing from 1 January to 31 December {year}.</p>}
       <section className="panel" style={{ marginBottom: 24 }}>
         <p style={{ fontSize: 22, margin: "0 0 8px" }}><b className="num">{r.overall.pct}%</b> ready · <span className="num">{r.overall.complete} of {r.overall.applicable}</span> applicable items complete</p>
         <Bar pct={r.overall.pct} />
         {risk && <p style={{ margin: "12px 0 0" }}>Risk score <b className="num">{risk.score}</b> / 100 <Chip status={`risk_${risk.rating}`} /> <span className="meta">From item statuses: Missing is high risk, In progress medium, Complete low.</span></p>}
         <p className="caption" style={{ marginTop: 8 }}>Items marked Not applicable are left out of both scores. {INSTALL.name} does not file the CAR with the NDPC.</p>
-        <form action={setAuditYear} className="row" style={{ marginTop: 16, alignItems: "flex-end" }}>
-          <Hidden values={{ client_id: clientId }} />
-          <label className="small">Audit year <input type="number" name="year" min={2019} max={2100} defaultValue={client.car_audit_year ?? new Date().getFullYear() - 1} required style={{ width: 120, display: "block" }} disabled={ro} /></label>
-          {!ro && <Submit className="btn secondary">Save year</Submit>}
-          <span className="meta">{client.car_audit_year ? `Preparing the CAR for ${client.car_audit_year} (processing from 1 January to 31 December ${client.car_audit_year}).` : "Not set yet. The CAR covers the previous calendar year."}</span>
-        </form>
       </section>
       {Object.entries(CAR_CATEGORIES).map(([k, label]) => (
         <details key={k} className="group" open>
@@ -153,6 +187,7 @@ export default async function Car({ params, searchParams }: { params: Promise<{ 
           </div>
         </details>
       ))}
+      </>}
     </>
   );
 }

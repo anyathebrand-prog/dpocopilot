@@ -80,8 +80,9 @@ export async function publishAll(fd: FormData) {
     await t.query("update mi_criteria set status = 'published' where status = 'draft'");
     await t.query("update platform_settings set published_value = draft_value, draft_value = null where draft_value is not null");
     if (newItems.rows.length)
-      await t.query(`insert into client_car_items (firm_id, client_id, template_item_id, category_key, item_text, position, auto_link_rule, is_new)
-        select c.firm_id, c.id, i.id, i.category_key, i.text, i.position, i.auto_link_rule, true from clients c cross join car_template_items i
+      // New template items join each client's active-year checklist; past years stay as they were filed.
+      await t.query(`insert into client_car_items (firm_id, client_id, audit_year, template_item_id, category_key, item_text, position, auto_link_rule, is_new)
+        select c.firm_id, c.id, c.car_audit_year, i.id, i.category_key, i.text, i.position, i.auto_link_rule, true from clients c cross join car_template_items i
         where i.id = any($1::uuid[]) and c.archived_at is null on conflict do nothing`, [newItems.rows.map((r) => r.id)]);
     await t.query("insert into publish_events (summary, published_by) values ($1,$2)", [summary.join("; "), u.id]);
     await audit(u, "publish", "platform_content", null, { firm_id: null, details: { changes: summary.length } }, t);

@@ -31,7 +31,7 @@ export default async function Evidence({ params, searchParams }: { params: Promi
   const rows = await q(`select e.*, i.category_key, i.item_text, (select count(*)::int from files f where f.evidence_request_id = e.id) as files
     from evidence_requests e left join client_car_items i on i.id = e.car_item_id where e.client_id = $1
     order by coalesce(i.category_key, 'zz'), e.created_at desc`, [clientId]);
-  const items = await q("select id, category_key, item_text from client_car_items where client_id = $1 order by category_key, position", [clientId]);
+  const items = await q("select id, category_key, item_text from client_car_items where client_id = $1 and audit_year = (select car_audit_year from clients where id = $1) order by category_key, position", [clientId]);
   const groups = [...Object.keys(CAR_CATEGORIES), null];
   return (
     <>

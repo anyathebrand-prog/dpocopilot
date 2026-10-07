@@ -338,13 +338,22 @@ create table if not exists client_car_items (
   is_new boolean not null default false,
   link_state text check (link_state in ('confirmed','dismissed')),
   updated_by uuid references users,
-  unique (client_id, template_item_id),
   check (status <> 'not_applicable' or na_reason is not null)
 );
 
 -- CAR readiness extras: the audit year being prepared (per client) and the consultant's recommendation per item.
 alter table clients add column if not exists car_audit_year int check (car_audit_year between 2019 and 2100);
 alter table client_car_items add column if not exists recommendation text;
+
+-- One CAR checklist per client per audit year (expand + backfill; idempotent, runs on every start).
+-- clients.car_audit_year is the ACTIVE year: dashboard, portal, gaps and evidence read that year's checklist.
+-- Rollback while each client still has a single year: restore unique (client_id, template_item_id) and ignore audit_year.
+update clients set car_audit_year = extract(year from now())::int - 1 where car_audit_year is null;
+alter table client_car_items add column if not exists audit_year int;
+update client_car_items i set audit_year = c.car_audit_year from clients c where c.id = i.client_id and i.audit_year is null;
+alter table client_car_items alter column audit_year set not null;
+alter table client_car_items drop constraint if exists client_car_items_client_id_template_item_id_key;
+create unique index if not exists client_car_items_year on client_car_items (client_id, audit_year, template_item_id);
 
 create table if not exists evidence_requests (
   id uuid primary key default gen_random_uuid(),

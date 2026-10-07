@@ -83,18 +83,21 @@ export async function GET(req: Request) {
   }
 
   if (kind === "car") {
-    const items = await q("select * from client_car_items where client_id = $1 order by category_key, position", [clientId]);
+    const asked = Number(url.searchParams.get("year"));
+    const auditYear: number = Number.isInteger(asked) && asked >= 2019 && asked <= 2100 ? asked : client!.car_audit_year;
+    const items = await q("select * from client_car_items where client_id = $1 and audit_year = $2 order by category_key, position", [clientId, auditYear]);
+    if (!items.length) return new Response(`No CAR readiness has been recorded for ${auditYear}.`, { status: 404, headers: { "content-type": "text/plain; charset=utf-8" } });
     const r = readiness(items as { category_key: string; status: string }[]);
     const label: Record<string, string> = { complete: "Complete", in_progress: "In progress", missing: "Missing", not_applicable: "Not applicable" };
     const riskLabel = (x: string | null | undefined) => (x ? x[0].toUpperCase() + x.slice(1) : "—");
     const risk = carRisk(items as { category_key: string; status: string }[]);
-    const year = client!.car_audit_year ? ` · ${client!.car_audit_year} audit` : "";
-    await audit(u, "export", "car_checklist", clientId, { client_id: clientId, details: { format } });
+    const year = ` · ${auditYear} audit`;
+    await audit(u, "export", "car_checklist", clientId, { client_id: clientId, details: { format, audit_year: auditYear } });
     return page("CAR readiness checklist", `<h1>CAR readiness checklist${year}</h1>${stamp}<p>Overall readiness: <b>${r.overall.pct}%</b> (${r.overall.complete} of ${r.overall.applicable} applicable items complete)</p>` +
       (risk ? `<p>Risk score: <b>${risk.score} / 100 (${riskLabel(risk.rating)})</b>. Item risk follows status: Missing high, In progress medium, Complete low.</p>` : "") +
       Object.entries(CAR_CATEGORIES).map(([k, l]) => { const cat = items.filter((i) => i.category_key === k); const cr = carRisk(cat as { category_key: string; status: string }[]);
         return `<h2>${l} (${r.byCategory[k].pct}%${cr ? `, ${riskLabel(cr.rating)} risk` : ""})</h2><table><tr><th>Item</th><th>Status</th><th>Risk</th><th>Recommendation</th></tr>${cat.map((i) => `<tr><td>${esc(i.item_text)}</td><td>${label[i.status]}${i.na_reason ? `: ${esc(i.na_reason)}` : ""}</td><td>${riskLabel(carItemRisk(i.status))}</td><td>${esc(i.recommendation ?? "")}</td></tr>`).join("")}</table>`; }).join(""),
-      format, slug(`${client!.name}-car-readiness`));
+      format, slug(`${client!.name}-car-readiness-${auditYear}`));
   }
   return denied();
 }
