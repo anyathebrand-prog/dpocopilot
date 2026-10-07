@@ -14,6 +14,7 @@ export default async function PortalCar() {
     from client_car_items i where i.client_id = $1 and i.audit_year = (select car_audit_year from clients where id = $1) order by i.category_key, i.position`, [u.client_id]);
   const r = readiness(items as { category_key: string; status: string }[]);
   const risk = carRisk(items as { category_key: string; status: string; priority: string | null }[]);
+  const findings = await q("select observation, risk, recommendation, status from car_findings where client_id = $1 and audit_year = (select car_audit_year from clients where id = $1) order by status, created_at", [u.client_id]);
   return (
     <>
       <p><Link href="/portal">Back to home</Link></p>
@@ -44,6 +45,17 @@ export default async function PortalCar() {
               ))}
             </section>
           ))}
+          {findings.length > 0 && (
+            <section>
+              <h2>Other findings and observations</h2>
+              {findings.map((f, n) => (
+                <div key={n} className={`rule-row ${f.status === "open" ? "soon" : ""}`} style={{ display: "block" }}>
+                  <div className="spread"><b>{f.observation}</b><span className="row" style={{ gap: 6 }}><Chip status={`risk_${f.risk}`} /><Chip status={f.status} /></span></div>
+                  {f.recommendation && <p className="small" style={{ margin: "6px 0 0" }}><b>Recommendation from {u.firm_name}:</b> {f.recommendation}</p>}
+                </div>
+              ))}
+            </section>
+          )}
         </>
       )}
     </>

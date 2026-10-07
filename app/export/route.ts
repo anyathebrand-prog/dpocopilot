@@ -86,6 +86,7 @@ export async function GET(req: Request) {
     const asked = Number(url.searchParams.get("year"));
     const auditYear: number = Number.isInteger(asked) && asked >= 2019 && asked <= 2100 ? asked : client!.car_audit_year;
     const items = await q("select * from client_car_items where client_id = $1 and audit_year = $2 order by category_key, position", [clientId, auditYear]);
+    const findings = await q("select * from car_findings where client_id = $1 and audit_year = $2 order by status, created_at", [clientId, auditYear]);
     if (!items.length) return new Response(`No CAR readiness has been recorded for ${auditYear}.`, { status: 404, headers: { "content-type": "text/plain; charset=utf-8" } });
     const r = readiness(items as { category_key: string; status: string }[]);
     const label: Record<string, string> = { complete: "Complete", in_progress: "In progress", missing: "Missing", not_applicable: "Not applicable" };
@@ -100,7 +101,10 @@ export async function GET(req: Request) {
         const row = (i: any, n: number) => (i.section && i.section !== cat[n - 1]?.section ? `<tr><th colspan="7">${esc(i.section)}</th></tr>` : "") +
           `<tr><td>${esc(i.item_text)}</td><td>${riskLabel(i.priority)}</td><td>${esc(i.answer ?? "")}</td><td>${esc(i.evidence_notes ?? "")}</td><td>${label[i.status]}${i.na_reason ? `: ${esc(i.na_reason)}` : ""}</td><td>${riskLabel(carItemRisk(i.status, i.priority))}</td><td>${esc(i.recommendation ?? "")}</td></tr>`;
         return `<h2>${l} (${r.byCategory[k].pct}%${cr ? `, ${riskLabel(cr.rating)} risk` : ""})</h2><table><tr><th>Audit parameter</th><th>Priority</th><th>Answer / facts</th><th>Evidence / documents</th><th>Status</th><th>Risk</th><th>Recommendation</th></tr>${cat.map(row).join("")}</table>`;
-      }).join(""),
+      }).join("") +
+      `<h2>Other findings and observations</h2>` + (findings.length
+        ? `<table><tr><th>Finding / observation</th><th>Risk</th><th>Status</th><th>Recommendation</th></tr>${findings.map((f) => `<tr><td>${esc(f.observation)}</td><td>${riskLabel(f.risk)}</td><td>${f.status === "resolved" ? "Resolved" : "Open"}</td><td>${esc(f.recommendation ?? "")}</td></tr>`).join("")}</table>`
+        : `<p>None recorded.</p>`),
       format, slug(`${client!.name}-car-readiness-${auditYear}`));
   }
   return denied();

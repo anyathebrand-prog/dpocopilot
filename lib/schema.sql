@@ -585,3 +585,19 @@ create table if not exists blog_posts (
   created_by uuid not null references users,
   updated_at timestamptz not null default now()
 );
+
+-- CAR readiness: other high-risk findings and observations outside the Schedule 2 questions, per client and audit year.
+create table if not exists car_findings (
+  id uuid primary key default gen_random_uuid(),
+  firm_id uuid not null references firms,
+  client_id uuid not null references clients,
+  audit_year int not null,
+  observation text not null,
+  risk text not null default 'high' check (risk in ('high','medium','low')),
+  recommendation text,
+  status text not null default 'open' check (status in ('open','resolved')),
+  created_by uuid not null references users,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+create index if not exists car_findings_client_year on car_findings (client_id, audit_year);

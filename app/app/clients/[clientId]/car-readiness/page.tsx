@@ -59,6 +59,40 @@ async function switchTemplate(fd: FormData) {
   redirect(flash(yearPath(client.id, year), `${year} checklist switched to the Schedule 2 template`));
 }
 
+const RISKS = [["high", "High"], ["medium", "Medium"], ["low", "Low"]];
+
+/** Findings outside the Schedule 2 questions, recorded per client and audit year. */
+async function addFinding(fd: FormData) {
+  "use server";
+  const { user, client } = await requireClient(str(fd, "client_id"), { write: true });
+  const year = validYear(str(fd, "year")), observation = str(fd, "observation"), risk = str(fd, "risk") || "high";
+  if (!year) redirect(`/app/clients/${client.id}/car-readiness`);
+  const back = `${yearPath(client.id, year)}#findings`;
+  if (!observation || !RISKS.some(([r]) => r === risk)) redirect(flash(back, "Describe the finding and choose its risk level.", "error"));
+  const f = await one("insert into car_findings (firm_id, client_id, audit_year, observation, risk, recommendation, created_by) values ($1,$2,$3,$4,$5,$6,$7) returning id",
+    [client.firm_id, client.id, year, observation, risk, opt(fd, "recommendation"), user.id]);
+  await audit(user, "create", "car_finding", f!.id, { client_id: client.id, details: { audit_year: year, risk } });
+  redirect(flash(back, "Finding added"));
+}
+
+async function saveFinding(fd: FormData) {
+  "use server";
+  const f = await one("select * from car_findings where id = $1", [/^[0-9a-f-]{36}$/.test(str(fd, "finding_id")) ? str(fd, "finding_id") : null]);
+  if (!f) redirect("/forbidden");
+  const { user } = await requireClient(f.client_id, { write: true });
+  const back = `${yearPath(f.client_id, f.audit_year)}#findings`;
+  if (str(fd, "op") === "delete") {
+    await q("delete from car_findings where id = $1", [f.id]);
+    await audit(user, "delete", "car_finding", f.id, { client_id: f.client_id, details: { audit_year: f.audit_year } });
+    redirect(flash(back, "Finding deleted"));
+  }
+  const observation = str(fd, "observation"), risk = str(fd, "risk"), status = str(fd, "status") === "resolved" ? "resolved" : "open";
+  if (!observation || !RISKS.some(([r]) => r === risk)) redirect(flash(back, "Describe the finding and choose its risk level.", "error"));
+  await q("update car_findings set observation = $2, risk = $3, recommendation = $4, status = $5, updated_at = now() where id = $1", [f.id, observation, risk, opt(fd, "recommendation"), status]);
+  await audit(user, "update", "car_finding", f.id, { client_id: f.client_id, details: { risk, status } });
+  redirect(flash(back, "Finding saved"));
+}
+
 async function setStatus(fd: FormData) {
   "use server";
   const item = await one("select * from client_car_items where id = $1", [str(fd, "item_id")]);
@@ -120,6 +154,8 @@ export default async function Car({ params, searchParams }: { params: Promise<{ 
   const r = readiness(items as It[]);
   const risk = carRisk(items as It[]);
   const oldTemplate = items.length > 0 && items.every((i) => !i.priority);
+  const findings = await q("select * from car_findings where client_id = $1 and audit_year = $2 order by status, created_at", [clientId, year]);
+  const openHigh = findings.filter((f) => f.status === "open" && f.risk === "high").length;
   const sug = await suggestions(clientId);
   const ro = !!client.archived_at;
   const b = `/app/clients/${clientId}`;
@@ -164,6 +200,7 @@ export default async function Car({ params, searchParams }: { params: Promise<{ 
         <p style={{ fontSize: 22, margin: "0 0 8px" }}><b className="num">{r.overall.pct}%</b> ready · <span className="num">{r.overall.complete} of {r.overall.applicable}</span> applicable items complete</p>
         <Bar pct={r.overall.pct} />
         {risk && <p style={{ margin: "12px 0 0" }}>Risk score <b className="num">{risk.score}</b> / 100 <Chip status={`risk_${risk.rating}`} /> <span className="meta">From status and question priority: Missing is high risk, In progress medium, Complete low; a Medium-priority question drops one level. High-priority questions count double.</span></p>}
+        {openHigh > 0 && <p style={{ margin: "8px 0 0" }}><a href="#findings"><b>{openHigh} open high-risk finding{openHigh > 1 ? "s" : ""}</b></a> <span className="meta">recorded outside the checklist.</span></p>}
         <p className="caption" style={{ marginTop: 8 }}>Items marked Not applicable are left out of both scores. {INSTALL.name} does not file the CAR with the NDPC.</p>
       </section>
       {Object.entries(CAR_CATEGORIES).filter(([k]) => items.some((i) => i.category_key === k)).map(([k, label]) => (
@@ -217,6 +254,49 @@ export default async function Car({ params, searchParams }: { params: Promise<{ 
           </div>
         </details>
       ))}
+      <section id="findings" style={{ marginTop: 32 }}>
+        <h3 style={{ marginBottom: 4 }}>Other findings and observations</h3>
+        <p className="meta" style={{ marginTop: 0 }}>Ancillary high-risk findings that none of the questions above cover. Shown to the client and included in exports.</p>
+        {findings.length === 0 && <p className="meta">None recorded for {year}.</p>}
+        {findings.map((f) => (
+          <div key={f.id} className={`rule-row ${f.status === "open" && f.risk === "high" ? "urgent" : f.status === "open" ? "soon" : ""}`} style={{ display: "block" }}>
+            {ro ? (
+              <>
+                <div className="spread"><b>{f.observation}</b><span className="row" style={{ gap: 6 }}><Chip status={`risk_${f.risk}`} /><Chip status={f.status} /></span></div>
+                {f.recommendation && <p className="small" style={{ margin: "6px 0 0" }}><b>Recommendation:</b> {f.recommendation}</p>}
+              </>
+            ) : (
+              <form action={saveFinding} className="row" style={{ alignItems: "flex-end" }}>
+                <Hidden values={{ finding_id: f.id }} />
+                <label className="small" style={{ flexBasis: "100%" }}>Finding / observation <textarea name="observation" rows={2} defaultValue={f.observation} required style={{ display: "block" }} /></label>
+                <label className="small">Risk <select name="risk" defaultValue={f.risk} style={{ width: "auto", display: "block" }}>{RISKS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></label>
+                <label className="small">Status <select name="status" defaultValue={f.status} style={{ width: "auto", display: "block" }}><option value="open">Open</option><option value="resolved">Resolved</option></select></label>
+                <label className="small" style={{ flex: "1 1 300px" }}>Recommendation <input name="recommendation" defaultValue={f.recommendation ?? ""} /></label>
+                <Submit className="btn secondary" name="op" value="save">Save</Submit>
+              </form>
+            )}
+            {!ro && (
+              <div style={{ marginTop: 8 }}>
+                <Confirm action={saveFinding} label="Delete" title="Delete this finding?" body="It is removed from this year's CAR readiness, the client portal and exports.">
+                  <Hidden values={{ finding_id: f.id, op: "delete" }} />
+                </Confirm>
+              </div>
+            )}
+          </div>
+        ))}
+        {!ro && (
+          <form action={addFinding} className="panel" style={{ marginTop: 16 }}>
+            {h}
+            <h4 style={{ marginTop: 0 }}>Add a finding</h4>
+            <label className="small" style={{ display: "block" }}>Finding / observation <textarea name="observation" rows={2} required placeholder="e.g. Customer KYC files stored on a shared drive with no access control" style={{ display: "block" }} /></label>
+            <div className="row" style={{ alignItems: "flex-end", marginTop: 8 }}>
+              <label className="small">Risk <select name="risk" defaultValue="high" style={{ width: "auto", display: "block" }}>{RISKS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></label>
+              <label className="small" style={{ flex: "1 1 300px" }}>Recommendation <input name="recommendation" placeholder="What the client should do, and by when" /></label>
+              <Submit>Add finding</Submit>
+            </div>
+          </form>
+        )}
+      </section>
       </>}
     </>
   );
