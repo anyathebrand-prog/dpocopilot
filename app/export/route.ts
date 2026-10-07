@@ -98,9 +98,9 @@ export async function GET(req: Request) {
       (risk ? `<p>Risk score: <b>${risk.score} / 100 (${riskLabel(risk.rating)})</b>. Item risk follows status and question priority: Missing high, In progress medium, Complete low; a Medium-priority question drops one level.</p>` : "") +
       Object.entries(CAR_CATEGORIES).filter(([k]) => items.some((i) => i.category_key === k)).map(([k, l]) => {
         const cat = items.filter((i) => i.category_key === k); const cr = carRisk(cat as { category_key: string; status: string; priority: string | null }[]);
-        const row = (i: any, n: number) => (i.section && i.section !== cat[n - 1]?.section ? `<tr><th colspan="7">${esc(i.section)}</th></tr>` : "") +
-          `<tr><td>${esc(i.item_text)}</td><td>${riskLabel(i.priority)}</td><td>${esc(i.answer ?? "")}</td><td>${esc(i.evidence_notes ?? "")}</td><td>${label[i.status]}${i.na_reason ? `: ${esc(i.na_reason)}` : ""}</td><td>${riskLabel(carItemRisk(i.status, i.priority))}</td><td>${esc(i.recommendation ?? "")}</td></tr>`;
-        return `<h2>${l} (${r.byCategory[k].pct}%${cr ? `, ${riskLabel(cr.rating)} risk` : ""})</h2><table><tr><th>Audit parameter</th><th>Priority</th><th>Answer / facts</th><th>Evidence / documents</th><th>Status</th><th>Risk</th><th>Recommendation</th></tr>${cat.map(row).join("")}</table>`;
+        const row = (i: any, n: number) => (i.section && i.section !== cat[n - 1]?.section ? `<tr><th colspan="8">${esc(i.section)}</th></tr>` : "") +
+          `<tr><td>${esc(i.item_text)}</td><td>${riskLabel(i.priority)}</td><td>${esc(i.answer ?? "")}</td><td>${esc(i.evidence_notes ?? "")}</td><td>${label[i.status]}</td><td>${esc(i.na_reason ?? "")}</td><td>${riskLabel(carItemRisk(i.status, i.priority))}</td><td>${esc(i.recommendation ?? "")}</td></tr>`;
+        return `<h2>${l} (${r.byCategory[k].pct}%${cr ? `, ${riskLabel(cr.rating)} risk` : ""})</h2><table><tr><th>Audit parameter</th><th>Priority</th><th>Answer / facts</th><th>Evidence / documents</th><th>Status</th><th>Non-conformity / observation</th><th>Risk</th><th>Recommendation</th></tr>${cat.map(row).join("")}</table>`;
       }).join("") +
       `<h2>Other findings and observations</h2>` + (findings.length
         ? `<table><tr><th>Finding / observation</th><th>Risk</th><th>Status</th><th>Recommendation</th></tr>${findings.map((f) => `<tr><td>${esc(f.observation)}</td><td>${riskLabel(f.risk)}</td><td>${f.status === "resolved" ? "Resolved" : "Open"}</td><td>${esc(f.recommendation ?? "")}</td></tr>`).join("")}</table>`

@@ -101,9 +101,9 @@ async function setStatus(fd: FormData) {
   const back = yearPath(item.client_id, item.audit_year);
   const status = str(fd, "status"), reason = opt(fd, "na_reason");
   if (!STATUSES.some(([s]) => s === status)) redirect(back);
-  if (status === "not_applicable" && !reason) redirect(flash(`${back}#i-${item.id}`, "Give a reason when marking an item Not applicable.", "error"));
+  if (status === "not_applicable" && !reason) redirect(flash(`${back}#i-${item.id}`, "Add a non-conformity or observation note when marking an item Not applicable.", "error"));
   await q("update client_car_items set status = $2, na_reason = $3, recommendation = $5, answer = $6, evidence_notes = $7, is_new = false, updated_by = $4 where id = $1",
-    [item.id, status, status === "not_applicable" ? reason : null, user.id, opt(fd, "recommendation"), opt(fd, "answer"), opt(fd, "evidence_notes")]);
+    [item.id, status, reason, user.id, opt(fd, "recommendation"), opt(fd, "answer"), opt(fd, "evidence_notes")]);
   await audit(user, "update", "car_item", item.id, { client_id: item.client_id, details: { status, recommendation: !!opt(fd, "recommendation") } });
   redirect(flash(back, "Checklist updated"));
 }
@@ -220,7 +220,7 @@ export default async function Car({ params, searchParams }: { params: Promise<{ 
                       <div className="meta">
                         {i.accepted > 0 && `${i.accepted} accepted evidence · `}{i.pending > 0 && `${i.pending} evidence request${i.pending > 1 ? "s" : ""} open · `}
                         {i.link_state === "confirmed" && "Platform records confirmed · "}
-                        {i.status === "not_applicable" && `Not applicable: ${i.na_reason}`}
+                        {i.na_reason && `Non-conformity / observation: ${i.na_reason}`}
                       </div>
                       {ro && (i.answer || i.evidence_notes) && <p className="small" style={{ margin: "6px 0 0" }}>{i.answer && <><b>Answer:</b> {i.answer} </>}{i.evidence_notes && <><b>Evidence:</b> {i.evidence_notes}</>}</p>}
                     </div>
@@ -238,7 +238,7 @@ export default async function Car({ params, searchParams }: { params: Promise<{ 
                     <form action={setStatus} className="row" style={{ marginTop: 8, alignItems: "flex-end" }}>
                       <Hidden values={{ item_id: i.id }} />
                       <label className="small">Status <select name="status" defaultValue={i.status} style={{ width: "auto", display: "block" }}>{STATUSES.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></label>
-                      <label className="small" style={{ flex: 1, minWidth: 200 }}>Reason if not applicable <input name="na_reason" defaultValue={i.na_reason ?? ""} /></label>
+                      <label className="small" style={{ flex: 1, minWidth: 200 }}>Non-Conformity/Observation <input name="na_reason" defaultValue={i.na_reason ?? ""} placeholder="Required when Not applicable" /></label>
                       <label className="small" style={{ flex: "1 1 260px" }}>Answer / facts <input name="answer" defaultValue={i.answer ?? ""} placeholder="Yes, No, or the facts (e.g. a number or name)" /></label>
                       <label className="small" style={{ flex: "1 1 260px" }}>Evidence / documents <input name="evidence_notes" defaultValue={i.evidence_notes ?? ""} placeholder="Documents seen or requested" /></label>
                       <label className="small" style={{ flexBasis: "100%" }}>Recommendation <span className="meta">(shown to the client and in exports)</span>
