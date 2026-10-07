@@ -14,12 +14,13 @@ export default async function ClientLayout({ children, params }: { children: Rea
       (select count(*)::int from breaches where client_id = $1 and status = 'open') as breaches,
       (select count(*)::int from dsars where client_id = $1 and status = 'open' and deadline_on < $2) as dsars_overdue,
       (select count(*)::int from gap_findings where client_id = $1 and state = 'open') as gaps,
-      (select count(*)::int from evidence_requests where client_id = $1 and status = 'submitted') as evidence_waiting`, [clientId, todayWAT()]);
+      (select count(*)::int from evidence_requests where client_id = $1 and status = 'submitted') as evidence_waiting,
+      (select count(*)::int from remediation_actions where client_id = $1 and status <> 'completed' and audit_year = (select car_audit_year from clients where id = $1)) as remediation_open`, [clientId, todayWAT()]);
   const b = `/app/clients/${clientId}`;
   const groups: [string | null, [string, string, number?][]][] = [
     [null, [["", "Overview"]]],
     ["Set up", [["/onboarding", "Onboarding"], ["/data-inventory", "Data inventory"], ["/ropa", "RoPA"]]],
-    ["Assess", [["/dpias", "DPIAs"], ["/gaps", "Gaps", s!.gaps], ["/car-readiness", "CAR readiness"]]],
+    ["Assess", [["/dpias", "DPIAs"], ["/gaps", "Gaps", s!.gaps], ["/car-readiness", "CAR readiness"], ["/remediation", "Remediation", s!.remediation_open]]],
     ["Documents and evidence", [["/documents", "Documents"], ["/evidence", "Evidence", s!.evidence_waiting]]],
     ["Respond", [["/breaches", "Breaches", s!.breaches], ["/dsars", "DSARs", s!.dsars_overdue]]],
     [null, [["/settings", "Settings"]]],

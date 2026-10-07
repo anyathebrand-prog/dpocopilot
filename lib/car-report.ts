@@ -5,8 +5,8 @@ import { answersOf } from "./data";
 import { list } from "./questionnaire";
 import { CAR_CATEGORIES, readiness, carRisk, carItemRisk, assurance, maturityLevel, MATURITY, remediationDue, fmtDate, todayWAT } from "./rules";
 
-type Item = { category_key: string; section: string | null; item_text: string; status: string; priority: string | null; answer: string | null; na_reason: string | null; recommendation: string | null };
-type Finding = { observation: string; risk: string; recommendation: string | null; status: string };
+export type Item = { id: string; category_key: string; section: string | null; item_text: string; status: string; priority: string | null; answer: string | null; na_reason: string | null; recommendation: string | null };
+export type Finding = { id: string; observation: string; risk: string; recommendation: string | null; status: string };
 export type CarReport = NonNullable<Awaited<ReturnType<typeof loadCarReport>>>;
 
 const esc = (s: unknown) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!);
@@ -24,10 +24,10 @@ const SCOPE: Record<string, string> = {
 };
 
 export async function loadCarReport(clientId: string, year: number) {
-  const items = await q<Item>(`select category_key, section, item_text, status, priority, answer, na_reason, recommendation from client_car_items
+  const items = await q<Item>(`select id, category_key, section, item_text, status, priority, answer, na_reason, recommendation from client_car_items
     where client_id = $1 and audit_year = $2 order by position`, [clientId, year]);
   if (!items.length) return null;
-  const findings = await q<Finding>("select observation, risk, recommendation, status from car_findings where client_id = $1 and audit_year = $2 order by created_at", [clientId, year]);
+  const findings = await q<Finding>("select id, observation, risk, recommendation, status from car_findings where client_id = $1 and audit_year = $2 order by created_at", [clientId, year]);
   const c = (await one(`select c.name, c.sector, c.mi_class, f.name as firm_name, f.address as firm_address, f.website as firm_website, f.email as firm_email,
       f.phone as firm_phone, f.ndpc_licence_no, f.signatory_name, f.signatory_credentials, f.signatory_title
     from clients c join firms f on f.id = c.firm_id where c.id = $1`, [clientId]))!;
@@ -75,12 +75,12 @@ export function defaultBackground(org: string, a: Record<string, unknown>) {
   ].filter(Boolean).join(" ");
 }
 
-const observation = (i: Item) => i.na_reason?.trim() || `${i.answer ? `Response: ${i.answer}. ` : ""}${
+export const observation = (i: Item) => i.na_reason?.trim() || `${i.answer ? `Response: ${i.answer}. ` : ""}${
   i.status === "missing" ? "Not in place, or no evidence was provided." : i.status === "in_progress" ? "Partially in place; implementation or evidence is incomplete."
     : i.status === "complete" ? "In place." : "Not applicable."}`;
-const recommendation = (i: Item) => i.recommendation?.trim() || "Agree a corrective action with management and retain evidence of implementation.";
+export const recommendation = (i: Item) => i.recommendation?.trim() || "Agree a corrective action with management and retain evidence of implementation.";
 
-const CSS = (header: string) => `
+export const CSS = (header: string) => `
 @page { size: A4; margin: 22mm 17mm 20mm; @top-center { content: ${cssString(header)}; font: 8pt Arial, sans-serif; color: #5f6878; } @bottom-right { content: "pg. " counter(page); font: 8pt Arial, sans-serif; color: #5f6878; } }
 @page :first { @top-center { content: none; } @bottom-right { content: none; } }
 body { font: 10.5pt/1.55 Arial, "Segoe UI", sans-serif; color: #1b2433; max-width: 820px; margin: 24px auto; padding: 0 20px; }
@@ -232,29 +232,3 @@ export function carReportHtml(d: CarReport) {
 </section>`;
   return { title: `${d.org} Data Protection Compliance Audit Report ${Y}`, css: CSS(header), body };
 }
-
-/** Remediation plan: one action per open finding, ordered by risk, with owner and target date. */
-export function remediationPlanHtml(d: CarReport) {
-  const c = d.client, o = esc(d.org);
-  const owner = d.profile.dpo ? `Data Protection Officer (${d.profile.dpo})` : "Data Protection Officer";
-  const label = Object.fromEntries(d.parts.map(([k, l]) => [k, l.replace(/^Part \d+: /, "")]));
-  const actions = [
-    ...d.items.filter((i) => i.status === "missing" || i.status === "in_progress").map((i) => ({ area: label[i.category_key], finding: `${i.item_text} ${observation(i)}`, action: recommendation(i), risk: d.risk(i) })),
-    ...d.findings.filter((f) => f.status === "open").map((f) => ({ area: "Other findings", finding: f.observation, action: f.recommendation ?? "Agree a corrective action with management and retain evidence of implementation.", risk: f.risk })),
-  ].sort((x, y) => "hml".indexOf(x.risk[0]) - "hml".indexOf(y.risk[0]));
-  const count = (r: string) => actions.filter((x) => x.risk === r).length;
-  const body = `
-  <h1>Data Protection Remediation Plan</h1>
-  <table><tr><td class="k">Organisation</td><td>${o}</td></tr><tr><td class="k">Audit year</td><td>${d.year}</td></tr>
-    <tr><td class="k">Prepared by</td><td>${esc(c.firm_name)}</td></tr><tr><td class="k">Plan date</td><td>${fmtDate(d.reportDate)}</td></tr>
-    <tr><td class="k">Open actions</td><td>${actions.length} (<span class="r-high">${count("high")} high</span>, <span class="r-medium">${count("medium")} medium</span>, <span class="r-low">${count("low")} low</span>)</td></tr></table>
-  <p>This plan sets out the corrective actions arising from the ${d.year} data protection compliance audit of ${o}. Target dates follow risk: high-risk actions within 30 days, medium within 90 days and low within 180 days of the plan date. Progress should be reviewed monthly and evidence of closure retained in the compliance file.</p>
-  ${actions.length ? `<table><tr><th style="width:4%">#</th><th style="width:13%">Area</th><th>Finding</th><th>Remediation action</th><th style="width:8%">Risk</th><th style="width:13%">Owner</th><th style="width:11%">Target date</th><th style="width:8%">Status</th></tr>
-  ${actions.map((x, n) => `<tr><td>${n + 1}</td><td>${esc(x.area)}</td><td>${esc(x.finding)}</td><td>${esc(x.action)}</td>${riskCell(x.risk)}<td>${esc(owner)}</td><td>${fmtDate(remediationDue(d.reportDate, x.risk))}</td><td>Open</td></tr>`).join("")}</table>`
-    : `<p><b>No open actions.</b> All assessed controls are in place.</p>`}
-  <h3>Management agreement</h3>
-  <p>We agree to implement the actions above by the target dates and to provide evidence of closure to ${esc(c.firm_name)}.</p>
-  <table><tr><td class="k">Name</td><td style="height:28px"></td></tr><tr><td class="k">Position</td><td style="height:28px"></td></tr><tr><td class="k">Signature and date</td><td style="height:40px"></td></tr></table>`;
-  return { title: `${d.org} Data Protection Remediation Plan ${d.year}`, css: CSS(`${d.org} Remediation Plan ${d.year} © ${c.firm_name}`).replace("@page :first { @top-center { content: none; } @bottom-right { content: none; } }", ""), body };
-}
-

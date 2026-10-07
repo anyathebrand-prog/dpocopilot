@@ -324,7 +324,7 @@ export default async function Car({ params, searchParams }: { params: Promise<{ 
         )}
       </section>
       <section id="report" className="panel" style={{ marginTop: 32 }}>
-        <h3 style={{ marginTop: 0 }}>Audit report and remediation plan · {year}</h3>
+        <h3 style={{ marginTop: 0 }}>Audit report and remediation tracker · {year}</h3>
         <p className="meta" style={{ marginTop: 0 }}>Generated from this checklist, the other findings, the client&apos;s onboarding answers and RoPA, and your firm profile. Save the details below, then generate.</p>
         {(!firm.ndpc_licence_no || !firm.signatory_name) && <Banner kind="warn">Your firm profile has no {!firm.ndpc_licence_no ? "NDPC licence number" : ""}{!firm.ndpc_licence_no && !firm.signatory_name ? " or " : ""}{!firm.signatory_name ? "report signatory" : ""} yet; the report will show &quot;Not stated&quot;. A Firm Admin can add them in <Link href="/app/settings/firm">Firm profile</Link>.</Banner>}
         {(noRecommendation > 0 || noObservation > 0) && <Banner kind="warn">{noObservation > 0 && <>{noObservation} open item{noObservation > 1 ? "s have" : " has"} no non-conformity/observation (the report states the status instead). </>}{noRecommendation > 0 && <>{noRecommendation} open item{noRecommendation > 1 ? "s have" : " has"} no recommendation (a standard corrective-action line is used).</>}</Banner>}
@@ -350,8 +350,8 @@ export default async function Car({ params, searchParams }: { params: Promise<{ 
         <div className="row" style={{ marginTop: 16 }}>
           <a className="btn" href={exp("car-report", "pdf")} target="_blank">Generate audit report (PDF)</a>
           <a className="btn secondary" href={exp("car-report", "doc")}>Report (Word)</a>
-          <a className="btn" href={exp("car-plan", "pdf")} target="_blank">Remediation plan (PDF)</a>
-          <a className="btn secondary" href={exp("car-plan", "doc")}>Plan (Word)</a>
+          <Link className="btn" href={`/app/clients/${clientId}/remediation?year=${year}`}>Remediation tracker</Link>
+          <a className="btn secondary" href={exp("car-tracker", "xlsx")}>Tracker (Excel)</a>
         </div>
       </section>
       </>}

@@ -4,7 +4,8 @@ import { getVersion, signatureFor } from "@/lib/data";
 import { dpiaText, LAWFUL_BASIS } from "@/lib/templates";
 import { fmtWAT, riskLevel, readiness, CAR_CATEGORIES, carItemRisk, carRisk } from "@/lib/rules";
 import { TODO } from "@/lib/templates";
-import { loadCarReport, carReportHtml, remediationPlanHtml } from "@/lib/car-report";
+import { loadCarReport, carReportHtml } from "@/lib/car-report";
+import { buildTracker, loadTracker, trackerHtml, trackerXlsx } from "@/lib/remediation";
 
 // F15 export. ponytail: PDF = print-ready HTML the browser saves as PDF; Word = HTML served as .doc, which Word opens.
 // Swap for Playwright PDF + the `docx` package (TRD §1) when tagged PDFs or native .docx become a requirement.
@@ -83,13 +84,27 @@ export async function GET(req: Request) {
     return page("Record of processing activities", `<h1>Record of processing activities</h1>${stamp}<table><tr>${cols.map(([h]) => `<th>${h}</th>`).join("")}</tr>${rows.map((r) => `<tr>${cols.map(([, f]) => `<td>${esc(f(r))}</td>`).join("")}</tr>`).join("")}</table>`, format, slug(`${client!.name}-ropa`));
   }
 
-  if (kind === "car-report" || kind === "car-plan") {
+  if (kind === "car-report" || kind === "car-plan" || kind === "car-tracker") {
     const asked = Number(url.searchParams.get("year"));
     const year: number = Number.isInteger(asked) && asked >= 2019 && asked <= 2100 ? asked : client!.car_audit_year;
     const d = await loadCarReport(clientId, year);
     if (!d) return new Response(`No CAR readiness has been recorded for ${year}.`, { status: 404, headers: { "content-type": "text/plain; charset=utf-8" } });
-    const r = kind === "car-report" ? carReportHtml(d) : remediationPlanHtml(d);
-    await audit(u, "export", kind === "car-report" ? "car_report" : "remediation_plan", clientId, { client_id: clientId, details: { format, audit_year: year } });
+    if (kind === "car-report") {
+      const r = carReportHtml(d);
+      await audit(u, "export", "car_report", clientId, { client_id: clientId, details: { format, audit_year: year } });
+      return page(r.title, r.body, format, slug(r.title), r.css);
+    }
+    // Remediation tracker: built from the audit the first time, then whatever the team has maintained in the app.
+    let rows = await loadTracker(clientId, year);
+    if (!rows.length) { await buildTracker(clientId, year, u.id); rows = await loadTracker(clientId, year); }
+    const o = { org: d.org, year, firm: d.client.firm_name };
+    await audit(u, "export", "remediation_tracker", clientId, { client_id: clientId, details: { format: kind === "car-tracker" ? "xlsx" : format, audit_year: year } });
+    if (kind === "car-tracker") {
+      return new Response(new Uint8Array(await trackerXlsx(rows, o)), { headers: {
+        "content-type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        "content-disposition": `attachment; filename="${slug(`${d.org} NDPA Remediation Tracker ${year}`)}.xlsx"` } });
+    }
+    const r = trackerHtml(rows, o);
     return page(r.title, r.body, format, slug(r.title), r.css);
   }
 

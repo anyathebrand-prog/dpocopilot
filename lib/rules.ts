@@ -156,6 +156,14 @@ export const maturityLevel = (readinessPct: number) => (readinessPct < 20 ? 1 : 
 /** Remediation target date by risk: High 30 days, Medium 90, Low 180 after the report date. */
 export const remediationDue = (reportDate: string, risk: string) => addDays(reportDate, risk === "high" ? 30 : risk === "medium" ? 90 : 180);
 
+/** Remediation tracker status as shown and exported: Overdue is derived from the target date, never stored. */
+export type TrackerStatus = "Not Started" | "In Progress" | "Completed" | "Overdue";
+export function trackerStatus(r: { status: string; target_date: string | null }, today: string): TrackerStatus {
+  if (r.status === "completed") return "Completed";
+  if (r.target_date && r.target_date < today) return "Overdue";
+  return r.status === "in_progress" ? "In Progress" : "Not Started";
+}
+
 // ---------- Gap rules (FR12.2) — deterministic; AI only explains ----------
 
 export type GapInput = {

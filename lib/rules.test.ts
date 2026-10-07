@@ -1,7 +1,7 @@
 // Run: npm test  (Node 22.18+ strips TypeScript types natively)
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { parseWATLocal, breachDeadline, dsarDeadline, deadlineState, countdown, readiness, findGaps, evaluateMI, parseCSV, todayWAT, carReminderStage, carItemRisk, carRisk, assurance, maturityLevel, remediationDue } from "./rules.ts";
+import { parseWATLocal, breachDeadline, dsarDeadline, deadlineState, countdown, readiness, findGaps, evaluateMI, parseCSV, todayWAT, carReminderStage, carItemRisk, carRisk, assurance, maturityLevel, remediationDue, trackerStatus } from "./rules.ts";
 import { buildInventory, missingRequired } from "./questionnaire.ts";
 
 test("breach deadline is 72h after awareness, entered in WAT", () => {
@@ -167,4 +167,12 @@ test("CAR report: assurance bands, maturity levels, remediation target dates", (
   assert.equal(remediationDue("2026-10-07", "high"), "2026-11-06");
   assert.equal(remediationDue("2026-10-07", "medium"), "2027-01-05");
   assert.equal(remediationDue("2026-10-07", "low"), "2027-04-05");
+});
+
+test("Remediation tracker status: Completed wins; past target date is Overdue; otherwise stored status", () => {
+  const T = "2026-10-07";
+  assert.equal(trackerStatus({ status: "completed", target_date: "2026-01-01" }, T), "Completed");
+  assert.equal(trackerStatus({ status: "in_progress", target_date: "2026-10-06" }, T), "Overdue");
+  assert.equal(trackerStatus({ status: "not_started", target_date: "2026-10-07" }, T), "Not Started"); // due today is not overdue
+  assert.equal(trackerStatus({ status: "in_progress", target_date: null }, T), "In Progress");
 });

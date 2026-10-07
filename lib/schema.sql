@@ -629,3 +629,29 @@ create table if not exists car_reports (
   updated_at timestamptz not null default now(),
   primary key (client_id, audit_year)
 );
+
+-- Remediation tracker (lib/remediation.ts): one action per open CAR item or open finding, per client and audit year.
+-- Built from the audit; owner, target date, status, evidence and date closed are then maintained here. "Overdue" is derived.
+create table if not exists remediation_actions (
+  id uuid primary key default gen_random_uuid(),
+  firm_id uuid not null references firms,
+  client_id uuid not null references clients,
+  audit_year int not null,
+  source text not null check (source in ('item','finding')),
+  source_key text not null,
+  audit_part text not null,
+  control_area text not null,
+  non_conformity text not null,
+  recommendation text not null,
+  priority text not null check (priority in ('high','medium','low')),
+  owner text,
+  target_date date,
+  status text not null default 'not_started' check (status in ('not_started','in_progress','completed')),
+  evidence text,
+  date_closed date,
+  position int not null,
+  updated_by uuid references users,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique (client_id, audit_year, source, source_key)
+);
