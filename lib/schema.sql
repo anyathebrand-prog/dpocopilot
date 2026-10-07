@@ -148,6 +148,8 @@ create table if not exists ropa_entries (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+-- Department that owns the activity, from the client's onboarding list (org_departments).
+alter table ropa_entries add column if not exists department text;
 
 -- Approvable content: DPIAs, documents, breach notifications, DSAR responses share content_versions.
 create table if not exists dpias (

@@ -5,6 +5,8 @@ import { q, one } from "@/lib/db";
 import { LAWFUL_BASIS } from "@/lib/templates";
 import { fmtWAT } from "@/lib/rules";
 import { str, opt, flash } from "@/lib/form";
+import { answersOf } from "@/lib/data";
+import { list } from "@/lib/questionnaire";
 import { Flash, Field, Hidden, Chip, Banner } from "@/components/ui";
 import { Submit, Confirm } from "@/components/client";
 
@@ -25,17 +27,17 @@ async function save(fd: FormData) {
   const b = `/app/clients/${client.id}/ropa`;
   if (!purpose) redirect(flash(`${b}/${id || "new"}`, "Enter the purpose.", "error"));
   const lb = str(fd, "lawful_basis");
-  const vals = [purpose, LAWFUL_BASIS[lb] ? lb : null, ...TEXT.map(([k]) => opt(fd, k)), fd.get("has_transfer") === "on", opt(fd, "transfer_safeguard"), fd.get("involves_sensitive") === "on", fd.get("is_high_risk") === "on"];
+  const vals = [purpose, LAWFUL_BASIS[lb] ? lb : null, ...TEXT.map(([k]) => opt(fd, k)), fd.get("has_transfer") === "on", opt(fd, "transfer_safeguard"), fd.get("involves_sensitive") === "on", fd.get("is_high_risk") === "on", opt(fd, "department")];
   let entryId = id;
   if (id) {
     const r = await one(`update ropa_entries set purpose=$3, lawful_basis=$4, data_subjects=$5, data_categories=$6, recipients=$7, retention_period=$8, security_measures=$9, system_owner=$10,
-      has_transfer=$11, transfer_safeguard=$12, involves_sensitive=$13, is_high_risk=$14, state = case when state = 'proposed' then 'active' else state end, updated_at = now()
+      has_transfer=$11, transfer_safeguard=$12, involves_sensitive=$13, is_high_risk=$14, department=$15, state = case when state = 'proposed' then 'active' else state end, updated_at = now()
       where id = $1 and client_id = $2 returning id`, [id, client.id, ...vals]);
     if (!r) redirect("/forbidden");
     await audit(user, "update", "ropa_entry", id, { client_id: client.id });
   } else {
-    const r = await one(`insert into ropa_entries (firm_id, client_id, state, purpose, lawful_basis, data_subjects, data_categories, recipients, retention_period, security_measures, system_owner, has_transfer, transfer_safeguard, involves_sensitive, is_high_risk, source)
-      values ($1,$2,'active',$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,'manual') returning id`, [client.firm_id, client.id, ...vals]);
+    const r = await one(`insert into ropa_entries (firm_id, client_id, state, purpose, lawful_basis, data_subjects, data_categories, recipients, retention_period, security_measures, system_owner, has_transfer, transfer_safeguard, involves_sensitive, is_high_risk, department, source)
+      values ($1,$2,'active',$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,'manual') returning id`, [client.firm_id, client.id, ...vals]);
     entryId = r!.id;
     await audit(user, "create", "ropa_entry", entryId, { client_id: client.id });
   }
@@ -61,6 +63,8 @@ export default async function Entry({ params, searchParams }: { params: Promise<
     from dpias d join dpia_ropa dr on dr.dpia_id = d.id where dr.ropa_entry_id = $1`, [e.id]) : [];
   const history = e ? await q("select a.occurred_at, a.action, u.name from audit_events a left join users u on u.id = a.actor_user_id where a.entity_type = 'ropa_entry' and a.entity_id = $1 order by a.occurred_at desc limit 20", [e.id]) : [];
   const ro = !!client.archived_at || e?.state === "archived";
+  // Departments come from the client's onboarding answers; keep a saved value even if it was later removed from that list.
+  const depts = [...new Set([...list((await answersOf(clientId)).org_departments), ...(e?.department ? [e.department] : [])])];
   const h = <Hidden values={{ client_id: clientId, id: e?.id }} />;
   return (
     <>
@@ -73,6 +77,11 @@ export default async function Entry({ params, searchParams }: { params: Promise<
           {dpias.some((d) => d.status !== "draft") && <Banner kind="warn">This entry is used by an approved or in-review DPIA. Changes here won&apos;t alter that DPIA.</Banner>}
           <fieldset disabled={ro}>
             <Field label="Purpose" required><input name="purpose" defaultValue={e?.purpose ?? ""} required /></Field>
+            <Field label="Department" help={depts.length ? "Which department carries out this activity." : undefined}>
+              {depts.length
+                ? <select name="department" defaultValue={e?.department ?? ""}><option value="">Not yet chosen</option>{depts.map((d) => <option key={d}>{d}</option>)}</select>
+                : <p className="meta">No departments listed yet. Add them under <Link href={`/app/clients/${clientId}/onboarding`}>Onboarding · Organisation details</Link>.</p>}
+            </Field>
             <Field label="Lawful basis" help="NDPA 2023 s.25. Empty entries are flagged as gaps.">
               <select name="lawful_basis" defaultValue={e?.lawful_basis ?? ""}><option value="">Not yet chosen</option>{Object.entries(LAWFUL_BASIS).map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select>
             </Field>

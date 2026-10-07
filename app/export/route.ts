@@ -76,7 +76,7 @@ export async function GET(req: Request) {
 
   if (kind === "ropa") {
     const rows = await q("select * from ropa_entries where client_id = $1 and state = 'active' order by purpose", [clientId]);
-    const cols: [string, (r: any) => string][] = [["Purpose", (r) => r.purpose], ["Lawful basis", (r) => (r.lawful_basis ? LAWFUL_BASIS[r.lawful_basis] : "")], ["Data subjects", (r) => r.data_subjects], ["Data categories", (r) => r.data_categories],
+    const cols: [string, (r: any) => string][] = [["Purpose", (r) => r.purpose], ["Department", (r) => r.department], ["Lawful basis", (r) => (r.lawful_basis ? LAWFUL_BASIS[r.lawful_basis] : "")], ["Data subjects", (r) => r.data_subjects], ["Data categories", (r) => r.data_categories],
       ["Recipients", (r) => r.recipients], ["Transfers outside Nigeria", (r) => (r.has_transfer ? `Yes. ${r.transfer_safeguard ?? "No safeguard recorded"}` : "No")], ["Retention", (r) => r.retention_period], ["Security measures", (r) => r.security_measures], ["System / owner", (r) => r.system_owner]];
     await audit(u, "export", "ropa", clientId, { client_id: clientId, details: { format } });
     return page("Record of processing activities", `<h1>Record of processing activities</h1>${stamp}<table><tr>${cols.map(([h]) => `<th>${h}</th>`).join("")}</tr>${rows.map((r) => `<tr>${cols.map(([, f]) => `<td>${esc(f(r))}</td>`).join("")}</tr>`).join("")}</table>`, format, slug(`${client!.name}-ropa`));

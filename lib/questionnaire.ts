@@ -64,7 +64,8 @@ export const ALL_QUESTIONS = SECTIONS.flatMap((s) => s.questions);
 
 export type Answers = Record<string, unknown>;
 
-const list = (v: unknown): string[] =>
+/** A "list" answer: saved as newline-separated text; older answers may be arrays. */
+export const list = (v: unknown): string[] =>
   Array.isArray(v) ? v.map(String) : typeof v === "string" ? v.split("\n").map((s) => s.trim()).filter(Boolean) : [];
 
 export function missingRequired(a: Answers) {

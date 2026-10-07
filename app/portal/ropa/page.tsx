@@ -15,10 +15,11 @@ export default async function PortalRopa() {
       <p className="meta">What personal data your organisation processes, why, and how it is protected. This is your record of processing activities (RoPA), kept by {u.firm_name}. Tell them if anything here is wrong or out of date.</p>
       {rows.length === 0 ? <Empty><p>{u.firm_name} hasn&apos;t finished your data inventory yet.</p></Empty> : (
         <table className="register">
-          <thead><tr><th>Purpose</th><th>Lawful basis</th><th>Whose data</th><th>What data</th><th>Shared with</th><th>Sent outside Nigeria</th><th>Kept for</th></tr></thead>
+          <thead><tr><th>Purpose</th><th>Department</th><th>Lawful basis</th><th>Whose data</th><th>What data</th><th>Shared with</th><th>Sent outside Nigeria</th><th>Kept for</th></tr></thead>
           <tbody>{rows.map((r) => (
             <tr key={r.id}>
               <td><b>{r.purpose}</b>{r.involves_sensitive && <div className="meta">Includes sensitive data</div>}</td>
+              <td data-label="Department">{r.department ?? "—"}</td>
               <td data-label="Lawful basis">{r.lawful_basis ? LAWFUL_BASIS[r.lawful_basis] : "—"}</td>
               <td data-label="Whose data" className="small">{r.data_subjects ?? "—"}</td>
               <td data-label="What data" className="small">{r.data_categories ?? "—"}</td>
