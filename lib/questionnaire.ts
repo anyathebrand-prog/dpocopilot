@@ -8,8 +8,8 @@ export type Question = {
   type: "text" | "textarea" | "number" | "yesno" | "multi" | "list" | "select" | "email" | "tel" | "url" | "date" | "file";
   options?: { value: string; label: string; sensitive?: boolean }[];
   required?: boolean;
-  /** file questions: also accept Word (.docx) as well as PDF */
-  word?: boolean;
+  /** file questions: accepted extensions (default PDF only). Files with more than PDF keep their text for the framework. */
+  formats?: ("pdf" | "docx" | "png" | "jpg" | "jpeg")[];
 };
 export type Section = { key: string; title: string; questions: Question[] };
 
@@ -31,8 +31,11 @@ export const SECTIONS: Section[] = [
     { key: "org_sector", label: "Sector", type: "select", required: true, options: opts("Financial services", "Health", "Education", "Telecoms", "Government or public sector", "Retail or e-commerce", "Technology", "Other") },
     { key: "org_staff_count", label: "Number of staff", type: "number" },
     { key: "org_department_count", label: "Number of departments", type: "number" },
-    { key: "org_profile_file", label: "Company profile (PDF or Word)", help: "Attach the company profile. The Data Protection Framework quotes its overview, vision and mission.", type: "file", word: true },
     { key: "org_departments", label: "List of departments. One per line", help: "For example: Human Resources, Finance, Customer Service, IT.", type: "list" },
+  ]},
+  { key: "documents_dpo", title: "Company documents and DPO", questions: [
+    { key: "org_profile_file", label: "Company profile (PDF or Word)", help: "Attach the company profile. The Data Protection Framework quotes its overview, vision and mission.", type: "file", formats: ["pdf", "docx"] },
+    { key: "org_structure_file", label: "Company structure / organogram (PDF, Word or image)", help: "Attach the organisation chart. The Data Protection Framework includes it and refers to it for roles and reporting lines.", type: "file", formats: ["pdf", "docx", "png", "jpg", "jpeg"] },
     { key: "dpo_name", label: "Name of Data Protection Officer", type: "text" },
     { key: "dpo_phone", label: "Phone number of Data Protection Officer", type: "tel" },
     { key: "dpo_email", label: "Email of Data Protection Officer", type: "email" },

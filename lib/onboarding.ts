@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { q, one, tx } from "./db";
 import { getUser, requireClient, audit, notifyTeam, send, type User } from "./auth";
 import { SECTIONS, CERT_FILLS, missingRequired, buildInventory } from "./questionnaire";
-import { storeFile } from "./files";
+import { storeFile, imageSize } from "./files";
 import { parseCertificate, pdfText, docxText } from "./certificate";
 import { answersOf } from "./data";
 import { evaluateMI, type Criterion } from "./rules";
@@ -35,16 +35,19 @@ export async function saveSection(fd: FormData) {
   for (const qn of section.questions.filter((x) => x.type === "file")) {
     const f = fd.get(qn.key);
     if (!(f instanceof File) || !f.size) continue; // nothing new attached: keep the current file
-    const isDocx = f.name.toLowerCase().endsWith(".docx");
-    if (!f.name.toLowerCase().endsWith(".pdf") && !(qn.word && isDocx)) redirect(flash(self, qn.word ? `${qn.label}: attach a PDF or Word (.docx) file.` : "Attach the certificate as a PDF file.", "error"));
+    const ext = f.name.split(".").pop()!.toLowerCase(), formats = qn.formats ?? ["pdf"], rich = formats.length > 1;
+    if (!(formats as string[]).includes(ext)) redirect(flash(self, rich ? `${qn.label.replace(/ \(.*\)$/, "")}: attach a ${formats.includes("png") ? "PDF, Word or image (PNG/JPEG)" : "PDF or Word (.docx)"} file.` : "Attach the certificate as a PDF file.", "error"));
     const client = await one<{ id: string; firm_id: string }>("select id, firm_id from clients where id = $1", [clientId]);
     const r = await storeFile(u, client!, f, null);
     if ("error" in r) redirect(flash(self, r.error, "error"));
     const bytes = new Uint8Array(await f.arrayBuffer());
     // Documents that other outputs quote (the company profile) keep their text with the file.
-    const text = qn.word ? (isDocx ? await docxText(bytes) : await pdfText(bytes)).replace(/\s+/g, " ").trim().slice(0, 30000) : undefined;
-    await put(qn.key, { file_id: r.id, name: f.name.slice(0, 200), ...(text !== undefined && { text }) });
-    if (qn.word) note += text ? ` ${qn.label.replace(/ \(.*\)$/, "")} attached and read.` : ` ${qn.label.replace(/ \(.*\)$/, "")} attached, but no text could be read from it (it may be a scanned image).`;
+    const img = ["png", "jpg", "jpeg"].includes(ext) ? imageSize(Buffer.from(bytes)) : null;
+    if (["png", "jpg", "jpeg"].includes(ext) && !img) redirect(flash(self, `${f.name} is not a readable PNG or JPEG image.`, "error"));
+    const text = rich && !img ? (ext === "docx" ? await docxText(bytes) : await pdfText(bytes)).trim().slice(0, 30000) : undefined;
+    await put(qn.key, { file_id: r.id, name: f.name.slice(0, 200), ...(text !== undefined && { text }), ...(img && { image: img }) });
+    const what = qn.label.replace(/ \(.*\)$/, "");
+    if (rich) note += img || text ? ` ${what} attached${text ? " and read" : ""}.` : ` ${what} attached, but no text could be read from it (it may be a scanned image).`;
     const fills = CERT_FILLS[qn.key];
     if (!fills) continue;
     const d = parseCertificate(await pdfText(bytes));

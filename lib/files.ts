@@ -69,4 +69,17 @@ export async function storeFile(u: User, client: { id: string; firm_id: string }
   return { id };
 }
 
+/** Width and height of a PNG or JPEG, or null for anything else. */
+export function imageSize(b: Buffer): { type: "png" | "jpeg"; w: number; h: number } | null {
+  if (b.length > 24 && b.readUInt32BE(0) === 0x89504e47) return { type: "png", w: b.readUInt32BE(16), h: b.readUInt32BE(20) };
+  if (b[0] !== 0xff || b[1] !== 0xd8) return null;
+  for (let i = 2; i + 9 < b.length;) {
+    if (b[i] !== 0xff) return null;
+    const m = b[i + 1], len = b.readUInt16BE(i + 2);
+    if (m >= 0xc0 && m <= 0xcf && ![0xc4, 0xc8, 0xcc].includes(m)) return { type: "jpeg", w: b.readUInt16BE(i + 7), h: b.readUInt16BE(i + 5) };
+    i += 2 + len;
+  }
+  return null;
+}
+
 export const readStored = (rel: string) => readFileSync(path.join(ROOT, rel));

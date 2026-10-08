@@ -4,6 +4,7 @@ import { q, one } from "@/lib/db";
 import { str, opt, flash } from "@/lib/form";
 import { Flash, Field, PageHead } from "@/components/ui";
 import { Submit } from "@/components/client";
+import { imageSize } from "@/lib/files";
 
 const FIELDS: [key: string, label: string, help?: string][] = [
   ["address", "Office address"],
@@ -31,19 +32,6 @@ async function save(fd: FormData) {
   if (fd.get("remove_logo") === "on") await q("update firms set logo = null, logo_w = null, logo_h = null where id = $1", [u.firm_id]);
   await audit(u, "update", "firm", u.firm_id, {});
   redirect(flash("/app/settings/firm", "Firm profile saved"));
-}
-
-/** Width and height of a PNG or JPEG, or null for anything else. */
-function imageSize(b: Buffer): { type: "png" | "jpeg"; w: number; h: number } | null {
-  if (b.length > 24 && b.readUInt32BE(0) === 0x89504e47) return { type: "png", w: b.readUInt32BE(16), h: b.readUInt32BE(20) };
-  if (b[0] !== 0xff || b[1] !== 0xd8) return null;
-  for (let i = 2; i + 9 < b.length;) {
-    if (b[i] !== 0xff) return null;
-    const m = b[i + 1], len = b.readUInt16BE(i + 2);
-    if (m >= 0xc0 && m <= 0xcf && ![0xc4, 0xc8, 0xcc].includes(m)) return { type: "jpeg", w: b.readUInt16BE(i + 7), h: b.readUInt16BE(i + 5) };
-    i += 2 + len;
-  }
-  return null;
 }
 
 /** The DPCO's own details, printed on CAR audit reports and remediation plans. */

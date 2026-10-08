@@ -7,6 +7,7 @@ import { list } from "./questionnaire";
 import { fmtDate, todayWAT } from "./rules";
 import { CSS } from "./car-report";
 import { LAWFUL_BASIS } from "./templates";
+import { readStored } from "./files";
 
 const esc = (s: unknown) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!);
 const TBC = `<span class="muted">[To be confirmed]</span>`;
@@ -39,14 +40,35 @@ export function profileExtract(text: string) {
   return { overview: overview || null, vision, mission };
 }
 
+/** Job titles found in an organogram's text (lines naming a head, director, manager, officer and so on). */
+export function positionsFrom(text: string) {
+  const TITLE = /\b(chief|director|head|manager|officer|lead|supervisor|coordinator|president|chairman|chairperson|secretary|registrar|bursar|dean|controller|executive|md\b|ceo|cfo|coo|cto|ciso|dpo|vice[- ]chancellor|board)\b/i;
+  const seen = new Map<string, string>(); // lower-case → first spelling
+  for (const raw of text.split(/\n|\s{2,}|\||•/)) {
+    const line = raw.replace(/\s+/g, " ").trim();
+    if (line.length < 3 || line.length > 70 || !TITLE.test(line) || /[.;]$/.test(line)) continue;
+    if (!seen.has(line.toLowerCase())) seen.set(line.toLowerCase(), line);
+  }
+  return [...seen.values()].slice(0, 40);
+}
+
 export async function loadFramework(clientId: string) {
   const c = (await one(`select c.name, c.mi_class, f.name as firm_name, f.signatory_name, f.signatory_title from clients c join firms f on f.id = c.firm_id where c.id = $1`, [clientId]))!;
   const ans = await answersOf(clientId);
   const ropa = await q("select * from ropa_entries where client_id = $1 and state = 'active' order by purpose", [clientId]);
-  return { c, ans, ropa };
+  // The organogram, embedded when it is an image (PDF/Word organograms are referenced and their position titles listed).
+  const org = ans.org_structure_file as { file_id?: string; name?: string; text?: string; image?: { type: string; w: number; h: number } } | undefined;
+  let organogram: { name: string; src?: string; w?: number; h?: number; positions: string[] } | null = null;
+  if (org?.file_id) {
+    const f = await one<{ storage_path: string }>("select storage_path from files where id = $1 and client_id = $2", [org.file_id, clientId]);
+    let src: string | undefined;
+    if (f && org.image) try { src = `data:image/${org.image.type};base64,${readStored(f.storage_path).toString("base64")}`; } catch { /* file missing on disk: reference only */ }
+    organogram = { name: org.name ?? "Organogram", src, w: org.image?.w, h: org.image?.h, positions: positionsFrom(org.text ?? "") };
+  }
+  return { c, ans, ropa, organogram };
 }
 
-export function frameworkHtml({ c, ans, ropa }: Awaited<ReturnType<typeof loadFramework>>) {
+export function frameworkHtml({ c, ans, ropa, organogram }: Awaited<ReturnType<typeof loadFramework>>) {
   const s = (k: string) => (typeof ans[k] === "string" && (ans[k] as string).trim() ? (ans[k] as string).trim() : null);
   const org = s("org_legal_name") ?? c.name, short = "the Organisation";
   const depts = list(ans.org_departments), subjects = [...list(ans.subjects), ...list(ans.subjects_other)];
@@ -70,9 +92,9 @@ export function frameworkHtml({ c, ans, ropa }: Awaited<ReturnType<typeof loadFr
 
 <section class="break">
   <h1>Document Control</h1>
-  ${table(["Item", "Detail"], [["Organisation", esc(org)], ["Document", "Data Protection Framework (overarching policy and linked policies)"], ["Version", "1.0 (Draft)"], ["Date", today], ["Owner", `Data Protection Officer${dpo ? ` – ${esc(dpo)}` : ""}`], ["Prepared by", esc(c.firm_name)], ["Approved by", "Board of Directors / Governing Council"], ["Review cycle", "Annually, or on any material change in law, GAID guidance or processing"], ["Reference documents", `NDPA 2023; GAID 2025; Record of Processing Activities${profile?.name ? `; Company Profile (${esc(profile.name)})` : ""}`]], ["30%"])}
+  ${table(["Item", "Detail"], [["Organisation", esc(org)], ["Document", "Data Protection Framework (overarching policy and linked policies)"], ["Version", "1.0 (Draft)"], ["Date", today], ["Owner", `Data Protection Officer${dpo ? ` – ${esc(dpo)}` : ""}`], ["Prepared by", esc(c.firm_name)], ["Approved by", "Board of Directors / Governing Council"], ["Review cycle", "Annually, or on any material change in law, GAID guidance or processing"], ["Reference documents", `NDPA 2023; GAID 2025; Record of Processing Activities${profile?.name ? `; Company Profile (${esc(profile.name)})` : ""}${organogram ? `; Organisational Structure (${esc(organogram.name)})` : ""}`]], ["30%"])}
   <h2>Contents</h2>
-  ${ul(["1.0 Data Protection Policy", "2.0 Data Classification Policy", "3.0 Website Privacy Policy", "4.0 Data Protection Impact Assessment Policy", "5.0 Information Security and Incident Response Policy", "6.0 Retention and Disposal Policy", "7.0 Consent Policy", "8.0 Consequences, Review and Approval", "Appendix A – Data Retention Legal Frameworks", "Appendix B – Data Breach Register", "Appendix C – Data Protection Champions"])}
+  ${ul(["1.0 Data Protection Policy", "2.0 Data Classification Policy", "3.0 Website Privacy Policy", "4.0 Data Protection Impact Assessment Policy", "5.0 Information Security and Incident Response Policy", "6.0 Retention and Disposal Policy", "7.0 Consent Policy", "8.0 Consequences, Review and Approval", "Appendix A – Data Retention Legal Frameworks", "Appendix B – Data Breach Register", "Appendix C – Data Protection Champions", ...(organogram ? ["Appendix D – Organisational Structure"] : [])])}
 </section>
 
 <section class="break">
@@ -82,6 +104,7 @@ export function frameworkHtml({ c, ans, ropa }: Awaited<ReturnType<typeof loadFr
   <p>The Act provides for sanctions and penalties for breach or non-compliance. To ensure proactive and sustained compliance, ${esc(org)} (hereinafter "${short}") has put together this Data Protection Framework to guide its data protection practice across all its departments and units${depts.length ? `, namely: ${deptList}` : ""}.</p>
   ${px && (px.overview || px.vision || px.mission) ? `<h3>About ${esc(org)}</h3>${px.overview ? `<p>${esc(px.overview)}</p>` : ""}${px.vision ? `<p><b>Vision:</b> ${esc(px.vision)}</p>` : ""}${px.mission ? `<p><b>Mission:</b> ${esc(px.mission)}</p>` : ""}<p class="note">Source: ${esc(org)} Company Profile${profile?.name ? ` (${esc(profile.name)})` : ""}. This framework supports that mission by ensuring the personal data entrusted to ${short} is processed lawfully, fairly and securely.</p>` : ""}
   ${dcpmi ? box("Data Controller of Major Importance", `<p style="margin:0">${esc(org)} is classified as a Data Controller or Processor of Major Importance. It shall remain registered with the NDPC, designate a Data Protection Officer, and file its annual Compliance Audit Return (CAR) through a licensed DPCO, as required by the NDPA (ss.32, 44) and the GAID.</p>`) : ""}
+  ${organogram ? `<p>${short}'s departments, reporting lines and accountable officers are shown in its organisational structure (Appendix D). Responsibilities under this framework follow that structure: heads of department are accountable for compliance in their units and report data protection matters to the Data Protection Officer${organogram.positions.length ? `, who reports to ${esc(organogram.positions.find((p) => /chief executive|ceo|managing director|\bmd\b|vice[- ]chancellor|registrar|executive director/i.test(p)) ?? organogram.positions[0])}` : ""}.</p>` : ""}
   <h2>1.2 Purpose</h2>
   <p>The purpose of this policy is to describe, define and delimit the scope of ${short}'s responsibilities for protecting the personal data it collects, in line with regulatory requirements. It is the overarching data protection framework that links the policies in Sections 2.0 to 7.0.</p>
   <p>It applies to all employees, contractors, interns and third-party processors of ${short}, to every department and unit, and to personal data in any form (paper, digital text, image, audio, video).</p>
@@ -208,7 +231,7 @@ export function frameworkHtml({ c, ans, ropa }: Awaited<ReturnType<typeof loadFr
   <h2>5.2 Identifying and Analysing the Incident</h2>
   <p>Incidents may be detected by software tools, employees, or third parties such as ${subjects.length ? subjects.slice(0, 3).map(esc).join(", ").toLowerCase() : "customers"} or suppliers. After detection, an initial assessment shall estimate the impact within ${short}, the affected assets, the duration, the affected business units and the cause, and shall be documented.</p>
   <h2>5.3 Incident Response Team (IRT)</h2>
-  <p>Every department and unit shall appoint a Data Protection Champion (Appendix C), who acts as the IRT member for that department. Once the procedure is activated, the team leader ensures members understand their roles and begin containment.</p>
+  <p>Every department and unit${organogram ? " shown in the organisational structure (Appendix D)" : ""} shall appoint a Data Protection Champion (Appendix C), who acts as the IRT member for that department. Once the procedure is activated, the team leader ensures members understand their roles and begin containment.</p>
   <h2>5.4 Incident Response Procedure Activation</h2>
   <p>When an incident occurs, the department's Data Protection Champion is notified and records it in the Data Breach Register (Appendix B): date, description, business function affected, process owner, data affected, and device or storage location. The team leader (DPO) decides whether to activate the procedure, which applies where ${short} is at risk of losing information, of disruption to operations, of reputational damage, or of any other significant impact.</p>
   <h2>5.5 IRT Roles and Responsibilities</h2>
@@ -312,6 +335,12 @@ export function frameworkHtml({ c, ans, ropa }: Awaited<ReturnType<typeof loadFr
   <p>Each department and unit shall nominate a Data Protection Champion who promotes compliance locally, keeps the department's entries in the RoPA up to date, and acts as its Incident Response Team member.</p>
   ${table(["Department / Unit", "Data Protection Champion", "Processing activities (RoPA)"], (depts.length ? depts : ["[Department]"]).map((d) => [esc(d), "", ropa.filter((r) => r.department && r.department.toLowerCase() === d.toLowerCase()).map((r) => esc(r.purpose)).join(", ") || "—"]), ["30%", "30%"])}
   ${depts.length ? "" : `<p class="note">Add the organisation's departments under Onboarding to list them here.</p>`}
-</section>`;
+</section>
+${organogram ? `<section class="break">
+  <h1>Appendix D – Organisational Structure</h1>
+  <p>${esc(org)}'s organisational structure, as provided in ${esc(organogram.name)}. Data protection roles in this framework map to it as follows: the Board / Governing Council approves the framework; executive management approves DPIAs and destruction of records; heads of department are accountable for their units; the Data Protection Officer${dpo ? ` (${esc(dpo)})` : ""} coordinates compliance; and Data Protection Champions act in each department.</p>
+  ${organogram.src ? `<p style="text-align:center"><img src="${organogram.src}" width="${Math.min(600, organogram.w ?? 600)}" height="${Math.round(Math.min(600, organogram.w ?? 600) * (organogram.h ?? 400) / (organogram.w ?? 600))}" alt="Organisational structure" style="max-width:100%;height:auto"></p>` : `<p class="note">The organogram is attached to ${esc(org)}'s onboarding record (${esc(organogram.name)}).</p>`}
+  ${organogram.positions.length ? `<h2>Positions identified</h2>${ul(organogram.positions.map(esc))}` : ""}
+</section>` : ""}`;
   return { title: `${org} Data Protection Framework ${year}`, css: CSS(`${org} · Data Protection Framework · Draft`), body };
 }
