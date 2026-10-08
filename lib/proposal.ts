@@ -3,6 +3,7 @@
 // Styled in the prospect's colours with both the DPCO's and the prospect's logos.
 import { CSS } from "./car-report";
 import { fmtDate, todayWAT } from "./rules";
+import { SERVICES, type Line } from "./invoice";
 
 export const PROPOSAL_SECTORS = ["Financial services", "Insurance", "Capital markets", "Health", "Education", "Telecoms", "Government or public sector", "Retail or e-commerce", "Technology", "Oil and gas / energy", "Other"];
 export const TIERS: Record<string, string> = { UHL: "Ultra-High Level (UHL)", EHL: "Extra-High Level (EHL)", OHL: "Ordinary-High Level (OHL)", TBC: "To be confirmed with the Commission" };
@@ -22,16 +23,20 @@ export const SECTOR_REGS: Record<string, [string, string][]> = {
   Other: [],
 };
 
-// ---- The costed model --------------------------------------------------------------------------------------------
-export const WORKSTREAMS: [key: string, name: string, scope: string][] = [
-  ["w1", "Programme mobilisation & governance design", "Steering Committee constitution, DPO appointment framework, champion appointment instruments, classification assessment, NDPC registration, programme charter"],
-  ["w2", "Data discovery, mapping & RoPA", "Unit-by-unit discovery; interviews, walkthroughs and system review; Record of Processing Activities and data flow maps"],
-  ["w3", "Gap assessment & risk register", "Assessment against every obligation in the NDPA and GAID; prioritised risk register with owners, target dates and remediation plan"],
-  ["w4", "Policy, notice & procedure suite", "Drafting of the full instrument suite in Section 08; consultation; passage through Management and the Board"],
-  ["w5", "DPIAs & third-party remediation", "DPIAs on priority systems using the GAID template; vendor due diligence; template and executed data processing agreements; cross-border transfer instruments"],
-  ["w6", "Breach response framework & simulation", "Breach register, severity matrix, 72-hour notification workflow, rights request procedure, SNAG handling, live simulation and after-action report"],
-  ["w7", "Compliance audit, CAR preparation & filing", "Independent audit on the GAID template, evidence pack, Compliance Audit Return filed through a licensed DPCO, handover pack and Year 2 calendar"],
-];
+// ---- Pricing: the service list (same services as invoices), each with a fee ---------------------------------------
+export const SERVICE_SCOPE: Record<string, { scope: string; deliverables: string }> = {
+  "NDPC DCMI/DPMI Registration": { scope: "Classify the organisation as a Data Controller/Processor of Major Importance and its tier under the GAID, and complete registration with the NDPC.", deliverables: "Classification memo; NDPC registration completed; registration certificate on file." },
+  "Compliance Audit Assessment (CAR)": { scope: "Audit compliance against the NDPA, the GAID and the NDPC Schedule 2 audit questionnaire across governance, lawful basis, rights, security, processors and transfers.", deliverables: "Compliance audit report with risk ratings, findings and recommendations; remediation plan and tracker." },
+  "CAR Filing": { scope: "Prepare and file the annual Compliance Audit Return with the NDPC through a licensed DPCO, and manage any regulator queries.", deliverables: "Filed CAR; NDPC filing acknowledgement; audit verification statement." },
+  "Data Protection Impact Assessment (DPIA)": { scope: "Assess high-risk processing under NDPA s.28 following the NDPC DPIA guide: necessity, proportionality, risks and measures.", deliverables: "DPIA report(s) with risk register, treatment plan and sign-off." },
+  "Legitimate Interest Assessment (LIA)": { scope: "Document the purpose, necessity and balancing tests where legitimate interest is relied on (NDPA s.25, GAID).", deliverables: "LIA report(s) with decision and safeguards." },
+  "Cross-Border Risk Assessment (CBRA)": { scope: "Assess transfers of personal data outside Nigeria under NDPA ss.41–43: adequacy, transfer basis, destination risks and supplementary measures.", deliverables: "Transfer risk assessment(s); transfer register; recommended contractual clauses." },
+  "Record of Processing Activity (RoPA) Documentation": { scope: "Map personal data across departments and systems and document each processing activity, lawful basis, recipients, transfers and retention.", deliverables: "Data inventory and Record of Processing Activities." },
+  "Policy Development": { scope: "Develop the Data Protection Framework and linked policies tailored to the organisation's structure.", deliverables: "Data protection policy, data classification, privacy notice, DPIA, incident response, retention and disposal, and consent policies." },
+  "Data Protection Officer (DPO) Training and Certification": { scope: "Prepare the designated DPO for the role under NDPA s.32 and recognised certification.", deliverables: "DPO training; certification support; CPD plan." },
+  "Employee Data Protection Training": { scope: "Awareness and role-based training for management, champions and staff.", deliverables: "Training sessions; materials; attendance records and certificates; capacity building plan." },
+};
+
 /** The six training tiers (the same six as the Capacity Building plan). */
 export const TRAINING_TIERS: [key: string, name: string, audience: string, format: string, outcome: string][] = [
   ["t1", "Management Training", "Board, executive and senior management", "Half-day executive briefing", "Governance-level understanding of liability under s.48, approval of the policy suite and the Board's oversight duty; attendance register filed as CAR evidence"],
@@ -41,27 +46,16 @@ export const TRAINING_TIERS: [key: string, name: string, audience: string, forma
   ["t5", "General Staff Training", "All staff", "Blended e-learning and in-person cohort sessions", "Baseline awareness: lawful handling, email and messaging discipline, sharing rules, disposal, incident reporting; completion tracked per unit"],
   ["t6", "Role Based Data Protection Training", "ICT, HR, finance, customer-facing and marketing staff", "3-day technical and role workshops plus a live breach simulation", "Security of processing, access control, logging, encryption, backup and disposal; tested 72-hour incident response with after-action report"],
 ];
-export const STATUTORY: [string, string, string][] = [["reg", "DCPMI registration and first-year filing fee", "GAID Schedule 10 tiered fee regime; confirmed at registration"], ["dpo", "DPO certification, registration and Annual Credential Assessment", "Entry on the Commission's certified DPO database; assessment fees"]];
-export const OPTIONAL: [string, string, string][] = [["platform", "Privacy management platform — RoPA, DPIA, consent and rights request workflow", "Annual licence, hosted in Nigeria; configuration and data migration included"], ["lms", "Awareness LMS and content hosting", "Staff training content, completion tracking by unit, annual refresh"], ["managed", "Managed DPO support — 12 months", "Senior consultant alongside the internal DPO; monthly on-site day, regulatory liaison, advisory"]];
-export const INTERNAL: [string, string, string][] = [["dpo", "Data Protection Officer", "Substantive internal appointment; responsibility allowance and CPD above existing grade"], ["analyst", "Compliance Analyst — DPO Office", "One officer supporting registers, evidence and training logistics"], ["running", "DPO Office running costs", "Communications, travel, records storage, secure disposal, printing of notices"]];
-export const RETAINER: [string, string, string][] = [["audit", "Annual compliance audit and CAR filing", "Full audit on the GAID template; evidence pack; filing through a licensed DPCO ahead of 31 March"], ["fee", "Statutory CAR filing fee", "Payable to the Commission; band as confirmed at registration"], ["clinics", "Champion recertification and quarterly clinics", "Annual refresher and four clinics"], ["dpia", "DPIA and advisory support", "DPIAs on new systems; policy updates for regulatory change"], ["oncall", "Breach response on-call and regulatory liaison", "Incident support within 4 hours; representation before the Commission"]];
 export const MILESTONES = ["Execution of contract and mobilisation (Gate 1)", "Acceptance of RoPA and gap assessment report (Gate 2)", "Adoption of the policy suite by the Board (Gate 3)", "Completion of DPO and champion certification (Gate 4)", "CAR filed and acknowledgement received (Gate 5)"];
 
-export type Fin = {
-  work?: Record<string, number>; training?: Record<string, { n: number; unit: number }>; statutory?: Record<string, number>; optional?: Record<string, number>;
-  internal?: Record<string, number>; honorarium?: number; retainer?: Record<string, number>; schedule?: number[]; option_a?: { total: number; scope: string }; dpias?: number;
-};
-const sum = (o?: Record<string, number>) => Object.values(o ?? {}).reduce((a, b) => a + (Number(b) || 0), 0);
+/** Programme settings kept with the proposal: milestone payment percentages and number of DPIAs. */
+export type Fin = { schedule?: number[]; dpias?: number; honorarium?: number };
 
-/** Every figure in the financial proposal, from the stored model. */
+/** The fees: service lines, subtotal, VAT and total. */
 export function money(p: Record<string, any>) {
-  const f: Fin = p.fin ?? {}, champions = units(p.departments).length;
-  const prof = sum(f.work), training = Object.values(f.training ?? {}).reduce((a, t) => a + (t.n || 0) * (t.unit || 0), 0), statutory = sum(f.statutory);
-  const optional = sum(f.optional), vat = Number(p.vat_rate) / 100;
-  const B = prof + training + statutory, C = optional ? B + optional : 0, A = f.option_a?.total ?? 0;
-  const internal = sum(f.internal) + (f.honorarium ?? 0) * champions, retainer = sum(f.retainer), carFee = f.retainer?.fee ?? 0;
-  const withVat = (x: number) => Math.round(x * (1 + vat) * 100) / 100;
-  return { prof, training, statutory, optional, A, B, C, vat, withVat, internal, retainer, carFee, champions };
+  const lines: Line[] = p.lines ?? [], vat = Number(p.vat_rate) / 100;
+  const subtotal = lines.reduce((a, l) => a + l.amount, 0), vatAmt = Math.round(subtotal * vat * 100) / 100;
+  return { lines, subtotal, vat, vatAmt, total: subtotal + vatAmt };
 }
 export const units = (departments?: string | null) => (departments ?? "").split("\n").map((s) => s.trim()).filter(Boolean);
 
@@ -131,9 +125,9 @@ export function proposalHtml(p: Proposal, firm: any) {
   const consultant = esc(firm.name), lic = firm.ndpc_licence_no ? `Licence No. ${esc(firm.ndpc_licence_no)}` : "Licence No. ______";
   const footer = `${org} · Data Protection Compliance Programme · NDPA 2023 / GAID 2025`;
   const d1 = Math.max(2, Math.round(months / 3)), r1 = Math.max(d1 + 1, Math.round((months * 2) / 3)), a1 = Math.max(r1, Math.round(months * 0.75));
-  const dpias = f.dpias ?? 5, fee = (k: string) => f.work?.[k] ?? 0;
+  const dpias = f.dpias ?? 5;
   const sched = (f.schedule?.length ? f.schedule : [30, 20, 20, 20, 10]).slice(0, 5);
-  const hasA = m.A > 0, hasC = m.C > 0;
+  const services = m.lines.map((l) => l.service);
 
   const body = `
 <section class="cover" style="border-left-color:${T.P}">
@@ -162,7 +156,7 @@ export function proposalHtml(p: Proposal, firm: any) {
   <p>Since 19 September 2025, that processing has been governed by a directive with teeth. The General Application and Implementation Directive 2025 (GAID) replaced the NDPR 2019 and its 2020 Implementation Framework, and now operates alongside the Nigeria Data Protection Act 2023 as the working law of Nigerian data protection. It requires registration with the Commission, a designated and certified Data Protection Officer, a documented compliance audit, and an annual Compliance Audit Return filed through a licensed Data Protection Compliance Organisation.</p>
   <p>Organisations are structurally difficult to bring into compliance. Personal data is not held centrally; it is held in ${us.length ? us.slice(0, 6).map(esc).join(", ") + (us.length > 6 ? " and other units" : "") : "every department and unit"} — each with its own registers, spreadsheets, systems and long-standing local practice. A single officer in a central office cannot see into those units, and a policy circulated from the top does not change what happens at the desk where the data is handled.</p>
   <p>This proposal therefore does two things at once. It puts in place the statutory office the law requires — one certified Data Protection Officer with genuine independence and a direct line to the ${accountable} — and it builds the layer that makes that office effective: a trained, formally appointed Data Protection Champion in every unit that holds personal data, accountable to the DPO for compliance in their own unit.</p>
-  <p>What follows sets out the regulatory position, the proposed governance architecture, the champion network, a full training and certification curriculum, a ${months}-month delivery roadmap, and a complete costed financial proposal${hasA || hasC ? " with investment options" : ""} and a three-year cost of ownership. We would welcome the opportunity to present it to Management.</p>
+  <p>What follows sets out the regulatory position, the proposed governance architecture, the champion network, a full training and certification curriculum, a ${months}-month delivery roadmap, and a costed financial proposal by service. We would welcome the opportunity to present it to Management.</p>
   <table><tr><td style="width:50%"><p style="margin-top:28px"><b>${esc(firm.signatory_name ?? "")}</b>${firm.signatory_credentials ? `, ${esc(firm.signatory_credentials)}` : ""}<br>LEAD CONSULTANT &amp; ENGAGEMENT PARTNER</p></td><td><p style="margin-top:28px">DATE</p></td></tr></table>
 
   ${T.h(1, "Contents", "break")}
@@ -171,7 +165,7 @@ export function proposalHtml(p: Proposal, firm: any) {
 
 <section class="break">
   ${T.section("01", "Executive Summary", `A ${months}-month programme to bring ${org} into demonstrable compliance with the NDPA 2023 and GAID 2025, built around one certified Data Protection Officer and a network of ${champions || "trained"} Data Protection Champions across every department and unit.`)}
-  <table><tr>${[["1", "Certified DPO, reporting to the " + accountable], [String(champions || "—"), "Data Protection Champions across departments and units"], [String(months), "Months to registration, audit and first CAR filing"], [millions(m.B), "Recommended programme investment (excl. VAT)"]].map(([n, l]) => `<td style="background:${T.P};color:${T.on};text-align:center;width:25%"><p style="margin:0;color:${T.on};font-size:20pt"><b>${n}</b></p><p style="margin:0;color:${T.on};font-size:8pt">${l.toUpperCase()}</p></td>`).join("")}</tr></table>
+  <table><tr>${[["1", "Certified DPO, reporting to the " + accountable], [String(champions || "—"), "Data Protection Champions across departments and units"], [String(months), "Months to registration, audit and first CAR filing"], [millions(m.subtotal), "Programme investment (excl. VAT)"]].map(([n, l]) => `<td style="background:${T.P};color:${T.on};text-align:center;width:25%"><p style="margin:0;color:${T.on};font-size:20pt"><b>${n}</b></p><p style="margin:0;color:${T.on};font-size:8pt">${l.toUpperCase()}</p></td>`).join("")}</tr></table>
   ${T.h(2, "The position today")}
   <p>GAID took effect on 19 September 2025. From that date the NDPR 2019 and the NDPR Implementation Framework 2020 ceased to apply, and the NDPA together with GAID became the operative framework. ${tier ? `On its sector and processing volumes, ${org} is expected to fall within the ${tier} band of data controllers and processors of major importance.` : `${org}'s classification as a data controller or processor of major importance will be confirmed during mobilisation.`} Registration with the Nigeria Data Protection Commission, designation of a certified DPO, a documented compliance audit and an annual Compliance Audit Return are not optional: GAID confirms that even processing that attracts an exemption remains bound by the processing principles, lawful basis, DPO designation, breach notification and the data subject rights in Part VI of the Act.</p>
   ${T.h(2, "What we propose")}
@@ -183,7 +177,7 @@ export function proposalHtml(p: Proposal, firm: any) {
     <li><b>Certification, not sensitisation.</b> Formal certification for the DPO and the champions, an executive briefing for the ${board} and senior management, technical training for ICT and high-risk roles, and blended awareness training for all staff.</li>
     <li><b>Filing through a licensed DPCO.</b> Registration, audit and the first Compliance Audit Return prepared and filed on ${org}'s behalf, with the filing calendar handed over to the DPO Office for subsequent years.</li>
   </ul>
-  ${T.callout("INVESTMENT AT A GLANCE", `${hasA ? `<p style="margin:0 0 4px"><b>Option A — Regulatory Baseline: ${NGN(m.A)}.</b> ${esc(f.option_a?.scope ?? "")}</p>` : ""}<p style="margin:0 0 4px"><b>Option B — Full Programme (recommended): ${NGN(m.B)}.</b> Every unit mapped, full remediation, all champions certified, organisation-wide training, CAR filed.</p>${hasC ? `<p style="margin:0 0 4px"><b>Option C — Programme with Technology and Managed Support: ${NGN(m.C)}.</b> Option B plus the components in Section 9.5.</p>` : ""}<p style="margin:0;font-size:8.5pt">All figures exclusive of VAT${m.vat ? ` at ${Number(p.vat_rate)}%` : ""}. Statutory NDPC fees are included. Internal establishment costs are set out separately in Section 09.</p>`)}
+  ${T.callout("INVESTMENT AT A GLANCE", `<p style="margin:0 0 4px"><b>${services.length} service${services.length === 1 ? "" : "s"}: ${NGN(m.subtotal)}</b>${m.vat ? ` excluding VAT (${NGN(m.total)} including VAT at ${Number(p.vat_rate)}%)` : ""}.</p><p style="margin:0;font-size:8.5pt">${services.map(esc).join(" · ")}. Full breakdown in Section 09.</p>`)}
   ${T.h(2, "Why the champion model")}
   <p>The record that creates the risk — a spreadsheet emailed to a personal account, a printed list left on a counter, a file shared without a lawful basis — sits several layers below any central office. GAID anticipates this: it requires that a data controller of major importance provide the DPO with additional support where processing is carried out or data subjects are engaged across multiple platforms and locations. The champion network is that support, made formal, trained, named in the Record of Processing Activities and answerable to the DPO.</p>
 </section>
@@ -266,8 +260,8 @@ export function proposalHtml(p: Proposal, firm: any) {
 <section class="break">
   ${T.section("06", "Capacity Building, Training and Certification", "GAID requires regular scheduled staff training and internal sensitisation, and requires the DPO to hold current certification verified at every CAR filing. This programme treats training as a compliance control with evidence attached, not as an event.")}
   ${T.h(2, "6.1 The training architecture")}
-  <table>${T.head([["Tier", "6%"], ["Programme", "18%"], ["Audience", "17%"], ["Headcount", "10%"], ["Format", "17%"], ["Outcome and evidence"]])}
-  ${TRAINING_TIERS.map(([k, n, a, fm, o], i) => `<tr><td>${i + 1}</td><td><b>${n}</b></td><td>${a}</td><td style="text-align:center">${f.training?.[k]?.n ? N(f.training[k].n) : "—"}</td><td>${fm}</td><td>${o}</td></tr>`).join("")}</table>
+  <table>${T.head([["Tier", "6%"], ["Programme", "20%"], ["Audience", "19%"], ["Format", "19%"], ["Outcome and evidence"]])}
+  ${TRAINING_TIERS.map(([, n, a, fm, o], i) => `<tr><td>${i + 1}</td><td><b>${n}</b></td><td>${a}</td><td>${fm}</td><td>${o}</td></tr>`).join("")}</table>
   ${T.h(2, "6.2 Champion curriculum — five days")}
   <table>${T.head([["Day", "10%"], ["Module", "20%"], ["Content"]])}
   ${[["Day 1", "Legal foundation", "NDPA 2023 architecture; GAID 2025 and what changed on 19 September 2025; classification and registration; principles, lawful bases and consent; sensitive personal data; the organisation's own exposure"], ["Day 2", "Mapping and records", "Data inventory technique; building and maintaining a RoPA section; purpose, recipients, retention and disposal; practical workshop on the champion's own unit"], ["Day 3", "Risk and assessment", "DPIA screening and when to escalate; high-risk processing including biometrics and surveillance; third parties, processors and data processing agreements; cross-border transfer"], ["Day 4", "Rights and incidents", "Access, rectification, erasure and objection requests; timelines; the SNAG procedure; breach identification, containment, severity assessment and the 72-hour clock; tabletop exercise"], ["Day 5", "Operating the role", "The monthly checklist; the unit return; evidence for the CAR; delivering local sensitisation; assessment and certification examination"]].map(([a, b, c]) => `<tr><td>${a}</td><td><b>${b}</b></td><td>${c}</td></tr>`).join("")}</table>
@@ -292,33 +286,21 @@ export function proposalHtml(p: Proposal, firm: any) {
 </section>
 
 <section class="break">
-  ${T.section("09", "Financial Proposal", `All amounts are in Nigerian Naira and exclusive of VAT${m.vat ? ` at ${Number(p.vat_rate)}%` : ""}. Statutory fees payable to the Nigeria Data Protection Commission are included and shown separately. Costs ${org} will bear internally are disclosed so that Management sees the total picture, not only the consultancy fee.`)}
-  ${T.h(2, "9.1 Professional services")}
-  <table>${T.head([["Ref", "6%"], ["Workstream", "26%"], ["Scope"], ["Fee (₦)", "15%"]])}
-  ${WORKSTREAMS.filter(([k]) => fee(k)).map(([k, n, s]) => `<tr><td>${k.toUpperCase()}</td><td><b>${n}</b></td><td>${k === "w5" ? s.replace("DPIAs on priority systems", `${dpias} DPIAs on priority systems`) : s}</td><td style="text-align:right">${N(fee(k))}</td></tr>`).join("")}
-  <tr class="sub"><td></td><td colspan="2"><b>Sub-total — professional services</b></td><td style="text-align:right"><b>${N(m.prof)}</b></td></tr></table>
-  ${m.training ? `${T.h(2, "9.2 Training and certification")}<table>${T.head([["Tier", "6%"], ["Programme"], ["Participants", "13%"], ["Unit cost (₦)", "14%"], ["Total (₦)", "15%"]])}
-  ${TRAINING_TIERS.map(([k, n], i) => [k, n, i] as const).filter(([k]) => f.training?.[k]?.n && f.training?.[k]?.unit).map(([k, n, i]) => `<tr><td>${i + 1}</td><td>${n}</td><td style="text-align:center">${N(f.training![k].n)}</td><td style="text-align:right">${N(f.training![k].unit)}</td><td style="text-align:right">${N(f.training![k].n * f.training![k].unit)}</td></tr>`).join("")}
-  <tr class="sub"><td></td><td colspan="3"><b>Sub-total — training and certification</b></td><td style="text-align:right"><b>${N(m.training)}</b></td></tr></table><p class="note">Includes facilitation, materials, examination and certification fees, and venue set-up on site. Train-the-trainer for selected champions and the DPO is included at no additional charge.</p>` : ""}
-  ${m.statutory ? `${T.h(2, "9.3 Statutory and regulatory fees")}<table>${T.head([["Item", "38%"], ["Note"], ["Amount (₦)", "15%"]])}${STATUTORY.filter(([k]) => f.statutory?.[k]).map(([k, n, s]) => `<tr><td><b>${n}</b></td><td>${s}${k === "reg" && p.tier && p.tier !== "TBC" ? ` (${TIERS[p.tier]} band)` : ""}</td><td style="text-align:right">${N(f.statutory![k])}</td></tr>`).join("")}<tr class="sub"><td colspan="2"><b>Sub-total — statutory fees</b></td><td style="text-align:right"><b>${N(m.statutory)}</b></td></tr></table>` : ""}
-  ${T.h(2, "9.4 Year 1 summary and investment options")}
-  <table>${T.head([["Component", "28%"], ...(hasA ? [["Option A — Regulatory Baseline"] as [string]] : []), ["Option B — Full Programme (recommended)"], ...(hasC ? [["Option C — Programme + Technology"] as [string]] : [])])}
-  ${[["Scope", ...(hasA ? [esc(f.option_a?.scope ?? "Reduced scope")] : []), "Every unit mapped, full remediation, all champions certified, all training tiers", ...(hasC ? ["Option B plus the components in Section 9.5"] : [])],
-    ["Year 1 total (excl. VAT)", ...(hasA ? [NGN(m.A)] : []), NGN(m.B), ...(hasC ? [NGN(m.C)] : [])],
-    ...(m.vat ? [[`VAT at ${Number(p.vat_rate)}%`, ...(hasA ? [NGN(m.withVat(m.A) - m.A)] : []), NGN(m.withVat(m.B) - m.B), ...(hasC ? [NGN(m.withVat(m.C) - m.C)] : [])], ["Year 1 total (incl. VAT)", ...(hasA ? [NGN(m.withVat(m.A))] : []), NGN(m.withVat(m.B)), ...(hasC ? [NGN(m.withVat(m.C))] : [])]] : [])].map((r, i) => `<tr${i ? ' class="sub"' : ""}>${r.map((c, j) => `<td${j ? ' style="text-align:center"' : ""}>${j ? c : `<b>${c}</b>`}</td>`).join("")}</tr>`).join("")}</table>
-  ${T.callout("OUR RECOMMENDATION", `<p style="margin:0"><b>Option B.</b> ${hasA ? "Option A satisfies the filing obligation but leaves units unmapped, which means the Record of Processing Activities is incomplete on the day it is signed — and an incomplete RoPA is the single most common finding in a regulatory review. Option A is best understood as a first phase, with the balance funded in Year 2. " : ""}${hasC ? `Option C is the right choice if ${org} wants the RoPA, DPIA register, consent records and training completion data held in a system rather than in documents.` : "It gives full coverage of every unit and every obligation in a single programme year."}</p>`)}
-  ${hasC ? `${T.h(2, "9.5 Optional components (Option C detail)")}<table>${T.head([["Component", "38%"], ["Note"], ["Amount (₦)", "15%"]])}${OPTIONAL.filter(([k]) => f.optional?.[k]).map(([k, n, s]) => `<tr><td><b>${n}</b></td><td>${s}</td><td style="text-align:right">${N(f.optional![k])}</td></tr>`).join("")}<tr class="sub"><td colspan="2"><b>Sub-total — optional components</b></td><td style="text-align:right"><b>${N(m.optional)}</b></td></tr></table>` : ""}
-  ${m.internal ? `${T.h(2, "9.6 Internal establishment costs")}<p>These are borne by ${org} and are not part of our fee. They are set out so that Management can see the true annual cost of the compliance function.</p><table>${T.head([["Item", "32%"], ["Basis"], ["Annual (₦)", "15%"]])}${INTERNAL.filter(([k]) => f.internal?.[k]).map(([k, n, s]) => `<tr><td><b>${n}</b></td><td>${s}</td><td style="text-align:right">${N(f.internal![k])}</td></tr>`).join("")}${f.honorarium && champions ? `<tr><td><b>Champion honoraria</b></td><td>${champions} champions at ${NGN(f.honorarium)} per annum, paid on submission of the semi-annual unit return</td><td style="text-align:right">${N(f.honorarium * champions)}</td></tr>` : ""}<tr class="sub"><td colspan="2"><b>Total indicative annual internal cost</b></td><td style="text-align:right"><b>${N(m.internal)}</b></td></tr></table>` : ""}
-  ${m.retainer ? `${T.h(2, "9.7 Years 2 and 3 — annual retainer")}<table>${T.head([["Service", "32%"], ["Scope"], ["Annual (₦)", "15%"]])}${RETAINER.filter(([k]) => f.retainer?.[k]).map(([k, n, s]) => `<tr><td><b>${n}</b></td><td>${s}</td><td style="text-align:right">${N(f.retainer![k])}</td></tr>`).join("")}<tr class="sub"><td colspan="2"><b>Annual retainer (excl. VAT)</b></td><td style="text-align:right"><b>${N(m.retainer)}</b></td></tr></table>
-  ${T.h(2, "9.8 Three-year cost of ownership")}<table>${T.head([["Cost line (Option B, excl. VAT)", "34%"], ["Year 1 (₦)"], ["Year 2 (₦)"], ["Year 3 (₦)"], ["Total (₦)"]])}
-  ${[["Consultancy and training", m.prof + m.training, m.retainer - m.carFee], ["Statutory fees", m.statutory, m.carFee], ...(m.internal ? [["Internal establishment", m.internal, m.internal] as [string, number, number]] : [])].map(([n, y1, y2]) => `<tr><td>${n}</td><td style="text-align:right">${N(y1 as number)}</td><td style="text-align:right">${N(y2 as number)}</td><td style="text-align:right">${N(y2 as number)}</td><td style="text-align:right">${N((y1 as number) + 2 * (y2 as number))}</td></tr>`).join("")}
-  <tr class="sub"><td><b>Total</b></td><td style="text-align:right"><b>${N(m.B + m.internal)}</b></td><td style="text-align:right"><b>${N(m.retainer + m.internal)}</b></td><td style="text-align:right"><b>${N(m.retainer + m.internal)}</b></td><td style="text-align:right"><b>${N(m.B + m.internal + 2 * (m.retainer + m.internal))}</b></td></tr></table>
-  <p class="note">Year 1 is the heaviest year by design: discovery, policy drafting and certification are one-time. From Year 2 the cost falls to the retainer, and internal delivery of staff induction through the trained facilitators reduces it further.</p>` : ""}
-  ${T.h(2, `9.${m.retainer ? 9 : 5} Payment schedule — Option B`)}
+  ${T.section("09", "Financial Proposal", `All amounts are in Nigerian Naira${m.vat ? `, with VAT at ${Number(p.vat_rate)}% shown separately` : ""}. Fees are fixed for the scope described in Section 08.`)}
+  ${T.h(2, "9.1 Fees by service")}
+  <table>${T.head([["S/N", "6%"], ["Service", "24%"], ["Scope and deliverables"], ["Fee (₦)", "16%"]])}
+  ${m.lines.map((l, i) => { const sc = SERVICE_SCOPE[l.service]; return `<tr><td>${i + 1}</td><td><b>${esc(l.service)}</b>${l.description ? `<br>${esc(l.description)}` : ""}</td><td>${sc ? `${sc.scope}<br><i>${sc.deliverables}</i>` : ""}</td><td style="text-align:right">${N(l.amount)}</td></tr>`; }).join("")}
+  <tr class="sub"><td></td><td colspan="2"><b>Subtotal</b></td><td style="text-align:right"><b>${N(m.subtotal)}</b></td></tr>
+  ${m.vat ? `<tr class="sub"><td></td><td colspan="2">VAT (${Number(p.vat_rate)}%)</td><td style="text-align:right">${N(m.vatAmt)}</td></tr>` : ""}
+  <tr><td style="background:${T.P}"></td><td colspan="2" style="background:${T.P};color:${T.on}"><b>Total investment</b></td><td style="background:${T.P};color:${T.on};text-align:right"><b>${NGN(m.total)}</b></td></tr></table>
+  ${services.length < SERVICES.length ? `<p class="note">Services not included above (${SERVICES.filter((x) => !services.includes(x)).map(esc).join(", ")}) can be added by agreement.</p>` : ""}
+  ${T.h(2, "9.2 Payment terms")}
+  <p>${esc(p.payment_terms || "Payments are linked to the delivery milestones below.")}</p>
+  ${T.h(2, "9.3 Payment schedule")}
   <table>${T.head([["Stage", "8%"], ["Milestone"], ["%", "8%"], ["Amount (₦, excl. VAT)", "20%"]])}
-  ${MILESTONES.map((ms, i) => `<tr><td>${i + 1}</td><td>${ms.replace("the Board", `the ${board}`)}</td><td>${sched[i] ?? 0}%</td><td style="text-align:right">${N(Math.round(m.B * (sched[i] ?? 0)) / 100)}</td></tr>`).join("")}
-  <tr class="sub"><td></td><td><b>Total</b></td><td><b>${sched.reduce((a, b) => a + b, 0)}%</b></td><td style="text-align:right"><b>${N(m.B)}</b></td></tr></table>
-  <p class="note">Withholding tax at the applicable rate will be deducted at source and remitted in the ordinary course; a credit note will be issued against each deduction. Statutory fees payable to the Commission are billed at cost with the receipt attached.${p.notes ? ` ${esc(p.notes)}` : ""}</p>
+  ${MILESTONES.map((ms, i) => `<tr><td>${i + 1}</td><td>${ms.replace("the Board", `the ${board}`)}</td><td>${sched[i] ?? 0}%</td><td style="text-align:right">${N(Math.round(m.subtotal * (sched[i] ?? 0)) / 100)}</td></tr>`).join("")}
+  <tr class="sub"><td></td><td><b>Total</b></td><td><b>${sched.reduce((a, b) => a + b, 0)}%</b></td><td style="text-align:right"><b>${N(m.subtotal)}</b></td></tr></table>
+  <p class="note">Withholding tax at the applicable rate will be deducted at source and remitted in the ordinary course; a credit note will be issued against each deduction. Statutory fees payable to the Commission are not included unless listed above, and are billed at cost with the receipt attached.${p.notes ? ` ${esc(p.notes)}` : ""}</p>
 </section>
 
 <section class="break">
@@ -332,7 +314,7 @@ export function proposalHtml(p: Proposal, firm: any) {
   ${T.h(2, "11.1 Assumptions")}
   <ul>${[`${org} will constitute the Steering Committee and appoint the DPO and champions within the first month, as these gate every subsequent phase.`, "Heads of unit will make staff, systems and records available for discovery interviews and walkthroughs.", `${org} will provide training venues, power and connectivity at no cost to us.`, "Existing system documentation, vendor contracts and organisational records will be made available.", `Policy instruments will be routed through Management and the ${board} on the normal cycle; delay to that cycle shifts Gate 3 correspondingly.`, ...(staff ? [`Staff headcount for training is taken at approximately ${N(staff)}; the fee will be adjusted pro rata against the confirmed staff list.`] : []), ...(champions ? [`Champion numbers are based on the current structure of ${champions} units; changes to that structure adjust the network size and cost.`] : [])].map((x) => `<li>${x}</li>`).join("")}</ul>
   ${T.h(2, "11.2 Exclusions")}
-  <ul>${["Hardware, network infrastructure, servers and licensing beyond any optional platform in Section 09.", "Software development or modification of applications; we specify the required changes, the organisation's developers or vendors implement them.", "Legal representation in litigation or enforcement proceedings, which would be separately scoped.", "Penalties, fines or back-fees arising from periods before this engagement.", "Physical security works, records destruction equipment and archival storage.", "Travel and accommodation outside the organisation's principal city, should sessions be required elsewhere."].map((x) => `<li>${x}</li>`).join("")}</ul>
+  <ul>${["Hardware, network infrastructure, servers and software licensing.", "Software development or modification of applications; we specify the required changes, the organisation's developers or vendors implement them.", "Legal representation in litigation or enforcement proceedings, which would be separately scoped.", "Penalties, fines or back-fees arising from periods before this engagement.", "Physical security works, records destruction equipment and archival storage.", "Travel and accommodation outside the organisation's principal city, should sessions be required elsewhere."].map((x) => `<li>${x}</li>`).join("")}</ul>
   ${T.h(2, "11.3 Terms")}
   <table>${T.head([["Term", "20%"], ["Provision"]])}
   ${[["Validity", `This proposal is valid for ${p.validity_days} days from the date of issue. Fees are held for that period.`], ["Duration", `${months} months from execution for Year 1, with the retainer renewable annually thereafter.`], ["Currency and tax", `All amounts in Nigerian Naira, exclusive of VAT${m.vat ? ` at ${Number(p.vat_rate)}%` : ""}. Withholding tax deducted at source and evidenced by credit note.`], ["Confidentiality", "Mutual confidentiality applies. We will execute the organisation's non-disclosure instrument, and a data processing agreement governing our own access to personal data during the engagement."], ["Our status", "In performing discovery and audit we act as a data processor to the organisation and will comply with the same standards we recommend, including the NDPC's DPCO Code of Conduct."], ["Intellectual property", "All deliverables prepared for the organisation vest in it on final payment. Our underlying methodologies, tools and templates remain ours."], ["Independence", "The compliance audit and CAR filing are performed under our DPCO licence and to the Commission's standards; no finding will be withheld or softened at the request of any officer."], ["Variation", "Any change to scope will be agreed in writing with a cost and schedule impact stated before work proceeds."], ["Procurement", "We will comply with the organisation's procurement process and provide all statutory documentation, including certificate of incorporation, tax clearance, pension and ITF compliance and DPCO licence."]].map(([a, b]) => `<tr><td><b>${a}</b></td><td>${b}</td></tr>`).join("")}</table>
@@ -340,9 +322,10 @@ export function proposalHtml(p: Proposal, firm: any) {
 </section>
 
 <section class="break">
-  ${T.section("12", "Acceptance", "To proceed, please indicate the selected option and return a signed copy of this page. We will issue the engagement contract, the data processing agreement and a mobilisation schedule within five working days.")}
-  <table>${T.head([["Select option"], ["Year 1 (excl. VAT)", "20%"], ["Year 1 (incl. VAT)", "20%"]])}
-  ${[...(hasA ? [["☐ Option A — Regulatory Baseline", m.A]] : []), ["☐ Option B — Full Programme (recommended)", m.B], ...(hasC ? [["☐ Option C — Programme with Technology and Managed Support", m.C]] : []), ...(m.retainer ? [["☐ Years 2–3 annual retainer (optional, renewable)", m.retainer]] : [])].map(([n, v]) => `<tr><td>${n}</td><td style="text-align:right">${NGN(v as number)}${String(n).includes("retainer") ? " p.a." : ""}</td><td style="text-align:right">${NGN(m.withVat(v as number))}${String(n).includes("retainer") ? " p.a." : ""}</td></tr>`).join("")}</table>
+  ${T.section("12", "Acceptance", "To proceed, please confirm the services selected and return a signed copy of this page. We will issue the engagement contract, the data processing agreement and a mobilisation schedule within five working days.")}
+  <table>${T.head([["Service"], ["Fee (excl. VAT)", "20%"], ["Fee (incl. VAT)", "20%"]])}
+  ${m.lines.map((l) => `<tr><td>☐ ${esc(l.service)}</td><td style="text-align:right">${NGN(l.amount)}</td><td style="text-align:right">${NGN(Math.round(l.amount * (1 + m.vat) * 100) / 100)}</td></tr>`).join("")}
+  <tr class="sub"><td><b>Total</b></td><td style="text-align:right"><b>${NGN(m.subtotal)}</b></td><td style="text-align:right"><b>${NGN(m.total)}</b></td></tr></table>
   ${T.h(3, `For ${org}`)}
   <table>${T.head([["Name and designation"], ["Signature and date"]])}<tr><td style="height:48px">${esc([p.contact_name, p.contact_title].filter(Boolean).join(", "))}</td><td></td></tr><tr><td>APPROVED — ${esc((p.accountable_title || "Chief Executive Officer").toUpperCase())}</td><td>OFFICIAL STAMP</td></tr></table>
   ${T.h(3, "For the Consultant")}
@@ -389,7 +372,7 @@ export function coverLetterHtml(p: Proposal, firm: any) {
 ${T.h(3, "PROPOSAL FOR A DATA PROTECTION COMPLIANCE PROGRAMME UNDER THE NIGERIA DATA PROTECTION ACT 2023 AND THE GAID 2025")}
 <p>We are pleased to submit our proposal to implement a data protection compliance programme across ${org}, in line with the Nigeria Data Protection Act 2023 (NDPA) and the General Application and Implementation Directive (GAID) 2025${SECTOR_REGS[p.sector ?? ""]?.length ? `, together with the regulation that applies to the ${esc((p.sector ?? "").toLowerCase())} sector` : ""}.</p>
 <p>Since GAID took effect on 19 September 2025, organisations must be able to demonstrate compliance: registration with the Nigeria Data Protection Commission, a certified Data Protection Officer, a documented compliance audit, and an annual Compliance Audit Return filed through a licensed DPCO by 31 March. Our proposal sets out a ${months}-month programme that puts these in place and builds the capability to sustain them — a certified DPO reporting to the ${esc(p.accountable_title || "Chief Executive Officer")}, ${units0 ? `${units0} trained Data Protection Champions across your departments` : "a trained Data Protection Champion network"}, a complete Record of Processing Activities, an adopted policy suite and a filed CAR.</p>
-<p>The recommended programme (Option B) is <b>₦${m.B.toLocaleString("en-NG")}</b> excluding VAT${m.vat ? ` (₦${m.withVat(m.B).toLocaleString("en-NG")} including VAT)` : ""}, with payments linked to delivery milestones. The proposal also sets out ${m.A || m.C ? "alternative options, " : ""}internal establishment costs and a three-year cost of ownership so that Management sees the full picture.</p>
+<p>The total investment is <b>${NGN(m.subtotal)}</b> excluding VAT${m.vat ? ` (${NGN(m.total)} including VAT)` : ""}, covering ${m.lines.map((l) => esc(l.service)).join(", ")}, with payments linked to delivery milestones.</p>
 <p>${esc(firm.name)} is a Data Protection Compliance Organisation licensed by the NDPC${firm.ndpc_licence_no ? ` (Licence ${esc(firm.ndpc_licence_no)})` : ""}. We would welcome the opportunity to present this proposal to Management. It is valid for ${p.validity_days} days from the date of issue.</p>
 <p>Yours faithfully,</p>
 <p style="margin-top:36px"><b>${esc(firm.signatory_name ?? "")}</b>${firm.signatory_credentials ? `, ${esc(firm.signatory_credentials)}` : ""}<br>${esc(firm.signatory_title ?? "")}<br>For: ${esc(firm.name)}</p>

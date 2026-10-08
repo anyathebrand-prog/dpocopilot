@@ -1,16 +1,12 @@
-import { PROPOSAL_SECTORS, TIERS, WORKSTREAMS, TRAINING_TIERS, STATUTORY, OPTIONAL, INTERNAL, RETAINER, MILESTONES, type Fin } from "@/lib/proposal";
+import { PROPOSAL_SECTORS, TIERS, MILESTONES, type Fin } from "@/lib/proposal";
+import { SERVICES, type Line } from "@/lib/invoice";
 import { Field, Hidden } from "@/components/ui";
 import { Submit } from "@/components/client";
 import { saveProposal } from "./actions";
 
-const money = (name: string, v?: number) => <input name={name} inputMode="decimal" defaultValue={v || ""} placeholder="0" style={{ width: 150 }} />;
-const rows = (prefix: string, items: [string, string, string][], vals?: Record<string, number>) => (
-  <table className="register"><tbody>{items.map(([k, n, s]) => <tr key={k}><td><b>{n}</b><div className="meta">{s}</div></td><td>{money(`${prefix}_${k}`, vals?.[k])}</td></tr>)}</tbody></table>
-);
-
 /** The proposal form, empty for a new proposal or filled from an existing one. */
 export function ProposalForm({ p }: { p?: Record<string, any> }) {
-  const f: Fin = p?.fin ?? {};
+  const f: Fin = p?.fin ?? {}, lines: Line[] = p?.lines ?? [], line = (s: string) => lines.find((l) => l.service === s);
   return (
     <form action={saveProposal} className="panel" style={{ maxWidth: 920 }}>
       {p && <Hidden values={{ id: p.id }} />}
@@ -49,27 +45,19 @@ export function ProposalForm({ p }: { p?: Record<string, any> }) {
         <Field label="Valid for (days)"><input type="number" name="validity_days" min={1} max={365} defaultValue={p?.validity_days ?? 90} style={{ width: 120 }} /></Field>
       </div>
 
-      <h3>9.1 Professional services (₦)</h3>
-      {rows("w", WORKSTREAMS, f.work)}
-      <h3>9.2 Training and certification</h3>
-      <table className="register"><thead><tr><th>Tier</th><th>Participants</th><th>Unit cost (₦)</th></tr></thead><tbody>
-        {TRAINING_TIERS.map(([k, n, a]) => <tr key={k}><td><b>{n}</b><div className="meta">{a}</div></td><td><input type="number" name={`tn_${k}`} min={0} defaultValue={f.training?.[k]?.n || ""} style={{ width: 100 }} /></td><td>{money(`tu_${k}`, f.training?.[k]?.unit)}</td></tr>)}
-      </tbody></table>
-      <h3>9.3 Statutory fees (₦)</h3>
-      {rows("s", STATUTORY, f.statutory)}
-      <h3>Option A — regulatory baseline (optional)</h3>
-      <div className="row">
-        <Field label="Option A total (₦)">{money("a_total", f.option_a?.total)}</Field>
-        <Field label="What Option A covers"><input name="a_scope" defaultValue={f.option_a?.scope ?? ""} placeholder="e.g. Registration, sampled audit, core policy set, DPO certified, first CAR filed" style={{ minWidth: 420 }} /></Field>
-      </div>
-      <h3>9.5 Option C — optional components (₦)</h3>
-      {rows("o", OPTIONAL, f.optional)}
-      <h3>9.6 Internal establishment costs (borne by the client, ₦ per year)</h3>
-      {rows("i", INTERNAL, f.internal)}
-      <Field label="Champion honorarium per champion per year (₦)">{money("honorarium", f.honorarium)}</Field>
-      <h3>9.7 Years 2–3 annual retainer (₦)</h3>
-      {rows("r", RETAINER, f.retainer)}
-      <h3>Payment schedule (% of Option B)</h3>
+      <h3>Services and fees</h3>
+      <table className="register">
+        <thead><tr><th>Service</th><th>Detail (optional)</th><th>Fee (₦)</th></tr></thead>
+        <tbody>{SERVICES.map((s, i) => (
+          <tr key={s}>
+            <td><label className="check"><input type="checkbox" name={`s${i}`} defaultChecked={!!line(s)} />{s}</label></td>
+            <td><input name={`d${i}`} defaultValue={line(s)?.description ?? ""} placeholder="e.g. up to 3 DPIAs" /></td>
+            <td><input name={`a${i}`} inputMode="decimal" defaultValue={line(s)?.amount ?? ""} placeholder="0.00" style={{ width: 140 }} /></td>
+          </tr>
+        ))}</tbody>
+      </table>
+      <Field label="Payment terms"><input name="payment_terms" defaultValue={p?.payment_terms ?? "Payments are linked to the delivery milestones below."} /></Field>
+      <h3>Payment schedule (% of the total)</h3>
       <div className="row">{MILESTONES.map((ms, i) => <Field key={ms} label={`Stage ${i + 1}`} help={ms.replace(/ \(Gate \d\)/, "")}><input type="number" name={`pay${i}`} min={0} max={100} defaultValue={(f.schedule ?? [30, 20, 20, 20, 10])[i]} style={{ width: 80 }} /></Field>)}</div>
       <label className="check" style={{ marginTop: 8 }}><input type="checkbox" name="vat" defaultChecked={p ? Number(p.vat_rate) > 0 : true} />Add VAT (7.5%)</label>
       <Field label="Additional payment notes"><textarea name="notes" rows={2} defaultValue={p?.notes ?? ""} /></Field>

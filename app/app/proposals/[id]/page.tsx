@@ -24,7 +24,7 @@ export default async function ProposalPage({ params, searchParams }: { params: P
       <div className="row" style={{ gap: 24, alignItems: "stretch", margin: "16px 0" }}>
         <div className="panel" style={{ borderTop: `6px solid ${p.primary_color}` }}>
           <b>Proposal and service agreement</b>
-          <div className="meta">Option B {naira(money(p as any).B)} excl. VAT · {units(p.departments).length} champions · {p.duration_months ?? 12} months</div>
+          <div className="meta">{naira(money(p as any).total)} · {p.lines.length} service{p.lines.length === 1 ? "" : "s"} · {units(p.departments).length} champions · {p.duration_months ?? 12} months</div>
           <div className="row" style={{ marginTop: 8 }}><a className="btn" href={exp("proposal", "pdf")} target="_blank">PDF</a><a className="btn secondary" href={exp("proposal", "doc")}>Word</a></div>
         </div>
         <div className="panel" style={{ borderTop: `6px solid ${p.secondary_color}` }}>

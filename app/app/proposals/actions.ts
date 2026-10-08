@@ -4,7 +4,8 @@ import { requireFirm, audit } from "@/lib/auth";
 import { q, one } from "@/lib/db";
 import { str, opt, flash } from "@/lib/form";
 import { imageSize } from "@/lib/files";
-import { PROPOSAL_SECTORS, TIERS, WORKSTREAMS, TRAINING_TIERS, STATUTORY, OPTIONAL, INTERNAL, RETAINER, MILESTONES, type Fin } from "@/lib/proposal";
+import { PROPOSAL_SECTORS, TIERS, MILESTONES, type Fin } from "@/lib/proposal";
+import { SERVICES, type Line } from "@/lib/invoice";
 import { todayWAT } from "@/lib/rules";
 
 const HEX = /^#[0-9A-Fa-f]{6}$/, EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -29,20 +30,16 @@ export async function saveProposal(fd: FormData) {
   const months = int(str(fd, "duration_months") || "12", 1, 36), validity = int(str(fd, "validity_days") || "90", 1, 365), dpias = int(str(fd, "dpias") || "5", 0, 100);
   if ([staff, subjects, months, validity, dpias].some(Number.isNaN)) fail("Check the numbers: staff, data subjects, duration (1–36 months), validity (1–365 days) and DPIAs.");
 
-  // The costed model: every amount a non-negative naira figure.
-  let bad = "";
-  const group = (prefix: string, items: [string, ...string[]][]) => Object.fromEntries(items.map(([k, n]) => { const v = naira(str(fd, `${prefix}_${k}`)); if (Number.isNaN(v)) bad ||= n; return [k, v || 0]; }).filter(([, v]) => v));
-  const fin: Fin = { work: group("w", WORKSTREAMS), statutory: group("s", STATUTORY), optional: group("o", OPTIONAL), internal: group("i", INTERNAL), retainer: group("r", RETAINER), dpias: dpias ?? 5 };
-  fin.training = Object.fromEntries(TRAINING_TIERS.map(([k, n]) => { const c = int(str(fd, `tn_${k}`), 0, 10_000_000), unit = naira(str(fd, `tu_${k}`)); if (Number.isNaN(c) || Number.isNaN(unit)) bad ||= n; return [k, { n: c || 0, unit: unit || 0 }]; }).filter(([, t]) => (t as { n: number }).n || (t as { unit: number }).unit));
-  const hon = naira(str(fd, "honorarium")), aTotal = naira(str(fd, "a_total"));
-  if (Number.isNaN(hon)) bad ||= "Champion honorarium";
-  if (Number.isNaN(aTotal)) bad ||= "Option A total";
-  if (bad) fail(`Enter ${bad} as an amount in naira.`);
-  if (hon) fin.honorarium = hon;
-  if (aTotal) fin.option_a = { total: aTotal, scope: str(fd, "a_scope") };
-  fin.schedule = MILESTONES.map((_, i) => int(str(fd, `pay${i}`) || "0", 0, 100) as number);
-  if (fin.schedule.some(Number.isNaN) || fin.schedule.reduce((a, b) => a + b, 0) !== 100) fail("The payment schedule percentages must add up to 100.");
-  if (!Object.keys(fin.work!).length) fail("Enter at least one professional services fee.");
+  const lines: Line[] = [];
+  for (const [i, service] of SERVICES.entries()) {
+    if (fd.get(`s${i}`) !== "on") continue;
+    const amount = naira(str(fd, `a${i}`));
+    if (!amount) fail(`Enter a fee for ${service}.`);
+    lines.push({ service, description: str(fd, `d${i}`), amount });
+  }
+  if (!lines.length) fail("Select at least one service.");
+  const fin: Fin = { dpias: dpias ?? 5, schedule: MILESTONES.map((_, i) => int(str(fd, `pay${i}`) || "0", 0, 100) as number) };
+  if (fin.schedule!.some(Number.isNaN) || fin.schedule!.reduce((a, b) => a + b, 0) !== 100) fail("The payment schedule percentages must add up to 100.");
 
   let logo: { data: string; w: number; h: number } | null | undefined; // undefined = keep
   const f = fd.get("logo");
@@ -53,8 +50,8 @@ export async function saveProposal(fd: FormData) {
   } else if (fd.get("remove_logo") === "on") logo = null;
 
   const vals = [name, address, email, opt(fd, "contact_name"), opt(fd, "contact_title"), sector, primary.toUpperCase(), secondary.toUpperCase(), fd.get("vat") === "on" ? 7.5 : 0,
-    validity ?? 90, opt(fd, "start_on"), opt(fd, "notes"), opt(fd, "departments"), staff, subjects, tier, opt(fd, "accountable_title"), months ?? 12, JSON.stringify(fin)];
-  const cols = "client_name, address, email, contact_name, contact_title, sector, primary_color, secondary_color, vat_rate, validity_days, start_on, notes, departments, staff_count, subjects_count, tier, accountable_title, duration_months, fin";
+    validity ?? 90, opt(fd, "start_on"), opt(fd, "notes"), opt(fd, "payment_terms"), JSON.stringify(lines), opt(fd, "departments"), staff, subjects, tier, opt(fd, "accountable_title"), months ?? 12, JSON.stringify(fin)];
+  const cols = "client_name, address, email, contact_name, contact_title, sector, primary_color, secondary_color, vat_rate, validity_days, start_on, notes, payment_terms, lines, departments, staff_count, subjects_count, tier, accountable_title, duration_months, fin";
   let pid: string;
   if (existing) {
     await q(`update proposals set ${cols.split(", ").map((c, i) => `${c} = $${i + 2}`).join(", ")}, updated_at = now() where id = $1`, [existing.id, ...vals]);
@@ -62,7 +59,7 @@ export async function saveProposal(fd: FormData) {
   } else {
     const year = todayWAT().slice(0, 4);
     const n = (await one<{ n: number }>("select count(*)::int as n from proposals where firm_id = $1 and number like $2", [u.firm_id, `PRP-${year}-%`]))!.n;
-    pid = (await one<{ id: string }>(`insert into proposals (firm_id, number, lines, created_by, ${cols}) values ($1, $2, '[]', $3, ${vals.map((_, i) => `$${i + 4}`).join(", ")}) returning id`,
+    pid = (await one<{ id: string }>(`insert into proposals (firm_id, number, created_by, ${cols}) values ($1, $2, $3, ${vals.map((_, i) => `$${i + 4}`).join(", ")}) returning id`,
       [u.firm_id, `PRP-${year}-${String(n + 1).padStart(3, "0")}`, u.id, ...vals]))!.id;
   }
   if (logo !== undefined) await q("update proposals set logo = $2, logo_w = $3, logo_h = $4 where id = $1", [pid, logo?.data ?? null, logo?.w ?? null, logo?.h ?? null]);
