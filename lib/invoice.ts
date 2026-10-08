@@ -10,6 +10,7 @@ export const SERVICES = [
   "Legitimate Interest Assessment (LIA)",
   "Cross-Border Risk Assessment (CBRA)",
   "Record of Processing Activity (RoPA) Documentation",
+  "Policy Development",
   "Data Protection Officer (DPO) Training and Certification",
   "Employee Data Protection Training",
 ];
