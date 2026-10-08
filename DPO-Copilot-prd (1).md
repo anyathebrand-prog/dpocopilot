@@ -1,17 +1,18 @@
 # DPO Copilot — Product Requirements Document (V1)
 
-**Status:** Draft v1.3
+**Status:** Draft v1.4 (updated to match the product as built, October 2026)
 **Owner:** Victor (Founder)
-**Source:** DPO Copilot App Brief v0.1 + founder decisions
-**Technical stack:** Not decided (out of scope for this document)
+**Source:** DPO Copilot App Brief v0.1 + founder decisions + build to date
+**Technical stack:** Next.js 16 web app; PostgreSQL 16 (embedded PGlite in development); one Docker install per DPCO on Kasi Cloud (Nigeria) with Caddy (HTTPS) and ClamAV (upload scanning). See §7.5.
 
 ### Change log
 | Version | Changes |
 |---|---|
 | v1.0 | First draft |
 | v1.1 | Roles confirmed; DSAR tracker moved to Must-have; CAR readiness checklist defined; major-importance indicator tied to current NDPC guidance; Nigeria data residency required; Regulatory Content Secretary role added; client approval requires stronger signature; data import moved to Must-have; ALDPCON partnership added to launch plan |
-| v1.3 | Added "Waiting for my review" queue on the dashboard for Lead Consultants and Firm Admins (FR2.4) |
 | v1.2 | Policies map to NDPA only (other standards as optional tags); CAR checklist replaced with 5-category template; DSAR default set to 30 days; import covers all record types via Excel/CSV; Secretary confirmed as DPO Copilot staff |
+| v1.3 | Added "Waiting for my review" queue on the dashboard for Lead Consultants and Firm Admins (FR2.4) |
+| v1.4 | Brought in line with the build. CAR checklist is now the GAID Schedule 2 audit questionnaire (69 questions) per audit year, with risk scoring, recommendations and other findings (§6.1 replaced). DPIAs follow the NDPC 12-point guide and produce a GAID-format report. New features F21–F31: LIA, cross-border transfer and third-party (processor) risk assessments; CAR audit report and remediation tracker; Data Protection Framework generator; capacity building plan; billing (invoices and receipts); proposal and cover letter generator; project plan; report cover letters; Solo DPO / DPCO Firm plans; public blog; single-firm install per DPCO. Onboarding expanded (departments, DPO and CDPO certificate, company profile, organogram). Exports are native Word (.docx). Client signature method settled (typed name + one-time code). Security requirements updated (§7.1). Exclusions and open questions revised. |
 
 ---
 
@@ -53,7 +54,13 @@ V1 gives a DPCO firm one place to manage all its client organisations: onboardin
 |---|---|
 | **Regulatory Content Secretary** (DPO Copilot staff) | Maintain the regulatory source library (NDPA 2023, NDPC directives and guidance), major-importance criteria, policy templates and the CAR checklist template, and publish updates to all firms |
 
-> Roles and permissions confirmed by founder. The Secretary is DPO Copilot staff who maintains regulatory content for all firms; firm users cannot edit it.
+> Roles and permissions confirmed by founder. The Secretary is DPO Copilot staff who maintains regulatory content for all firms; firm users cannot edit it. The Secretary also writes the public blog and sets each firm's plan (F29, F30).
+
+### 2.4 Plans
+| Plan | Who | Difference |
+|---|---|---|
+| **DPCO Firm** | Licensed compliance firms serving many clients | Every feature, team seats with Admin, Lead and Associate roles, spreadsheet import |
+| **Solo DPO** | Independent DPOs managing a few clients | One seat: no team invitations and no spreadsheet import; everything else included |
 
 ---
 
@@ -85,8 +92,19 @@ V1 gives a DPCO firm one place to manage all its client organisations: onboardin
 | F16 | DSAR tracker | Must-have |
 | F17 | Data import of existing client records | Must-have |
 | F18 | Regulatory content management (Secretary) | Must-have |
-| F19 | In-app and email notifications beyond critical alerts | Should-have |
-| F20 | Firm branding on exported documents and client portal | Should-have |
+| F19 | In-app and email notifications beyond critical alerts | Should-have (CAR reminders, invoice and receipt notices built) |
+| F20 | Firm branding on exported documents and client portal | Built (firm logo, letterhead; install branding in F31) |
+| F21 | Assessments: Legitimate Interest (LIA), Cross-Border Transfer Risk (TIA), Data Processor Third-Party Risk (TPRA) | Built |
+| F22 | CAR audit report and remediation tracker | Built |
+| F23 | Data Protection Framework generator | Built |
+| F24 | Capacity building plan (training schedule and evidence) | Built |
+| F25 | Billing: invoices and receipts per client | Built |
+| F26 | Proposal and service agreement generator with cover letter | Built |
+| F27 | Project plan per client (tasks timeline) | Built |
+| F28 | Cover letters for client reports | Built |
+| F29 | Plans: Solo DPO and DPCO Firm | Built |
+| F30 | Public blog (Secretary) | Built |
+| F31 | Single-firm install per DPCO (own server and domain) | Built |
 
 ---
 
@@ -168,6 +186,42 @@ V1 gives a DPCO firm one place to manage all its client organisations: onboardin
 ### F18 — Regulatory Content Management
 - As the **Regulatory Content Secretary**, I want to add, update and retire regulatory documents, templates and checklist items, and publish them, so every firm works from current guidance.
 
+### F21 — Assessments (LIA, TIA, TPRA)
+- As a **Lead Consultant**, I want to run a Legitimate Interest Assessment on an activity that relies on legitimate interest, so the basis is documented the way the GAID expects.
+- As a **Lead Consultant**, I want to assess each transfer of personal data outside Nigeria and each data processor, rate the risk and record an outcome, so transfers and vendors are defensible.
+
+### F22 — CAR Audit Report & Remediation Tracker
+- As a **Lead Consultant**, I want to generate the compliance audit report from the CAR checklist, so the Compliance Audit Return is ready to file.
+- As a **Lead Consultant**, I want a remediation tracker built from the audit findings, with owners and target dates, so the client can close the gaps.
+
+### F23 — Data Protection Framework
+- As a **Lead Consultant**, I want a Data Protection Framework drafted from the client's structure, departments, RoPA and company documents, so each client gets a tailored policy set.
+
+### F24 — Capacity Building Plan
+- As a **Lead Consultant**, I want to schedule each data protection training for a client and attach evidence once it is held, so training is provable at audit.
+
+### F25 — Billing
+- As a **Firm Admin**, I want to invoice a client for the services we deliver and issue a receipt when paid, so billing sits beside the work.
+- As a **Client Contact**, I want to see and download my invoices and receipts in the portal.
+
+### F26 — Proposals
+- As a **Firm Admin**, I want to generate a branded proposal, service agreement and cover letter for a prospective client, so winning new work is quick and consistent.
+
+### F27 — Project Plan
+- As a **Lead Consultant**, I want a project plan with a timeline built from a client's tasks, so the client sees the engagement schedule.
+
+### F28 — Report Cover Letters
+- As a **Lead Consultant**, I want a cover letter for every report I send a client, so each deliverable goes out formally.
+
+### F29 — Plans
+- As the **Regulatory Content Secretary**, I want to set each firm's plan (Solo DPO or DPCO Firm), so features match what the firm pays for.
+
+### F30 — Public Blog
+- As the **Regulatory Content Secretary**, I want to publish articles and downloadable resources on the public site, so DPCOs find and trust DPO Copilot.
+
+### F31 — Single-Firm Install
+- As a **DPCO**, I want DPO Copilot on my own domain with my brand, so my clients see my firm, not a shared platform.
+
 ---
 
 ## 6. Functional Requirements
@@ -190,17 +244,24 @@ V1 gives a DPCO firm one place to manage all its client organisations: onboardin
 - FR3.3 Firm users can complete or edit answers on the client's behalf.
 - FR3.4 Completed answers generate a structured data inventory.
 - FR3.5 The system shows a major-importance indicator based on the criteria in **current NDPC guidance**, as maintained in the regulatory content library (F18), with its reasoning and source shown. A Lead Consultant sets the final classification.
+- FR3.6 The questionnaire is in steps, each saved before moving on. Organisation details are split into two steps of ten questions: (1) registered name, address, phone, email, website, branch (optional), sector, staff count, number of departments, list of departments; (2) company documents and DPO.
+- FR3.7 Company documents: company profile (PDF or Word) and company structure / organogram (PDF, Word or PNG/JPEG). Text is extracted for use in the Data Protection Framework (F23); image organograms are embedded in it.
+- FR3.8 DPO details: name, phone, email and CDPO certificate (PDF). The certifying body, certificate number, issue and expiry dates are read from the certificate automatically for the user to confirm; scanned (image-only) certificates are attached and the fields typed.
 
 ### F4 — RoPA Builder
 - FR4.1 System proposes RoPA entries from the data inventory.
 - FR4.2 Each entry records at minimum: purpose, lawful basis, data subject categories, data categories, recipients, cross-border transfers, retention period, security measures, system/owner.
 - FR4.3 Users can add, edit and archive entries; changes are logged.
+- FR4.4 Each entry is tied to a department chosen from the client's onboarding list of departments.
 
 ### F5 — DPIA Workflow
 - FR5.1 A DPIA is created against one or more RoPA entries.
-- FR5.2 Guided steps: description of processing, necessity and proportionality, risk identification, risk scoring (likelihood × impact), mitigations, residual risk, conclusion.
+- FR5.2 Guided steps follow the NDPC 12-point DPIA guide (screening; organisation and purpose; method; legal grounds; necessity of the means; stakeholders; risks to confidentiality, integrity and availability incl. data-subject inadvertence; harm to data subjects; transfers outside Nigeria; principles and rights; risks identified; measures per risk) plus outcome and review. Each step shows the guide instruction and opens pre-filled from the client's records.
 - FR5.3 Status flow: Draft → In Review → Approved. Approved DPIAs are locked; edits create a new version.
 - FR5.4 A review date can be set and appears on the calendar.
+- FR5.5 Each DPIA records its assessment year; the DPIA list can be filtered by year.
+- FR5.6 Risks use a 5×5 likelihood × impact scale: Low 1–4, Medium 5–9, High 10–15, Critical 16–25, with inherent and residual ratings.
+- FR5.7 "Generate DPIA report" produces the report in the GAID DPIA report format (cover, document control, executive summary, screening, methodology, processing inventory, necessity and proportionality, risk register, heat map, treatment, residual risk and DPO opinion, action plan, sign-off with the NDPC prior-consultation decision). Facts not held show as [To be confirmed].
 
 ### F6 — Policy & Notice Generator
 - FR6.1 V1 templates (confirmed): Privacy Notice, Data Retention Policy, Consent Form.
@@ -216,12 +277,167 @@ V1 gives a DPCO firm one place to manage all its client organisations: onboardin
 - FR7.5 Users record when and how notifications were sent. The system does **not** submit notifications to the regulator.
 - FR7.6 Client-reported incidents immediately alert the assigned firm team by email and in-app.
 
+### F7a — CAR Filing Reminders
+- FR7.7 A daily job emails each client's active contacts 30, 14, 7 and 1 day(s) before the CAR filing date and on the day, and alerts the firm team in-app. Each stage sends once per due date. The portal shows a CAR banner inside the 30-day window.
+
 ### F8 — Evidence Vault & CAR Readiness
 - FR8.1 Firm users create evidence requests (title, description, due date, linked checklist item).
 - FR8.2 Client Contacts upload files against requests; firm users accept or reject with a comment.
+- FR8.2a Both sides can also "Upload documents" without a request, several files at once: from the portal they arrive as Submitted (firm notified); from the firm side they are filed as Accepted, optionally against a CAR item.
+- FR8.2b Allowed files: PDF, Word, Excel, CSV, text and photos up to 25 MB; videos (MP4, MOV, WebM) up to 100 MB.
 - FR8.3 Evidence is stored per client and linked to the checklist item or document it supports.
-- FR8.4 Each client has a CAR readiness checklist created from the standard template (§6.1 below). Each item is marked Complete, In Progress, Missing, or Not Applicable (with reason).
-- FR8.5 Overall readiness score = percentage of applicable items marked Complete, shown overall and per category.
+- FR8.4 Each client has one CAR readiness checklist **per audit year**, created from the standard template (§6.1 below). Each item is marked Complete, In Progress, Missing, or Not Applicable, and records the answer, the evidence seen, a Non-Conformity/Observation note (required for Not Applicable) and a recommendation. A year with no checklist says so and offers to start one; any recorded year can be made the active year.
+- FR8.5 Overall readiness score = percentage of applicable items marked Complete, shown overall and per category. A risk score (0–100, High/Medium/Low) follows item status and question priority (High-priority questions weigh double).
+- FR8.5a Consultants record other high-risk findings and observations the questions don't cover (observation, risk, Open/Resolved, recommendation), per audit year.
+- FR8.6 Where platform data already satisfies an item, the system links it automatically for the reviewer to confirm (e.g. approved policies → Governance; DPIAs and RoPA lawful bases → Accountability & Risk; RoPA transfer fields → Cross-Border Transfer; RoPA recipients → Data Processors).
+- FR8.7 The system does **not** file the CAR with the regulator in V1.
+
+#### 6.1 CAR Readiness Checklist — Standard Template
+
+The template is the **NDP Audit Questionnaire (GAID Schedule 2)**: 69 questions in six parts, with Part 4 sub-sections and a High or Medium priority per question (confirmed by founder; replaces the earlier 5-category draft). Checklists started on the earlier template are kept and can be switched to Schedule 2 with a confirmation.
+
+> The template is maintained by the Regulatory Content Secretary (F18). Firms can mark items Not Applicable per client but cannot delete template items.
+
+### F9 — Tasks & Compliance Calendar
+- As a **Lead Consultant**, I want to create and assign tasks with due dates so work is tracked.
+- As a **Firm Admin**, I want a calendar of deadlines across all clients so nothing slips.
+
+### F10 — Client Portal
+- As a **Client Contact**, I want to see my organisation's status, open requests and documents awaiting sign-off so I know what to do.
+- As a **Client Contact**, I want to only see my own organisation's information so our data stays private.
+
+### F11 — AI Drafting
+- As an **Associate**, I want the copilot to draft DPIA sections, policies, breach notices, DSAR responses and audit summaries from the client's structured data.
+- As a **Lead Consultant**, I want every AI draft clearly marked until a qualified person approves it.
+
+### F12 — AI Gap Analysis
+- As a **Lead Consultant**, I want the copilot to flag compliance gaps for a client so I can prioritise work.
+
+### F13 — AI Regulatory Q&A
+- As an **Associate**, I want to ask questions about the NDPA and NDPC guidance and get answers with sources I can check.
+
+### F14 — Review, Approval, Signature & Activity Log
+- As a **Lead Consultant**, I want a review-and-approve step for key documents so quality is controlled.
+- As a **Client Contact**, I want to sign off documents in a verifiable way so my approval holds up in an audit.
+- As a **Firm Admin**, I want an activity log of who did what and when.
+
+### F15 — Export
+- As a **Lead Consultant**, I want to export approved documents and the RoPA so I can share or file them.
+
+### F16 — DSAR Tracker
+- As a **Client Contact**, I want to log a data subject request my organisation received so the DPCO can help us respond on time.
+- As an **Associate**, I want each DSAR to show its type, deadline and status so none are missed.
+- As a **Lead Consultant**, I want a draft response generated from the request and the client's data map.
+
+### F17 — Data Import
+- As a **Firm Admin**, I want to import my existing client records from spreadsheets so my team can start using the platform without retyping everything.
+
+### F18 — Regulatory Content Management
+- As the **Regulatory Content Secretary**, I want to add, update and retire regulatory documents, templates and checklist items, and publish them, so every firm works from current guidance.
+
+### F21 — Assessments (LIA, TIA, TPRA)
+- As a **Lead Consultant**, I want to run a Legitimate Interest Assessment on an activity that relies on legitimate interest, so the basis is documented the way the GAID expects.
+- As a **Lead Consultant**, I want to assess each transfer of personal data outside Nigeria and each data processor, rate the risk and record an outcome, so transfers and vendors are defensible.
+
+### F22 — CAR Audit Report & Remediation Tracker
+- As a **Lead Consultant**, I want to generate the compliance audit report from the CAR checklist, so the Compliance Audit Return is ready to file.
+- As a **Lead Consultant**, I want a remediation tracker built from the audit findings, with owners and target dates, so the client can close the gaps.
+
+### F23 — Data Protection Framework
+- As a **Lead Consultant**, I want a Data Protection Framework drafted from the client's structure, departments, RoPA and company documents, so each client gets a tailored policy set.
+
+### F24 — Capacity Building Plan
+- As a **Lead Consultant**, I want to schedule each data protection training for a client and attach evidence once it is held, so training is provable at audit.
+
+### F25 — Billing
+- As a **Firm Admin**, I want to invoice a client for the services we deliver and issue a receipt when paid, so billing sits beside the work.
+- As a **Client Contact**, I want to see and download my invoices and receipts in the portal.
+
+### F26 — Proposals
+- As a **Firm Admin**, I want to generate a branded proposal, service agreement and cover letter for a prospective client, so winning new work is quick and consistent.
+
+### F27 — Project Plan
+- As a **Lead Consultant**, I want a project plan with a timeline built from a client's tasks, so the client sees the engagement schedule.
+
+### F28 — Report Cover Letters
+- As a **Lead Consultant**, I want a cover letter for every report I send a client, so each deliverable goes out formally.
+
+### F29 — Plans
+- As the **Regulatory Content Secretary**, I want to set each firm's plan (Solo DPO or DPCO Firm), so features match what the firm pays for.
+
+### F30 — Public Blog
+- As the **Regulatory Content Secretary**, I want to publish articles and downloadable resources on the public site, so DPCOs find and trust DPO Copilot.
+
+### F31 — Single-Firm Install
+- As a **DPCO**, I want DPO Copilot on my own domain with my brand, so my clients see my firm, not a shared platform.
+
+---
+
+## 6. Functional Requirements
+
+### F1 — Firm Workspace & Roles
+- FR1.1 A user can create a firm workspace and becomes its first Firm Admin.
+- FR1.2 Firm Admin can invite users by email, assign one role (Firm Admin, Lead Consultant, Associate), change roles, and deactivate users.
+- FR1.3 Firm Admin can assign Associates to clients. Associates see only assigned clients. Firm Admins and Lead Consultants see all clients in the firm.
+- FR1.4 Permissions are enforced on every action and view, not only hidden in the interface.
+
+### F2 — Client Management
+- FR2.1 Firm users can create a client record (name, sector, size, contact persons, assigned team).
+- FR2.2 Dashboard shows per client: overall status, open gaps, overdue tasks, active breaches, open DSARs, CAR readiness score.
+- FR2.3 Clients can be archived (read-only), not hard-deleted, from the dashboard.
+- FR2.4 Lead Consultants and Firm Admins see a "Waiting for my review" section on the dashboard listing every item In Review across the clients they can access (DPIAs, documents, breach notifications, DSAR responses), sorted by urgency, with a link to each item.
+
+### F3 — Onboarding & Data Mapping
+- FR3.1 A standard onboarding questionnaire covers: organisation details, data subject categories, personal data categories (including sensitive data), purposes, systems/storage, third-party recipients, cross-border transfers, retention, security measures, and any information needed to assess major-importance status.
+- FR3.2 Firm users send the questionnaire to a Client Contact; the contact completes it in the portal with save-and-resume.
+- FR3.3 Firm users can complete or edit answers on the client's behalf.
+- FR3.4 Completed answers generate a structured data inventory.
+- FR3.5 The system shows a major-importance indicator based on the criteria in **current NDPC guidance**, as maintained in the regulatory content library (F18), with its reasoning and source shown. A Lead Consultant sets the final classification.
+- FR3.6 The questionnaire is in steps, each saved before moving on. Organisation details are split into two steps of ten questions: (1) registered name, address, phone, email, website, branch (optional), sector, staff count, number of departments, list of departments; (2) company documents and DPO.
+- FR3.7 Company documents: company profile (PDF or Word) and company structure / organogram (PDF, Word or PNG/JPEG). Text is extracted for use in the Data Protection Framework (F23); image organograms are embedded in it.
+- FR3.8 DPO details: name, phone, email and CDPO certificate (PDF). The certifying body, certificate number, issue and expiry dates are read from the certificate automatically for the user to confirm; scanned (image-only) certificates are attached and the fields typed.
+
+### F4 — RoPA Builder
+- FR4.1 System proposes RoPA entries from the data inventory.
+- FR4.2 Each entry records at minimum: purpose, lawful basis, data subject categories, data categories, recipients, cross-border transfers, retention period, security measures, system/owner.
+- FR4.3 Users can add, edit and archive entries; changes are logged.
+- FR4.4 Each entry is tied to a department chosen from the client's onboarding list of departments.
+
+### F5 — DPIA Workflow
+- FR5.1 A DPIA is created against one or more RoPA entries.
+- FR5.2 Guided steps follow the NDPC 12-point DPIA guide (screening; organisation and purpose; method; legal grounds; necessity of the means; stakeholders; risks to confidentiality, integrity and availability incl. data-subject inadvertence; harm to data subjects; transfers outside Nigeria; principles and rights; risks identified; measures per risk) plus outcome and review. Each step shows the guide instruction and opens pre-filled from the client's records.
+- FR5.3 Status flow: Draft → In Review → Approved. Approved DPIAs are locked; edits create a new version.
+- FR5.4 A review date can be set and appears on the calendar.
+- FR5.5 Each DPIA records its assessment year; the DPIA list can be filtered by year.
+- FR5.6 Risks use a 5×5 likelihood × impact scale: Low 1–4, Medium 5–9, High 10–15, Critical 16–25, with inherent and residual ratings.
+- FR5.7 "Generate DPIA report" produces the report in the GAID DPIA report format (cover, document control, executive summary, screening, methodology, processing inventory, necessity and proportionality, risk register, heat map, treatment, residual risk and DPO opinion, action plan, sign-off with the NDPC prior-consultation decision). Facts not held show as [To be confirmed].
+
+### F6 — Policy & Notice Generator
+- FR6.1 V1 templates (confirmed): Privacy Notice, Data Retention Policy, Consent Form.
+- FR6.2 Templates are pre-filled from the client's data inventory and RoPA.
+- FR6.3 Documents are editable, versioned, and follow the approval and signature flow in F14.
+- FR6.4 Policies and documents map to the relevant NDPA 2023 provisions. Other standards (e.g. ISO 27001, SOC 2, GDPR) can be added as optional reference tags only; they are not assessed in V1.
+
+### F7 — Breach Incident Management
+- FR7.1 Incidents can be logged by firm users or reported by a Client Contact through the portal.
+- FR7.2 Each incident records: awareness time, description, data and subjects affected, estimated number affected, containment actions, severity, whether notification is required, and remediation actions.
+- FR7.3 A live countdown shows time remaining to 72 hours from the recorded awareness time (WAT).
+- FR7.4 System drafts a regulator notification and a data-subject notification (via F11).
+- FR7.5 Users record when and how notifications were sent. The system does **not** submit notifications to the regulator.
+- FR7.6 Client-reported incidents immediately alert the assigned firm team by email and in-app.
+
+### F7a — CAR Filing Reminders
+- FR7.7 A daily job emails each client's active contacts 30, 14, 7 and 1 day(s) before the CAR filing date and on the day, and alerts the firm team in-app. Each stage sends once per due date. The portal shows a CAR banner inside the 30-day window.
+
+### F8 — Evidence Vault & CAR Readiness
+- FR8.1 Firm users create evidence requests (title, description, due date, linked checklist item).
+- FR8.2 Client Contacts upload files against requests; firm users accept or reject with a comment.
+- FR8.2a Both sides can also "Upload documents" without a request, several files at once: from the portal they arrive as Submitted (firm notified); from the firm side they are filed as Accepted, optionally against a CAR item.
+- FR8.2b Allowed files: PDF, Word, Excel, CSV, text and photos up to 25 MB; videos (MP4, MOV, WebM) up to 100 MB.
+- FR8.3 Evidence is stored per client and linked to the checklist item or document it supports.
+- FR8.4 Each client has one CAR readiness checklist **per audit year**, created from the standard template (§6.1 below). Each item is marked Complete, In Progress, Missing, or Not Applicable, and records the answer, the evidence seen, a Non-Conformity/Observation note (required for Not Applicable) and a recommendation. A year with no checklist says so and offers to start one; any recorded year can be made the active year.
+- FR8.5 Overall readiness score = percentage of applicable items marked Complete, shown overall and per category. A risk score (0–100, High/Medium/Low) follows item status and question priority (High-priority questions weigh double).
+- FR8.5a Consultants record other high-risk findings and observations the questions don't cover (observation, risk, Open/Resolved, recommendation), per audit year.
 - FR8.6 Where platform data already satisfies an item, the system links it automatically for the reviewer to confirm (e.g. approved policies → Governance; DPIAs and RoPA lawful bases → Accountability & Risk; RoPA transfer fields → Cross-Border Transfer; RoPA recipients → Data Processors).
 - FR8.7 The system does **not** file the CAR with the regulator in V1.
 
@@ -266,13 +482,13 @@ The checklist has five categories (confirmed by founder). **The items under each
 > The template is maintained by the Regulatory Content Secretary (F18). Firms can mark items Not Applicable per client but cannot delete template items.
 
 ### F9 — Tasks & Compliance Calendar
-- FR9.1 Users create tasks with title, client, assignee, due date and status.
+- FR9.1 Users create tasks with title, client, assignee, start date, due date and status (due date cannot precede start date). Completion date is recorded.
 - FR9.2 System auto-creates dated items for: breach deadlines, DSAR deadlines, DPIA review dates, evidence due dates, CAR filing date.
 - FR9.3 Calendar filterable by client and assignee.
 
 ### F10 — Client Portal
 - FR10.1 Firm users invite Client Contacts per client; contacts access only their own organisation.
-- FR10.2 Portal shows: status summary, questionnaires, evidence requests, documents awaiting sign-off, approved documents, "report a breach" and "log a data subject request" actions.
+- FR10.2 Portal shows: status summary, questionnaires, evidence requests and "Upload documents", documents awaiting sign-off, approved documents, a read-only CAR checklist (with recommendations and other findings), the client's active RoPA (data inventory), upcoming deadlines, invoices and receipts, and "report a breach" and "log a data subject request" actions.
 - FR10.3 Client Contacts cannot see internal notes, AI chat, gap analysis details, or unshared drafts.
 
 ### F11 — AI Copilot: Drafting
@@ -296,13 +512,14 @@ The checklist has five categories (confirmed by founder). **The items under each
 ### F14 — Review, Approval, Signature & Activity Log
 - FR14.1 DPIAs, policies/notices, breach notifications and DSAR responses follow: Draft → In Review → Approved (firm) → optionally Client Signed Off.
 - FR14.2 Only Lead Consultants and Firm Admins can give firm approval.
-- FR14.3 Client sign-off requires a stronger signature than a simple click, capturing signer identity verification, name, date and time, and a record of exactly which document version was signed. *Signature method to be confirmed (see §13, question 1).*
+- FR14.3 Client sign-off requires a stronger signature than a simple click, capturing signer identity verification, name, date and time, and a record of exactly which document version was signed. **Method (built):** the signer types their name and enters a one-time code sent to them; the export seal shows signer, time, code channel and the SHA-256 fingerprint of the signed version.
 - FR14.4 A signed document version cannot be altered; changes create a new version that needs a new signature.
 - FR14.5 System logs create/edit/approve/sign/export/delete actions, logins, and AI generations with user and timestamp. Firm Admin can view and filter the log.
 
 ### F15 — Export
-- FR15.1 Approved documents, the RoPA, and the CAR readiness checklist export to PDF and Word.
+- FR15.1 Approved documents, the RoPA, and the CAR readiness checklist export to PDF and Word. So do the DPIA report, LIA/TIA/TPRA assessments, CAR audit report, remediation plan (plus Excel tracker), Data Protection Framework, capacity building plan, project plan, invoices, receipts and proposals.
 - FR15.2 Exports include client name, document version, approval date and signature details where signed.
+- FR15.3 PDF is print-ready HTML with a running header and page numbers; Word is a native .docx with the same content and styling (headings, shaded tables, risk colours, charts, page breaks, header/footer, logos).
 
 ### F16 — DSAR Tracker
 - FR16.1 DSARs can be logged by firm users or by Client Contacts through the portal.
@@ -318,12 +535,59 @@ The checklist has five categories (confirmed by founder). **The items under each
 - FR17.3 Imported records are marked as imported in the activity log.
 - FR17.4 V1 imports all of: clients and contacts, RoPA entries, past DPIAs, existing policies, and evidence files.
 - FR17.5 Structured records (clients, contacts, RoPA entries, DPIA register details) import from Excel/CSV rows. Documents (past DPIAs, policies, evidence files) import as a bulk file upload with an Excel/CSV index that links each file to its client and document type or checklist item.
+- FR17.6 *Built so far:* CSV import of clients and contacts and of RoPA entries, with row validation and preview. Excel files, past DPIAs, policies and bulk document import are not built yet. Import is not available on the Solo DPO plan (F29).
 
 ### F18 — Regulatory Content Management
 - FR18.1 The Secretary can add, update, version and retire: regulatory source documents, major-importance criteria, DSAR deadline settings, policy templates, and the CAR checklist template.
 - FR18.2 Changes are drafted, then published; firms always see the latest published version.
 - FR18.3 Each published change records what changed, when, and by whom.
 - FR18.4 Q&A citations and major-importance reasoning reference the version of the source used.
+
+### F21 — Assessments (LIA, TIA, TPRA)
+- FR21.1 Three assessment types per client, each with a title and year, optionally linked to a RoPA activity that pre-fills it. Activities that need one are suggested: legitimate interest (LIA), transfers outside Nigeria (TIA), third-party recipients (TPRA).
+- FR21.2 **LIA** follows the GAID LIA report format: context, purpose test, necessity test, balancing test (impact likelihood/severity grid), safeguards with owner/date, review; outcome Proceed / Proceed with safeguards / Do not proceed. Exports as the full LIA report.
+- FR21.3 **TIA** (NDPA ss.41–43): transfer details, adequacy and evidence (with attachments), s.43 basis, destination risks, supplementary measures, likelihood × impact rating, outcome.
+- FR21.4 **TPRA** (NDPA ss.29, 39, 40): processor and service, personal data processed, due diligence (standing, certifications, security, people, sub-processors, transfers, breach history, resilience, exit, evidence with attachments), contractual safeguards (DPA), remediation and review, likelihood × impact rating; outcome Approve / Approve with conditions / Reject or terminate.
+- FR21.5 Saving an approved assessment returns it to draft; approval needs an outcome.
+
+### F22 — CAR Audit Report & Remediation Tracker
+- FR22.1 From a CAR checklist year, consultants save report details (background, conclusion notes, verification date, maturity override) and generate the data protection compliance audit report in the DPCO format (cover, profile, verification statement, executive summary, risk classifications, scope, assurance summary, findings per part, high-risk findings, conclusion and maturity level).
+- FR22.2 A remediation tracker per client and audit year is built from open items and findings (control area, suggested owner, target dates by risk), maintained in the app (owner, target date, status, evidence/comments, date closed; overdue derived), and exported as Excel (dashboard + tracker sheet) and PDF/Word.
+
+### F23 — Data Protection Framework
+- FR23.1 Generates the client's Data Protection Framework in the DPCO's framework format: Data Protection Policy, Data Classification, Website Privacy, DPIA, Information Security and Incident Response, Retention and Disposal, Consent (with forms), consequences, review and approval, and appendices (retention laws, breach register, Data Protection Champions, organisational structure).
+- FR23.2 Tailored from onboarding (departments, DPO, systems, recipients, transfers, security), the RoPA (lawful bases, retention, high-risk activities), the company profile (overview, vision, mission) and the organogram (embedded image or listed positions). NDPA section references throughout; GAID cited by topic.
+
+### F24 — Capacity Building Plan
+- FR24.1 Six trainings per client: Management, DPO Certification, Continuous Professional Development, Data Protection Champion, General Staff, Role-Based. Each can be scheduled any number of times with dates, time, mode, venue, facilitator, audience and planned participants.
+- FR24.2 After a session, users record attendance and date held, then attach evidence by type (schedule/agenda, attendance register, pictures, videos, materials, certificates, other).
+- FR24.3 The plan exports per year (programme summary, schedule, evidence counts).
+
+### F25 — Billing
+- FR25.1 Firm users create invoices per client by ticking services from the DPCO service list and entering fees; optional VAT (7.5%), due date and payment notes. Numbered INV-YYYY-NNN per firm.
+- FR25.2 Invoices can be emailed to client contacts (portal notice), marked paid, cancelled or reopened. Marking paid issues a receipt automatically (RCT-YYYY-NNN) and notifies the client.
+- FR25.3 A firm-wide billing overview shows outstanding, overdue and paid-this-year totals and filters by status. Clients see their invoices and receipts in the portal.
+- FR25.4 Payment happens outside the platform (e.g. bank transfer); the firm records it.
+
+### F26 — Proposals
+- FR26.1 Firm users create proposals for prospects (not yet clients): name, address and email required, plus contact, accountable officer, sector, GAID tier, staff and data-subject numbers, departments, brand colours and logo, services and fees, VAT, payment terms, start date, duration and validity. Numbered PRP-YYYY-NNN; status Draft / Sent / Accepted / Declined.
+- FR26.2 The proposal follows the DPCO programme format: confidential cover with both logos, letter of transmittal, contents, executive summary, regulatory context (GAID tiers, obligations table, sector regulation, penalties), compliance position, governance architecture, Data Protection Champion network, six-tier training, phased roadmap, deliverables, fees by service with payment terms, value and risk, assumptions/exclusions/terms, acceptance, obligation-to-action matrix and champion appointment brief. Styled in the prospect's colours.
+- FR26.3 A cover letter in the DPCO delivery letter format (letterhead with both logos, RE: line, obligations, governance model, financial summary, s.48 exposure, request list).
+
+### F27 — Project Plan
+- FR27.1 From the Tasks page, a project plan per client: summary, task table (owner, start, due, days, status) and a timeline by week or month, with approval lines.
+
+### F28 — Report Cover Letters
+- FR28.1 Each client report has "Cover letter (PDF/Word)" buttons beside its downloads: firm letterhead, reference, date, addressed to the client's DPO, "RE: Submission of …", what the report is and its legal basis, next steps, signatory.
+
+### F29 — Plans
+- FR29.1 Each firm has a plan (§2.4). The Secretary sets it under "Firms and plans". Solo DPO hides and blocks team invitations and spreadsheet import; existing members keep access.
+
+### F30 — Public Blog
+- FR30.1 The Secretary writes posts (title, summary, body with tables, numbered steps, bold and links, optional cover image) and publishes them to /blog. Drafts and their covers are never public. Links accept only http(s) or site paths.
+
+### F31 — Single-Firm Install
+- FR31.1 Each DPCO gets its own server and domain (`SINGLE_FIRM=1`): no marketing pages; sign-up works once with the install's setup token to create the firm; everyone else joins by invitation. The DPCO's name and logo replace DPO Copilot across the app, portal, emails and authenticator entry.
 
 ---
 
@@ -332,12 +596,17 @@ The checklist has five categories (confirmed by founder). **The items under each
 ### 7.1 Security, Privacy & Data Residency
 - NFR1 Data encrypted in transit and at rest.
 - NFR2 Strict tenant isolation between firms and between clients of the same firm.
-- NFR3 Multi-factor authentication available for all users; mandatory for Firm Admins *(proposed)*.
+- NFR3 Multi-factor authentication (authenticator app, TOTP) available for all users; mandatory for Firm Admins and the Secretary. A development-only bypass exists and is ignored in production.
 - NFR4 Role-based access enforced server-side.
 - NFR5 **All client data, uploaded files, backups, and AI processing must stay in Nigeria in V1** (founder decision).
 - NFR6 Client data is not used to train AI models.
 - NFR7 DPO Copilot complies with the NDPA as a data processor for its customers: data processing agreement for firms, privacy notice, and breach procedures for the platform itself.
-- NFR8 Uploaded and imported files are scanned for malware and restricted to allowed types and sizes.
+- NFR8 Uploaded and imported files are scanned for malware (ClamAV) and restricted to allowed types and sizes. In production, uploads are refused if no scanner is configured.
+- NFR8a Passwords are stored as salted scrypt hashes; session tokens are stored hashed, in httpOnly, SameSite cookies (Secure in production); sessions last 12 hours (Secretary 2 hours).
+- NFR8b Repeated failed sign-ins or MFA codes lock the account key for 15 minutes; the counter is stored in the database.
+- NFR8c Every response carries security headers: Content-Security-Policy, X-Frame-Options DENY, X-Content-Type-Options, Referrer-Policy, Permissions-Policy, and HSTS in production.
+- NFR8d The production Secretary account is created only from install settings (no default password).
+- NFR8e Dependencies are kept free of known vulnerabilities (npm audit clean at v1.4).
 
 ### 7.2 AI Quality & Safety
 - NFR9 AI output is always reviewable, editable and logged as AI-generated.
@@ -354,6 +623,11 @@ The checklist has five categories (confirmed by founder). **The items under each
 - NFR16 Firm workspace works on desktop browsers; client portal fully usable on mobile browsers.
 - NFR17 Core flows meet WCAG 2.1 AA *(proposed)*.
 - NFR18 All deadlines and countdowns use West Africa Time (WAT).
+
+### 7.5 Hosting & Data
+- NFR19 One install per DPCO on a Kasi Cloud VM in Nigeria: app, PostgreSQL 16, Caddy (automatic HTTPS, request size cap) and ClamAV in Docker. Firms never share a server or database.
+- NFR20 The schema creates and updates itself on start; daily database backups kept off-server in Nigeria; encrypted storage and backup retention to be confirmed with Kasi.
+- NFR21 Email delivery uses an email provider to be connected at install; until then messages are recorded and logged, not delivered.
 
 ---
 
@@ -394,7 +668,7 @@ The checklist has five categories (confirmed by founder). **The items under each
 - Generated notifications are marked "AI draft" until approved.
 
 **F8 — Evidence Vault & CAR Readiness**
-- Every new client gets the full standard checklist (all 5 categories).
+- Starting a checklist for an audit year creates the full standard template (all 69 Schedule 2 questions); another year's checklist is unaffected.
 - An uploaded file changes the request status to "Submitted".
 - Rejecting evidence requires a comment visible to the client.
 - Marking an item Not Applicable requires a reason and removes it from the score calculation.
@@ -448,34 +722,45 @@ The checklist has five categories (confirmed by founder). **The items under each
 - A published update is visible to all firms without a product release.
 - Every change records who, when and what.
 
+**F21–F31 — Built since v1.3**
+- Each assessment type can be started pre-filled from a RoPA activity, rated (TIA, TPRA), approved and exported; editing an approved one returns it to draft.
+- The audit report and remediation tracker are generated for the chosen audit year; the Excel tracker opens with its dashboard and status dropdown.
+- The Data Protection Framework names the client's departments, DPO and RoPA activities, quotes the company profile and includes the organogram.
+- A held training session records attendance and accepts pictures and videos as evidence.
+- Marking an invoice paid issues a numbered receipt the client can download in the portal; a contact cannot open another client's invoice.
+- A proposal requires the client's name, address and email, uses the prospect's colours and both logos, and its totals match the fees entered.
+- A Solo DPO firm cannot invite team members or open Import, including by direct link; a DPCO Firm can.
+- Unpublished blog posts and their covers are not reachable publicly.
+
 ---
 
 ## 9. Scope
 
 ### 9.1 Included in V1
-Features F1–F18 (Must-have) for DPCO firms serving multiple clients, with a limited client portal, NDPA 2023 only, English only, all data and AI processing hosted in Nigeria.
+Features F1–F18 (Must-have) for DPCO firms serving multiple clients, with a limited client portal, NDPA 2023 and GAID 2025, English only, all data and AI processing hosted in Nigeria. Built beyond the original scope: F20–F31.
 
 ### 9.2 Should-have (V1 if capacity allows, else V1.1)
 - F19 Notifications beyond critical alerts (breach alerts are Must-have under F7)
-- F20 Firm branding on exports and portal
 
 ### 9.3 Excluded from V1
 - Direct filing of CAR, breach notifications or other returns with the regulator
 - GDPR or other non-Nigerian frameworks as full workflows
-- Solo-DPO and in-house (single-organisation) plans
+- In-house (single-organisation) plans
 - Client Contact access to AI features
-- Billing, invoicing and time tracking for firms
-- Staff training / e-learning module (training records are collected as evidence only)
-- Full vendor risk management module (vendor items are collected as evidence only)
+- Online payment (e.g. Paystack) for client invoices or DPO Copilot subscriptions; time tracking
+- E-learning delivery (training is scheduled and evidenced in F24, not delivered in-app)
+- Full vendor management beyond the third-party risk assessment (F21), e.g. DPA repository and vendor portal
 - Integrations with client systems (automated data discovery)
 - Native mobile apps
 - Languages other than English
 
 ### 9.4 Possible Later Additions
 - GDPR and other frameworks for clients with international exposure
-- Solo DPO and in-house compliance plans
-- Vendor/processor assessment module and DPA management
-- Staff privacy-awareness training (possible link with a learning platform)
+- In-house compliance plan
+- Online payment of invoices and subscriptions (Paystack)
+- Choosing a plan at sign-up
+- DPA management and vendor portal
+- In-app e-learning (possible link with a learning platform)
 - Consent management
 - More policy templates
 - Client reminders via WhatsApp
@@ -515,7 +800,7 @@ Features F1–F18 (Must-have) for DPCO firms serving multiple clients, with a li
 4. The platform supports, but does not replace, professional judgement or legal advice.
 5. The platform does not submit anything to the regulator.
 6. Major-importance criteria follow current NDPC guidance and the DSAR default is 30 days; both are kept current by the Regulatory Content Secretary (DPO Copilot staff).
-7. Pricing and packaging are decided separately.
+7. Pricing is decided separately; packaging is two plans (Solo DPO, DPCO Firm). Firms pay outside the platform.
 8. The ALDPCON partnership is part of the launch and pilot recruitment plan.
 
 ## 12. Risks
@@ -533,7 +818,12 @@ Features F1–F18 (Must-have) for DPCO firms serving multiple clients, with a li
 
 ## 13. Unresolved Questions
 
-1. **Client signature method:** What form should the stronger sign-off take? For example, typed or drawn signature with a one-time code sent by email or SMS, or integration with a licensed e-signature provider?
+1. ~~Client signature method~~ **Resolved:** typed name plus a one-time code; signed version fingerprinted (FR14.3).
 2. **Nigeria-only AI processing:** If no suitable AI model can run inside Nigeria, is any fallback acceptable (e.g. sending only anonymised or redacted data outside Nigeria), or must AI features wait?
-3. **CAR checklist items:** Confirm, edit or replace the proposed items under each of the five categories in §6.1.
+3. ~~CAR checklist items~~ **Resolved:** GAID Schedule 2 audit questionnaire (§6.1).
 4. **Pilot cohort:** How many ALDPCON member firms will pilot V1, and when? *(Founder: not decided yet.)*
+5. **Online payment:** Add Paystack "pay now" on client invoices (each firm's own account), subscriptions for firms, or both?
+6. **Email provider:** Which provider sends invites, reminders and notices from each install?
+7. **GAID article references:** Article and schedule numbers used in proposals and the framework come from DPCO source documents and must be verified against the gazetted GAID before client issue.
+8. **Plan prices:** Fixed prices for Solo DPO and DPCO Firm (the pricing page shows "On request").
+9. **Penetration test:** Who performs the external test before launch, and when?
