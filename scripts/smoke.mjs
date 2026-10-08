@@ -182,8 +182,8 @@ r = await admin.submit(`${C}/dpias/new`, "Create DPIA", { title: "Patient record
 assert.match(r.loc, /Select at least one processing activity/); ok("DPIA needs a linked RoPA entry");
 r = await admin.submit(`${C}/dpias/new?ropa=${ropaIds[0]}`, "Create DPIA", { title: "Patient records DPIA", assessment_year: "2026", ropa: ropaIds[0] });
 const dpiaPath = r.loc.split("?")[0];
-r = await admin.submit(`${dpiaPath}?step=description`, "Draft this step with AI"); assert.match(r.loc, /AI draft ready/);
-r = await admin.submit(`${dpiaPath}?step=description`, ">Accept<"); p = await admin.get(`${dpiaPath}?step=description`); assert.match(p.html, /People: Patients/); ok("AI drafts a DPIA step from the linked RoPA entry");
+r = await admin.submit(`${dpiaPath}?step=stakeholders`, "Draft this step with AI"); assert.match(r.loc, /AI draft ready/);
+r = await admin.submit(`${dpiaPath}?step=stakeholders`, ">Accept<"); p = await admin.get(`${dpiaPath}?step=stakeholders`); assert.match(p.html, /Nigeria Data Protection Commission/); assert.match(p.html, /Patients/); ok("AI drafts a DPIA step from the linked RoPA entry");
 r = await admin.submit(`${dpiaPath}?step=scoring`, "Scoring guide", { r0_description: "Unauthorised access", r0_l: "4", r0_i: "5", r1_description: "" });
 p = await admin.get(`${dpiaPath}?step=scoring`); assert.match(p.html, /20 · Very high/); ok("risk scoring saves likelihood × impact with level text");
 r = await admin.submit(dpiaPath, "Send for review"); r = await admin.submit(dpiaPath, ">Approve<"); assert.match(r.loc, /Approved/);

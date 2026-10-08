@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { requireClient, audit } from "@/lib/auth";
 import { q, one } from "@/lib/db";
 import { latestVersion, versionsOf, getVersion, loadCtx, signatureFor } from "@/lib/data";
-import { DPIA_STEPS, suggestedRisks, type DpiaBody, type Risk } from "@/lib/templates";
+import { DPIA_STEPS, suggestedRisks, dpiaStep, normalizeDpia, type Risk } from "@/lib/templates";
 import { riskLevel } from "@/lib/rules";
 import { str, opt, flash } from "@/lib/form";
 import { Flash, Field, Hidden, Chip, Seal, Doc, Banner } from "@/components/ui";
@@ -19,7 +19,7 @@ async function saveStep(fd: FormData) {
   const { user } = await requireClient(v.client_id, { write: true });
   const step = str(fd, "step"), back = `/app/clients/${v.client_id}/dpias/${v.parent_id}`;
   if (v.status !== "draft") redirect(flash(`${back}?step=${step}`, "This version is locked. Edit creates a new version.", "error"));
-  const body: DpiaBody = JSON.parse(v.body || "{}");
+  const body = normalizeDpia(v.body);
   if (step === "scoring") {
     const risks: Risk[] = [];
     for (let i = 0; fd.has(`r${i}_description`); i++) {
@@ -27,14 +27,40 @@ async function saveStep(fd: FormData) {
       if (description) risks.push({ description, likelihood: Number(str(fd, `r${i}_l`)) || 1, impact: Number(str(fd, `r${i}_i`)) || 1 });
     }
     body.risks_list = risks;
+  } else if (step === "measures") {
+    // Per-risk mitigation and residual score, plus the general measures text.
+    body.risks_list = (body.risks_list ?? []).map((r, i) => ({ ...r, mitigation: str(fd, `r${i}_mitigation`) || undefined,
+      residual_likelihood: Number(str(fd, `r${i}_rl`)) || undefined, residual_impact: Number(str(fd, `r${i}_ri`)) || undefined }));
+    body.measures = str(fd, "text");
   } else if (DPIA_STEPS.some((s) => s.key === step)) {
-    body[step as keyof Omit<DpiaBody, "risks_list">] = str(fd, "text");
+    body[step as Exclude<(typeof DPIA_STEPS)[number]["key"], "scoring">] = str(fd, "text");
   }
   await q("update content_versions set body = $2 where id = $1 and status = 'draft'", [v.id, JSON.stringify(body)]);
   await audit(user, "update", "dpia", v.parent_id, { client_id: v.client_id, details: { step } });
   const i = DPIA_STEPS.findIndex((s) => s.key === step);
   const next = str(fd, "stay") ? step : DPIA_STEPS[Math.min(i + 1, DPIA_STEPS.length - 1)].key;
   redirect(flash(`${back}?step=${next}`, "Saved"));
+}
+
+/** Fill every empty text step with its draft from the client's records (the 12-point DPIA guide). Filled steps are kept. */
+async function fillAll(fd: FormData) {
+  "use server";
+  const v = await getVersion(str(fd, "id"));
+  if (!v || v.parent_type !== "dpia") redirect("/forbidden");
+  const { user } = await requireClient(v.client_id, { write: true });
+  const back = `/app/clients/${v.client_id}/dpias/${v.parent_id}`;
+  if (v.status !== "draft") redirect(flash(back, "This version is locked. Edit creates a new version.", "error"));
+  const ids = (await q("select ropa_entry_id from dpia_ropa where dpia_id = $1", [v.parent_id])).map((r) => r.ropa_entry_id);
+  const ctx = await loadCtx(v.client_id, ids);
+  const body = normalizeDpia(v.body);
+  let filled = 0;
+  for (const s of DPIA_STEPS) {
+    if (s.key === "scoring") { if (!body.risks_list?.length) { body.risks_list = suggestedRisks(ctx); filled++; } continue; }
+    if (!body[s.key]?.trim()) { body[s.key] = dpiaStep(s.key, ctx); filled++; }
+  }
+  await q("update content_versions set body = $2 where id = $1 and status = 'draft'", [v.id, JSON.stringify(body)]);
+  await audit(user, "update", "dpia", v.parent_id, { client_id: v.client_id, details: { filled_steps: filled } });
+  redirect(flash(`${back}?step=screening`, filled ? `${filled} empty step${filled > 1 ? "s" : ""} filled from the client's records. Complete the [To be completed] parts and review each step.` : "Every step already has content."));
 }
 
 async function setReviewDate(fd: FormData) {
@@ -60,14 +86,20 @@ export default async function Dpia({ params, searchParams }: { params: Promise<{
   const picked = sp.v ? await getVersion(sp.v) : undefined;
   const v = picked && picked.parent_id === d.id ? picked : latest;
   const viewingOld = v.id !== latest.id;
-  const body: DpiaBody = JSON.parse(v.body || "{}");
-  const step = DPIA_STEPS.find((s) => s.key === sp.step)?.key ?? "description";
+  const body = normalizeDpia(v.body);
+  // Older links used the 7-step names; send them to the matching step of the 12-point guide.
+  const alias: Record<string, string> = { description: "purpose", risks: "risks_cia", mitigations: "measures", residual: "conclusion" };
+  const step = DPIA_STEPS.find((s) => s.key === (alias[sp.step] ?? sp.step))?.key ?? "screening";
   const stepIdx = DPIA_STEPS.findIndex((s) => s.key === step);
   const ropa = await q("select r.id, r.purpose, r.state from dpia_ropa dr join ropa_entries r on r.id = dr.ropa_entry_id where dr.dpia_id = $1", [d.id]);
   const editable = v.status === "draft" && !viewingOld && !client.archived_at;
   const back = `/app/clients/${clientId}/dpias/${d.id}`;
   const sig = v.status === "client_signed_off" ? await signatureFor(v.id) : null;
-  const risks = body.risks_list?.length ? body.risks_list : editable ? suggestedRisks(await loadCtx(clientId, ropa.map((r) => r.id))) : [];
+  const ctx = editable ? await loadCtx(clientId, ropa.map((r) => r.id)) : null;
+  const risks = body.risks_list?.length ? body.risks_list : ctx ? suggestedRisks(ctx) : [];
+  const stored = step === "scoring" ? undefined : body[step];
+  const draftText = stored ?? (ctx && step !== "scoring" ? dpiaStep(step, ctx) : "");
+  const emptySteps = DPIA_STEPS.filter((s) => (s.key === "scoring" ? !body.risks_list?.length : !body[s.key]?.trim())).length;
   const h = <Hidden values={{ id: v.id, step }} />;
 
   return (
@@ -87,7 +119,14 @@ export default async function Dpia({ params, searchParams }: { params: Promise<{
               <li key={s.key}><Link href={`${back}?step=${s.key}${viewingOld ? `&v=${v.id}` : ""}`} className={`btn ${s.key === step ? "" : "secondary"}`} aria-current={s.key === step ? "step" : undefined} style={{ minWidth: 0, height: 36, fontSize: 14 }}>{i + 1}. {s.title}</Link></li>
             ))}
           </ol>
-          <h3>Step {stepIdx + 1} of 7: {DPIA_STEPS[stepIdx].title}</h3>
+          {editable && emptySteps > 0 && (
+            <form action={fillAll} className="row" style={{ marginBottom: 12 }}><Hidden values={{ id: v.id }} />
+              <Submit className="btn secondary">Fill all {emptySteps} empty steps</Submit>
+              <span className="meta">Drafts every empty step from the client&apos;s records, following the DPIA guide. Filled steps are kept.</span>
+            </form>
+          )}
+          <h3 style={{ marginBottom: 4 }}>Step {stepIdx + 1} of {DPIA_STEPS.length}: {DPIA_STEPS[stepIdx].title}</h3>
+          <p className="meta" style={{ marginTop: 0 }}>{DPIA_STEPS[stepIdx].guide}</p>
 
           {step === "scoring" ? (
             <form action={saveStep}>{h}
@@ -120,13 +159,32 @@ export default async function Dpia({ params, searchParams }: { params: Promise<{
             </form>
           ) : editable ? (
             <form action={saveStep}>{h}
-              <Field label={DPIA_STEPS[stepIdx].title} help="Plain text. Start a line with ## for a subheading or - for a bullet.">
-                <textarea name="text" className="doc-edit" style={{ minHeight: 320 }} defaultValue={body[step] ?? ""} />
+              {step === "measures" && (
+                body.risks_list?.length ? (
+                  <div className="scroll" style={{ marginBottom: 16 }}>
+                    <table className="register">
+                      <thead><tr><th>Risk (from step 11)</th><th>Measures to reduce it</th><th>Residual likelihood</th><th>Residual impact</th><th>Residual score</th></tr></thead>
+                      <tbody>{body.risks_list.map((r, i) => (
+                        <tr key={i}>
+                          <td>{r.description}<div className="meta">Score {r.likelihood * r.impact} · {riskLevel(r.likelihood * r.impact)}</div></td>
+                          <td data-label="Measures"><textarea name={`r${i}_mitigation`} rows={2} defaultValue={r.mitigation ?? ""} aria-label={`Measures for risk ${i + 1}`} /></td>
+                          <td data-label="Residual likelihood"><select name={`r${i}_rl`} defaultValue={r.residual_likelihood ?? ""} aria-label={`Residual likelihood ${i + 1}`}><option value="">–</option>{scale.map((n) => <option key={n}>{n}</option>)}</select></td>
+                          <td data-label="Residual impact"><select name={`r${i}_ri`} defaultValue={r.residual_impact ?? ""} aria-label={`Residual impact ${i + 1}`}><option value="">–</option>{scale.map((n) => <option key={n}>{n}</option>)}</select></td>
+                          <td data-label="Residual score" className="num">{r.residual_likelihood && r.residual_impact ? `${r.residual_likelihood * r.residual_impact} · ${riskLevel(r.residual_likelihood * r.residual_impact)}` : "—"}</td>
+                        </tr>
+                      ))}</tbody>
+                    </table>
+                  </div>
+                ) : <Banner kind="warn">Save the risks in step 11 first; each one then gets its own measures here.</Banner>
+              )}
+              {stored === undefined && <p className="meta">Suggested draft from the client&apos;s records. Edit it, then save.</p>}
+              <Field label={step === "measures" ? "General technical and organisational measures" : DPIA_STEPS[stepIdx].title} help="Plain text. Start a line with ## for a subheading or - for a bullet.">
+                <textarea name="text" className="doc-edit" style={{ minHeight: 320 }} defaultValue={draftText} />
               </Field>
-              <div className="row"><Submit>{stepIdx < 6 ? "Save and continue" : "Save"}</Submit><Submit className="btn secondary" name="stay" value="1">Save</Submit></div>
+              <div className="row"><Submit>{stepIdx < DPIA_STEPS.length - 1 ? "Save and continue" : "Save"}</Submit><Submit className="btn secondary" name="stay" value="1">Save</Submit></div>
             </form>
           ) : (
-            <Doc body={body[step] || "Not completed."} className={v.status === "draft" ? "draft" : ""} />
+            <Doc body={(step === "measures" && body.risks_list?.length ? `## Measures for each risk\n${body.risks_list.map((r) => `- ${r.description}: ${r.mitigation ?? "Not completed."}`).join("\n")}\n\n` : "") + (stored || "Not completed.")} className={v.status === "draft" ? "draft" : ""} />
           )}
         </div>
         <aside>

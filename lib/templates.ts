@@ -12,9 +12,10 @@ export const LAWFUL_BASIS: Record<string, string> = {
   vital_interest: "Vital interests", public_interest: "Public interest or official authority", legitimate_interest: "Legitimate interests",
 };
 
-export type Ropa = { id: string; purpose: string; lawful_basis: string | null; data_subjects: string | null; data_categories: string | null; recipients: string | null; has_transfer: boolean; transfer_safeguard: string | null; retention_period: string | null; security_measures: string | null; system_owner: string | null; involves_sensitive: boolean };
-export type Ctx = { orgName: string; address?: string; ropa: Ropa[] };
+export type Ropa = { id: string; purpose: string; department?: string | null; is_high_risk?: boolean; lawful_basis: string | null; data_subjects: string | null; data_categories: string | null; recipients: string | null; has_transfer: boolean; transfer_safeguard: string | null; retention_period: string | null; security_measures: string | null; system_owner: string | null; involves_sensitive: boolean };
+export type Ctx = { orgName: string; address?: string; ropa: Ropa[]; sector?: string; dpoName?: string; departments?: string[]; transferCountries?: string[]; subjects6mo?: string };
 
+const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 const uniq = (xs: (string | null)[]) => [...new Set(xs.flatMap((x) => (x ?? "").split(",").map((s) => s.trim())).filter(Boolean))];
 const bullets = (xs: string[]) => (xs.length ? xs.map((x) => `- ${x}`).join("\n") : `- ${TODO}`);
 
@@ -108,36 +109,118 @@ Name: ______________________  Signature: ______________________  Date: _________
 To withdraw consent, contact: ${TODO}`;
 }
 
-// ---------- DPIA (FR5.2) ----------
+// ---------- DPIA (FR5.2): the 12-point NDPC DPIA guide, plus outcome and sign-off ----------
 
 export const DPIA_STEPS = [
-  { key: "description", title: "Description of processing" },
-  { key: "necessity", title: "Necessity and proportionality" },
-  { key: "risks", title: "Risk identification" },
-  { key: "scoring", title: "Risk scoring" },
-  { key: "mitigations", title: "Mitigations" },
-  { key: "residual", title: "Residual risk" },
-  { key: "conclusion", title: "Conclusion" },
+  { key: "screening", title: "Need for a DPIA", guide: "Identify the need for a DPIA: screen the data processing activities and determine whether they are likely to result in a high risk to data subjects." },
+  { key: "purpose", title: "Organisation and purpose", guide: "Highlight the central work of the organisation, the purpose or aim pursued in the processing of personal data, and the major reasons for carrying out a DPIA." },
+  { key: "method", title: "Method of processing", guide: "State the method (automated or otherwise) the organisation intends to employ for the processing." },
+  { key: "lawful_basis", title: "Legal grounds", guide: "State the legal grounds for processing personal data, such as consent, contract, legal obligation, vital interest, public interest or legitimate interest." },
+  { key: "necessity", title: "Necessity of the means", guide: "Highlight the pivotal essence or compelling importance of the means employed for processing to the realisation of the lawful purpose." },
+  { key: "stakeholders", title: "Stakeholders", guide: "Identify the stakeholders: the data subjects, the Nigeria Data Protection Commission and the internal managers of the processing (management decision makers, Chief Information Security Officer, Data Protection Officer and users of the processing medium)." },
+  { key: "risks_cia", title: "Risks to confidentiality, integrity and availability", guide: "Account for every possible risk, including possible inadvertence on the part of data subjects. State the risks to data confidentiality, integrity and availability." },
+  { key: "harms", title: "Potential harm to data subjects", guide: "State the potential risks or harm that may happen to data subjects, even if the lawful purpose has no obvious risk." },
+  { key: "transfers", title: "Transfers outside Nigeria", guide: "State whether the data will be transferred outside Nigeria, to where, and on what basis and safeguards." },
+  { key: "principles_rights", title: "Principles and data subjects' rights", guide: "Itemise the principles of data protection and the data subjects' rights, and how each is upheld for this processing." },
+  { key: "scoring", title: "Risks identified", guide: "Mention all the risks identified during the DPIA, and score each by likelihood and impact." },
+  { key: "measures", title: "Measures for each risk", guide: "State the technical and organisational measures necessary to mitigate each risk to the barest minimum, and the risk that remains." },
+  { key: "conclusion", title: "Outcome and review", guide: "Record the outcome of the assessment, the residual risk, the DPO's advice, approval and the review date." },
 ] as const;
 
 export type Risk = { description: string; likelihood: number; impact: number; mitigation?: string; residual_likelihood?: number; residual_impact?: number };
 export type DpiaBody = Partial<Record<(typeof DPIA_STEPS)[number]["key"], string>> & { risks_list?: Risk[] };
 
+/** DPIAs written before the 12-point structure: their sections move to the matching new step, so nothing is lost. */
+const LEGACY: Record<string, string> = { description: "purpose", risks: "risks_cia", mitigations: "measures" };
+export function normalizeDpia(raw: string | object | null | undefined): DpiaBody {
+  const b = (typeof raw === "string" ? JSON.parse(raw || "{}") : raw ?? {}) as Record<string, unknown>;
+  const out: Record<string, unknown> = { ...b };
+  for (const [old, now] of Object.entries(LEGACY)) {
+    if (typeof b[old] !== "string" || !b[old]) { delete out[old]; continue; }
+    out[now] = out[now] ? `${out[now]}\n\n${b[old]}` : b[old];
+    delete out[old];
+  }
+  if (typeof b.residual === "string" && b.residual) out.conclusion = `## Residual risk\n${b.residual}${out.conclusion ? `\n\n${out.conclusion}` : ""}`;
+  delete out.residual;
+  return out as DpiaBody;
+}
+
+const FINANCIAL = /bank|payment|card|bvn|nin|\bid\b|identity|salary|payroll/i;
+const VULNERABLE = /child|minor|student|pupil|patient|elderly|vulnerable/i;
+
+/** High-risk indicators for one processing activity (NDPA s.28 screening). */
+function triggers(e: Ropa, c: Ctx) {
+  const t: string[] = [];
+  if (e.involves_sensitive) t.push("it involves sensitive personal data");
+  if (e.is_high_risk) t.push("it is recorded as high-risk processing");
+  if (e.has_transfer) t.push("personal data is transferred outside Nigeria");
+  if (VULNERABLE.test(e.data_subjects ?? "")) t.push("data subjects include vulnerable people");
+  if (FINANCIAL.test(e.data_categories ?? "")) t.push("it involves financial or identity data");
+  if (Number(c.subjects6mo) >= 1000) t.push(`it is large-scale (at least ${c.subjects6mo} data subjects in six months)`);
+  return t;
+}
+const yn = (b: boolean | undefined) => (b ? "Yes" : "No");
+
 export function dpiaStep(step: string, c: Ctx): string {
   const r = c.ropa;
+  const per = (f: (e: Ropa) => string) => (r.length ? r.map((e) => `## ${e.purpose}\n${f(e)}`).join("\n\n") : `- ${TODO}`);
   switch (step) {
-    case "description":
-      return r.map((e) => `## ${e.purpose}\n- People: ${or(e.data_subjects)}\n- Data: ${or(e.data_categories)}\n- Systems: ${or(e.system_owner)}\n- Shared with: ${or(e.recipients)}\n- Transfers outside Nigeria: ${e.has_transfer ? "Yes" : "No"}`).join("\n\n");
+    case "screening": {
+      const why = uniq(r.flatMap((e) => triggers(e, c)));
+      return `${per((e) => [
+        `- Sensitive personal data: ${yn(e.involves_sensitive)}`,
+        `- Recorded as high-risk processing: ${yn(e.is_high_risk)}`,
+        `- Personal data transferred outside Nigeria: ${yn(e.has_transfer)}`,
+        `- Vulnerable data subjects: ${VULNERABLE.test(e.data_subjects ?? "") ? "Yes" : `${TODO}`}`,
+        `- Systematic or large-scale processing: ${c.subjects6mo ? `At least ${c.subjects6mo} data subjects processed in six months` : TODO}`,
+        `- New technology or innovative processing: ${TODO}`,
+      ].join("\n"))}\n\n## Screening outcome\n${why.length
+        ? `A DPIA is required under section 28 of the NDPA 2023 because ${why.join("; ")}.`
+        : `No high-risk indicator was found in the records. State why this DPIA is being carried out: ${TODO}`}`;
+    }
+    case "purpose":
+      return `## The organisation\n${c.orgName}${c.sector ? ` operates in the ${c.sector.toLowerCase()} sector` : ""}${c.address ? `, with its head office at ${c.address}` : ""}.${c.departments?.length ? ` Its departments include ${c.departments.join(", ")}.` : ""}\nCentral work of the organisation: ${TODO}\n\n## Purpose of the processing\n${bullets(r.map((e) => `${e.purpose}: ${or(e.data_categories)} about ${or(e.data_subjects)}`))}\n\n## Reasons for carrying out this DPIA\n${bullets([...uniq(r.flatMap((e) => triggers(e, c))).map((t) => cap(t)), "To identify and reduce risks to data subjects before and during processing, as section 28 of the NDPA 2023 requires"])}`;
+    case "method":
+      return per((e) => `- Automated or manual processing: ${TODO}\n- Systems and tools used: ${or(e.system_owner)}\n- How the data is collected: ${TODO}\n- Automated decision-making or profiling: ${TODO}`);
+    case "lawful_basis":
+      return per((e) => [
+        `- Lawful basis (NDPA s.25): ${e.lawful_basis ? LAWFUL_BASIS[e.lawful_basis] : TODO}`,
+        `- Why this basis applies: ${TODO}`,
+        ...(e.lawful_basis === "consent" ? [`- How consent is obtained, recorded and withdrawn (NDPA s.26): ${TODO}`] : []),
+        ...(e.lawful_basis === "legitimate_interest" ? [`- Legitimate interest assessment: ${TODO}`] : []),
+        ...(e.involves_sensitive ? [`- Condition for processing sensitive personal data (NDPA s.30): ${TODO}`] : []),
+      ].join("\n"));
     case "necessity":
-      return r.map((e) => `## ${e.purpose}\n- Lawful basis: ${e.lawful_basis ? LAWFUL_BASIS[e.lawful_basis] : TODO}\n- Retention: ${or(e.retention_period)}\n- Is all of this data needed for the purpose? ${TODO}\n- Could the purpose be met with less data? ${TODO}`).join("\n\n");
-    case "risks":
-      return bullets(suggestedRisks(c).map((x) => x.description));
-    case "mitigations":
-      return bullets(uniq(r.map((e) => e.security_measures)));
-    case "residual":
-      return `After the mitigations above, the remaining risk is: ${TODO}`;
+      return per((e) => `- Data used: ${or(e.data_categories)}\n- Why this processing is essential to achieving the lawful purpose: ${TODO}\n- Is all of this data needed? Could the purpose be met with less data, or without identifying people? ${TODO}\n- Retention: ${or(e.retention_period)}`);
+    case "stakeholders":
+      return `## Data subjects\n${bullets(uniq(r.map((e) => e.data_subjects)))}\n\n## Regulator\n- Nigeria Data Protection Commission (NDPC)\n\n## Internal managers of the processing\n- Management decision makers: ${TODO}\n- Chief Information Security Officer: ${TODO}\n- Data Protection Officer: ${c.dpoName ?? TODO}\n- Users of the processing medium: ${uniq(r.map((e) => e.department ?? null)).join(", ") || TODO}\n\n## Others who receive the data\n${bullets(uniq(r.map((e) => e.recipients)))}`;
+    case "risks_cia":
+      return `## Confidentiality\n- Unauthorised access to personal data by staff, contractors or outsiders\n- Accidental disclosure, for example misdirected emails, open file boards or shared screens\n${uniq(r.map((e) => e.recipients)).length ? `- Disclosure through third parties who receive the data (${uniq(r.map((e) => e.recipients)).join(", ")})\n` : ""}\n## Integrity\n- Inaccurate or outdated records leading to wrong decisions about people\n- Unauthorised or accidental alteration of records\n\n## Availability\n- Loss of data through system failure, ransomware, theft or damage to paper records without a tested backup\n- Records unavailable when data subjects exercise their rights\n\n## Inadvertence by data subjects\n- Data subjects sharing passwords or one-time codes, or responding to phishing\n- Data subjects giving more information than needed, or not understanding how their data is used`;
+    case "harms": {
+      const fin = r.some((e) => FINANCIAL.test(e.data_categories ?? "")), sens = r.some((e) => e.involves_sensitive), vul = r.some((e) => VULNERABLE.test(e.data_subjects ?? ""));
+      return `Even where the purpose itself carries no obvious risk, these harms can follow from a breach, misuse or error:\n${bullets([
+        "Loss of control over their personal data",
+        "Distress, embarrassment or damage to reputation",
+        `Identity theft or fraud${fin ? " (financial or identity data is processed)" : ""}`,
+        "Financial loss",
+        ...(sens ? ["Discrimination or exclusion arising from sensitive personal data"] : []),
+        ...(vul ? ["Harm to children, students, patients or other vulnerable people"] : []),
+        "Loss of confidentiality of communications or professional secrecy",
+        "Inability to exercise their rights, for example to access or correct their data",
+      ])}`;
+    }
+    case "transfers": {
+      const t = r.filter((e) => e.has_transfer);
+      return t.length
+        ? `Personal data is transferred outside Nigeria (NDPA ss.41–43):\n${bullets(t.map((e) => `${e.purpose}: safeguard ${or(e.transfer_safeguard)}`))}\n\n## Destination countries or services\n${bullets(c.transferCountries ?? [])}`
+        : `- No transfer of personal data outside Nigeria is recorded for these activities.\n- Confirm this, including cloud, email and support providers hosted abroad: ${TODO}`;
+    }
+    case "principles_rights":
+      return `## Principles of data protection (NDPA s.24)\n${bullets(["Lawfulness, fairness and transparency", "Purpose limitation", "Data minimisation", "Accuracy", "Storage limitation", "Integrity and confidentiality (security)", "Accountability"].map((p) => `${p}: ${TODO}`))}\n\n## Rights of data subjects (NDPA ss.34–38)\n${bullets(["Right to information and access", "Right to rectification", "Right to erasure", "Right to restrict processing", "Right to withdraw consent (s.35)", "Right to object (s.36)", "Rights relating to automated decision-making (s.37)", "Right to data portability (s.38)"])}\n\nHow requests are received and answered within the response period: ${TODO}`;
+    case "measures":
+      return `## Technical measures\n${bullets([...uniq(r.map((e) => e.security_measures)), "Role-based access control and multi-factor sign-in", "Encryption of personal data at rest and in transit", "Tested backups and a disaster recovery plan", "Logging and monitoring of access to personal data"])}\n\n## Organisational measures\n${bullets(["Data protection training and confidentiality undertakings for staff", "Data processing agreements with every processor", "A retention schedule with secure disposal", "A breach response procedure, including notifying the NDPC within 72 hours"])}`;
     case "conclusion":
-      return `The processing ${TODO} proceed. Review date: ${TODO}.`;
+      return `## Outcome\nThe processing may proceed / may proceed with the measures above / must not proceed: ${TODO}\n\n## DPO advice\n${TODO}\n\n## Approval\nApproved by: ${TODO}\nDate: ${TODO}\n\n## Review\nReview date: ${TODO}. Review again whenever the processing changes.`;
     default:
       return "";
   }
@@ -145,15 +228,26 @@ export function dpiaStep(step: string, c: Ctx): string {
 
 /** DPIA JSON body → the plain document format, for export and signing. */
 export function dpiaText(title: string, body: string, level: (n: number) => string): string {
-  const b: DpiaBody = JSON.parse(body || "{}");
-  return [`# Data Privacy Impact Assessment: ${title}`, ...DPIA_STEPS.map((s) => {
-    if (s.key === "scoring") return `## ${s.title}\n${(b.risks_list ?? []).map((r) => `- ${r.description}: likelihood ${r.likelihood} × impact ${r.impact} = ${r.likelihood * r.impact} (${level(r.likelihood * r.impact)})`).join("\n") || `- ${TODO}`}`;
-    return `## ${s.title}\n${b[s.key] || TODO}`;
+  const b = normalizeDpia(body);
+  const risks = b.risks_list ?? [];
+  return [`# Data Privacy Impact Assessment: ${title}`, ...DPIA_STEPS.map((s, i) => {
+    const h = `## ${i + 1}. ${s.title}`;
+    if (s.key === "scoring") return `${h}\n${risks.map((r) => `- ${r.description}: likelihood ${r.likelihood} × impact ${r.impact} = ${r.likelihood * r.impact} (${level(r.likelihood * r.impact)})`).join("\n") || `- ${TODO}`}`;
+    if (s.key === "measures") {
+      const per = risks.map((r) => `- ${r.description}: ${r.mitigation || TODO}${r.residual_likelihood && r.residual_impact ? ` Residual risk: ${r.residual_likelihood * r.residual_impact} (${level(r.residual_likelihood * r.residual_impact)}).` : ""}`).join("\n");
+      return `${h}\n${per ? `## Measures for each risk\n${per}\n\n` : ""}${b.measures || TODO}`;
+    }
+    return `${h}\n${b[s.key] || TODO}`;
   })].join("\n\n");
 }
 
 export function suggestedRisks(c: Ctx): Risk[] {
-  const out: Risk[] = [{ description: "Unauthorised access to personal data", likelihood: 3, impact: 4 }];
+  const out: Risk[] = [
+    { description: "Unauthorised access to personal data", likelihood: 3, impact: 4 },
+    { description: "Loss or unavailability of personal data without a tested backup", likelihood: 2, impact: 4 },
+    { description: "Inaccurate or outdated data leading to wrong decisions about people", likelihood: 2, impact: 3 },
+    { description: "Data subjects inadvertently disclosing credentials or more data than needed", likelihood: 3, impact: 2 },
+  ];
   if (c.ropa.some((e) => e.involves_sensitive)) out.push({ description: "Disclosure of sensitive personal data causing discrimination or distress", likelihood: 2, impact: 5 });
   if (c.ropa.some((e) => e.has_transfer)) out.push({ description: "Loss of protection when data is transferred outside Nigeria", likelihood: 3, impact: 3 });
   if (c.ropa.some((e) => !e.retention_period)) out.push({ description: "Data kept longer than necessary", likelihood: 4, impact: 2 });

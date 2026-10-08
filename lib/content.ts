@@ -4,7 +4,7 @@ import { q, one, tx } from "./db";
 import { requireClient, canApprove, audit, send } from "./auth";
 import { getVersion, loadCtx } from "./data";
 import { draft } from "./ai";
-import { policy, breachNotice, dsarResponse, dpiaStep, TEMPLATE_TITLES, NDPA_REFS, type DpiaBody } from "./templates";
+import { policy, breachNotice, dsarResponse, dpiaStep, normalizeDpia, DPIA_STEPS, TEMPLATE_TITLES, NDPA_REFS } from "./templates";
 import { flash, back as backOf, str } from "./form";
 
 // Review, approval and sign-off flow shared by DPIAs, documents, breach notifications and DSAR responses (F14).
@@ -83,7 +83,8 @@ export async function aiDraft(fd: FormData) {
   } else if (v.parent_type === "dpia") {
     const ids = (await q("select ropa_entry_id from dpia_ropa where dpia_id = $1", [v.parent_id])).map((r) => r.ropa_entry_id);
     const ctx = await loadCtx(v.client_id, ids);
-    template = dpiaStep(step, ctx); what = `DPIA section: ${step}`; facts = ctx;
+    const s = DPIA_STEPS.find((x) => x.key === step);
+    template = dpiaStep(step, ctx); what = `DPIA section "${s?.title ?? step}". Guidance for this section: ${s?.guide ?? ""}`; facts = ctx;
   } else if (v.parent_type === "breach_notification") {
     const n = await one("select bn.audience, b.* from breach_notifications bn join breaches b on b.id = bn.breach_id where bn.id = $1", [v.parent_id]);
     const ctx = await loadCtx(v.client_id);
@@ -108,8 +109,7 @@ export async function acceptAi(fd: FormData) {
   let body = v.ai_proposal;
   if (v.parent_type === "dpia") {
     const { step, text } = JSON.parse(v.ai_proposal);
-    const b: DpiaBody = JSON.parse(v.body || "{}");
-    body = JSON.stringify({ ...b, [step]: text });
+    body = JSON.stringify({ ...normalizeDpia(v.body), [step]: text });
   }
   await q("update content_versions set body = $2, ai_generated = true, ai_proposal = null where id = $1", [v.id, body]);
   await audit(user, "update", v.parent_type, v.parent_id, { client_id: v.client_id, details: { ai_outcome: "accepted" } });

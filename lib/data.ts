@@ -1,6 +1,6 @@
 import { q, one } from "./db";
 import type { Ctx, Ropa } from "./templates";
-import type { Answers } from "./questionnaire";
+import { list, type Answers } from "./questionnaire";
 
 export async function answersOf(clientId: string): Promise<Answers> {
   const rows = await q<{ question_key: string; answer: unknown }>("select question_key, answer from answers where client_id = $1", [clientId]);
@@ -13,7 +13,12 @@ export async function loadCtx(clientId: string, ropaIds?: string[]): Promise<Ctx
   const ropa = ropaIds
     ? await q<Ropa>("select * from ropa_entries where id = any($1::uuid[]) and client_id = $2 order by created_at", [ropaIds, clientId])
     : await q<Ropa>("select * from ropa_entries where client_id = $1 and state = 'active' order by created_at", [clientId]);
-  return { orgName: String(a.org_legal_name || c?.name || ""), address: a.org_address ? String(a.org_address) : undefined, ropa };
+  const text = (k: string) => (typeof a[k] === "string" && (a[k] as string).trim() ? (a[k] as string).trim() : undefined);
+  return {
+    orgName: String(a.org_legal_name || c?.name || ""), address: text("org_address"), ropa,
+    sector: text("org_sector"), dpoName: text("dpo_name"), departments: list(a.org_departments), transferCountries: list(a.transfer_countries),
+    subjects6mo: a.subjects_6mo !== undefined && a.subjects_6mo !== "" ? String(a.subjects_6mo) : undefined,
+  };
 }
 
 export type Version = {
