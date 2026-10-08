@@ -4,12 +4,12 @@ import { requireFirm, audit } from "@/lib/auth";
 import { q, one } from "@/lib/db";
 import { str, opt, flash } from "@/lib/form";
 import { imageSize } from "@/lib/files";
-import { SERVICES, type Line } from "@/lib/invoice";
-import { PROPOSAL_SECTORS } from "@/lib/proposal";
+import { PROPOSAL_SECTORS, TIERS, WORKSTREAMS, TRAINING_TIERS, STATUTORY, OPTIONAL, INTERNAL, RETAINER, MILESTONES, type Fin } from "@/lib/proposal";
 import { todayWAT } from "@/lib/rules";
 
 const HEX = /^#[0-9A-Fa-f]{6}$/, EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const int = (v: string, lo: number, hi: number) => (v === "" ? null : Number.isInteger(Number(v)) && Number(v) >= lo && Number(v) <= hi ? Number(v) : NaN);
+const naira = (v: string) => { const n = Number(v.replace(/[,₦\s]/g, "")); return v.trim() === "" ? 0 : Number.isFinite(n) && n >= 0 ? Math.round(n * 100) / 100 : NaN; };
 
 /** Create (no id) or update a proposal from the form. */
 export async function saveProposal(fd: FormData) {
@@ -18,42 +18,52 @@ export async function saveProposal(fd: FormData) {
   const existing = id ? await one("select * from proposals where id = $1 and firm_id = $2", [/^[0-9a-f-]{36}$/.test(id) ? id : null, u.firm_id]) : null;
   if (id && !existing) redirect("/forbidden");
   const back = existing ? `/app/proposals/${existing.id}` : "/app/proposals?new=1";
+  const fail = (m: string) => redirect(flash(back, m, "error"));
   const name = str(fd, "client_name"), address = str(fd, "address"), email = str(fd, "email");
-  if (!name || !address || !EMAIL.test(email)) redirect(flash(back, "Enter the client's name, address and a valid email address.", "error"));
+  if (!name || !address || !EMAIL.test(email)) fail("Enter the client's name, address and a valid email address.");
   const primary = str(fd, "primary_color"), secondary = str(fd, "secondary_color");
-  if (!HEX.test(primary) || !HEX.test(secondary)) redirect(flash(back, "Choose the client's primary and secondary colours.", "error"));
-  const sector = opt(fd, "sector");
-  if (sector && !PROPOSAL_SECTORS.includes(sector)) redirect(flash(back, "Choose a sector from the list.", "error"));
-  const lines: Line[] = [];
-  for (const [i, service] of SERVICES.entries()) {
-    if (fd.get(`s${i}`) !== "on") continue;
-    const amount = Number(str(fd, `a${i}`).replace(/[,₦\s]/g, ""));
-    if (!Number.isFinite(amount) || amount <= 0) redirect(flash(back, `Enter a fee for ${service}.`, "error"));
-    lines.push({ service, description: str(fd, `d${i}`), amount: Math.round(amount * 100) / 100 });
-  }
-  if (!lines.length) redirect(flash(back, "Select at least one service.", "error"));
-  const validity = int(str(fd, "validity_days") || "30", 1, 365), weeks = int(str(fd, "duration_weeks"), 1, 104);
-  if (Number.isNaN(validity) || Number.isNaN(weeks)) redirect(flash(back, "Check the validity (1–365 days) and duration (1–104 weeks).", "error"));
+  if (!HEX.test(primary) || !HEX.test(secondary)) fail("Choose the client's primary and secondary colours.");
+  const sector = opt(fd, "sector"), tier = str(fd, "tier") || "TBC";
+  if ((sector && !PROPOSAL_SECTORS.includes(sector)) || !(tier in TIERS)) fail("Choose the sector and tier from the lists.");
+  const staff = int(str(fd, "staff_count"), 0, 10_000_000), subjects = int(str(fd, "subjects_count"), 0, 1_000_000_000);
+  const months = int(str(fd, "duration_months") || "12", 1, 36), validity = int(str(fd, "validity_days") || "90", 1, 365), dpias = int(str(fd, "dpias") || "5", 0, 100);
+  if ([staff, subjects, months, validity, dpias].some(Number.isNaN)) fail("Check the numbers: staff, data subjects, duration (1–36 months), validity (1–365 days) and DPIAs.");
+
+  // The costed model: every amount a non-negative naira figure.
+  let bad = "";
+  const group = (prefix: string, items: [string, ...string[]][]) => Object.fromEntries(items.map(([k, n]) => { const v = naira(str(fd, `${prefix}_${k}`)); if (Number.isNaN(v)) bad ||= n; return [k, v || 0]; }).filter(([, v]) => v));
+  const fin: Fin = { work: group("w", WORKSTREAMS), statutory: group("s", STATUTORY), optional: group("o", OPTIONAL), internal: group("i", INTERNAL), retainer: group("r", RETAINER), dpias: dpias ?? 5 };
+  fin.training = Object.fromEntries(TRAINING_TIERS.map(([k, n]) => { const c = int(str(fd, `tn_${k}`), 0, 10_000_000), unit = naira(str(fd, `tu_${k}`)); if (Number.isNaN(c) || Number.isNaN(unit)) bad ||= n; return [k, { n: c || 0, unit: unit || 0 }]; }).filter(([, t]) => (t as { n: number }).n || (t as { unit: number }).unit));
+  const hon = naira(str(fd, "honorarium")), aTotal = naira(str(fd, "a_total"));
+  if (Number.isNaN(hon)) bad ||= "Champion honorarium";
+  if (Number.isNaN(aTotal)) bad ||= "Option A total";
+  if (bad) fail(`Enter ${bad} as an amount in naira.`);
+  if (hon) fin.honorarium = hon;
+  if (aTotal) fin.option_a = { total: aTotal, scope: str(fd, "a_scope") };
+  fin.schedule = MILESTONES.map((_, i) => int(str(fd, `pay${i}`) || "0", 0, 100) as number);
+  if (fin.schedule.some(Number.isNaN) || fin.schedule.reduce((a, b) => a + b, 0) !== 100) fail("The payment schedule percentages must add up to 100.");
+  if (!Object.keys(fin.work!).length) fail("Enter at least one professional services fee.");
+
   let logo: { data: string; w: number; h: number } | null | undefined; // undefined = keep
   const f = fd.get("logo");
   if (f instanceof File && f.size) {
     const buf = Buffer.from(await f.arrayBuffer()), dim = imageSize(buf);
-    if (!dim || f.size > 1_000_000) redirect(flash(back, "The logo must be a PNG or JPEG under 1 MB.", "error"));
-    logo = { data: `data:image/${dim.type};base64,${buf.toString("base64")}`, w: dim.w, h: dim.h };
+    if (!dim || f.size > 1_000_000) fail("The logo must be a PNG or JPEG under 1 MB.");
+    logo = { data: `data:image/${dim!.type};base64,${buf.toString("base64")}`, w: dim!.w, h: dim!.h };
   } else if (fd.get("remove_logo") === "on") logo = null;
-  const vals = [name, address, email, opt(fd, "contact_name"), opt(fd, "contact_title"), sector, primary.toUpperCase(), secondary.toUpperCase(), JSON.stringify(lines),
-    fd.get("vat") === "on" ? 7.5 : 0, opt(fd, "payment_terms"), validity ?? 30, opt(fd, "start_on"), weeks, opt(fd, "notes")];
+
+  const vals = [name, address, email, opt(fd, "contact_name"), opt(fd, "contact_title"), sector, primary.toUpperCase(), secondary.toUpperCase(), fd.get("vat") === "on" ? 7.5 : 0,
+    validity ?? 90, opt(fd, "start_on"), opt(fd, "notes"), opt(fd, "departments"), staff, subjects, tier, opt(fd, "accountable_title"), months ?? 12, JSON.stringify(fin)];
+  const cols = "client_name, address, email, contact_name, contact_title, sector, primary_color, secondary_color, vat_rate, validity_days, start_on, notes, departments, staff_count, subjects_count, tier, accountable_title, duration_months, fin";
   let pid: string;
   if (existing) {
-    await q(`update proposals set client_name=$2, address=$3, email=$4, contact_name=$5, contact_title=$6, sector=$7, primary_color=$8, secondary_color=$9, lines=$10,
-      vat_rate=$11, payment_terms=$12, validity_days=$13, start_on=$14, duration_weeks=$15, notes=$16, updated_at=now() where id = $1`, [existing.id, ...vals]);
+    await q(`update proposals set ${cols.split(", ").map((c, i) => `${c} = $${i + 2}`).join(", ")}, updated_at = now() where id = $1`, [existing.id, ...vals]);
     pid = existing.id;
   } else {
     const year = todayWAT().slice(0, 4);
     const n = (await one<{ n: number }>("select count(*)::int as n from proposals where firm_id = $1 and number like $2", [u.firm_id, `PRP-${year}-%`]))!.n;
-    pid = (await one<{ id: string }>(`insert into proposals (firm_id, number, client_name, address, email, contact_name, contact_title, sector, primary_color, secondary_color, lines,
-      vat_rate, payment_terms, validity_days, start_on, duration_weeks, notes, created_by) values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18) returning id`,
-      [u.firm_id, `PRP-${year}-${String(n + 1).padStart(3, "0")}`, ...vals, u.id]))!.id;
+    pid = (await one<{ id: string }>(`insert into proposals (firm_id, number, lines, created_by, ${cols}) values ($1, $2, '[]', $3, ${vals.map((_, i) => `$${i + 4}`).join(", ")}) returning id`,
+      [u.firm_id, `PRP-${year}-${String(n + 1).padStart(3, "0")}`, u.id, ...vals]))!.id;
   }
   if (logo !== undefined) await q("update proposals set logo = $2, logo_w = $3, logo_h = $4 where id = $1", [pid, logo?.data ?? null, logo?.w ?? null, logo?.h ?? null]);
   await audit(u, existing ? "update" : "create", "proposal", pid, {});

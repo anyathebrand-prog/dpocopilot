@@ -769,3 +769,12 @@ create table if not exists proposals (
   updated_at timestamptz not null default now(),
   unique (firm_id, number)
 );
+
+-- Proposal in the programme format (blog/UNIBEN-Data-Protection-Compliance-Proposal.pdf): organisation profile and costed model.
+alter table proposals add column if not exists departments text;
+alter table proposals add column if not exists staff_count int;
+alter table proposals add column if not exists subjects_count int;
+alter table proposals add column if not exists tier text;
+alter table proposals add column if not exists accountable_title text;
+alter table proposals add column if not exists duration_months int;
+alter table proposals add column if not exists fin jsonb not null default '{}';
