@@ -10,7 +10,7 @@ DEV_SKIP_MFA=1 npm run dev      # http://localhost:3000
 ```
 
 - **Firm:** open `/sign-up` to create a firm. You become its Firm Admin.
-- **Secretary (dev only):** `secretary@dpocopilot.local` / `secretary-dev-only`.
+- **Secretary (dev only):** `secretary@dpocopilot.local` / `secretary-dev-only`. Never created in production: set `SECRETARY_EMAIL` and `SECRETARY_PASSWORD` (14+ characters) for the first start, then remove them.
 - **Emails and SMS aren't sent yet.** Invitation links and signing codes print to the server log as `[outbound email → …]`.
 - **Database:** embedded Postgres (PGlite) in `./data`. Delete `./data` to start fresh.
 - **MFA:** `DEV_SKIP_MFA=1` skips the mandatory two-step setup for Firm Admins and the Secretary. It is ignored in production.

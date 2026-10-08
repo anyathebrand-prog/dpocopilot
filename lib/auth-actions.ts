@@ -6,14 +6,13 @@ import { createSession, destroySession, getUser, pendingMfaUser, markMfaPassed, 
 import { str, flash } from "./form";
 import { signUpOpen } from "./install";
 
-// ponytail: in-memory login throttle (one app instance). Move to the rate_limits table (schema §2) when running 2+ instances.
-const attempts = new Map<string, { n: number; since: number }>();
-function throttled(key: string) {
-  const a = attempts.get(key);
-  if (a && Date.now() - a.since > 15 * 60_000) attempts.delete(key);
-  return (attempts.get(key)?.n ?? 0) >= 8;
+// Login/MFA throttle: 8 failures per key in a 15-minute window (login_attempts table, shared across restarts and instances).
+async function throttled(key: string) {
+  await q("delete from login_attempts where key = $1 and since < now() - interval '15 minutes'", [key]);
+  return ((await one<{ n: number }>("select n from login_attempts where key = $1", [key]))?.n ?? 0) >= 8;
 }
-const fail = (key: string) => { const a = attempts.get(key) ?? { n: 0, since: Date.now() }; a.n++; attempts.set(key, a); };
+const fail = (key: string) => q("insert into login_attempts (key, n) values ($1, 1) on conflict (key) do update set n = login_attempts.n + 1", [key]);
+const clearAttempts = (key: string) => q("delete from login_attempts where key = $1", [key]);
 
 const validPassword = (p: string) => p.length >= 10;
 
@@ -27,10 +26,10 @@ async function toHome(): Promise<never> {
 export async function signIn(fd: FormData) {
   const email = str(fd, "email").toLowerCase(), password = String(fd.get("password") ?? "");
   const key = `${email}|${await clientIp()}`;
-  if (throttled(key)) redirect(flash("/sign-in", "Too many attempts. Try again in 15 minutes.", "error"));
+  if (await throttled(key)) redirect(flash("/sign-in", "Too many attempts. Try again in 15 minutes.", "error"));
   const u = await one("select * from users where lower(email) = $1", [email]);
   if (!u || !verifyPassword(password, u.password_hash)) {
-    fail(key);
+    await fail(key);
     await audit(null, "login_failed", "user", u?.id ?? null, { firm_id: null, details: {} });
     redirect(flash("/sign-in", "Email or password is incorrect.", "error"));
   }
@@ -38,7 +37,7 @@ export async function signIn(fd: FormData) {
   const c = await one("select firm_id, client_id, status from client_contacts where user_id = $1", [u.id]);
   if (u.status !== "active" || m?.status === "deactivated" || (!m && !c && u.platform_role !== "secretary") || (c && c.status !== "active"))
     redirect(flash("/sign-in", "Your access has been removed. Contact your firm administrator.", "error"));
-  attempts.delete(key);
+  await clearAttempts(key);
   // DEV_SKIP_MFA=1 (never in production) also skips the code step for accounts that already enrolled.
   const askCode = u.mfa_enabled && !(process.env.DEV_SKIP_MFA === "1" && process.env.NODE_ENV !== "production");
   await createSession(u.id, !askCode, u.platform_role === "secretary" ? 2 : 12);
@@ -50,8 +49,8 @@ export async function signIn(fd: FormData) {
 export async function verifyMfa(fd: FormData) {
   const p = await pendingMfaUser();
   if (!p) redirect("/sign-in");
-  if (throttled(`mfa|${p.id}`)) { await destroySession(); redirect(flash("/sign-in", "Too many wrong codes. Sign in again later.", "error")); }
-  if (!verifyTotp(p.mfa_secret, str(fd, "code"))) { fail(`mfa|${p.id}`); redirect(flash("/sign-in/verify", "That code didn't work. Check your authenticator app and try again.", "error")); }
+  if (await throttled(`mfa|${p.id}`)) { await destroySession(); redirect(flash("/sign-in", "Too many wrong codes. Sign in again later.", "error")); }
+  if (!verifyTotp(p.mfa_secret, str(fd, "code"))) { await fail(`mfa|${p.id}`); redirect(flash("/sign-in/verify", "That code didn't work. Check your authenticator app and try again.", "error")); }
   await markMfaPassed();
   await toHome();
 }

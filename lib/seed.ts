@@ -62,3 +62,11 @@ export async function seed(db: Db) {
       await t.query("insert into users (name, email, password_hash, platform_role) values ('Content Secretary','secretary@dpocopilot.local',$1,'secretary') on conflict do nothing", [hashPassword("secretary-dev-only")]);
   });
 }
+
+/** Production Secretary account from SECRETARY_EMAIL / SECRETARY_PASSWORD (set once at install, then removed). No default password. */
+export async function ensureSecretary(db: Db) {
+  const email = process.env.SECRETARY_EMAIL?.trim().toLowerCase(), pw = process.env.SECRETARY_PASSWORD ?? "";
+  if (!email) return;
+  if (pw.length < 14) { console.warn("SECRETARY_PASSWORD must be at least 14 characters; Secretary account not created."); return; }
+  await db.query("insert into users (name, email, password_hash, platform_role) values ('Content Secretary', $1, $2, 'secretary') on conflict do nothing", [email, hashPassword(pw)]);
+}

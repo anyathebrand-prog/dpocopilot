@@ -793,3 +793,10 @@ end $$;
 -- Data processor / third-party risk assessments (TPRA) join LIAs and transfer assessments.
 alter table assessments drop constraint if exists assessments_kind_check;
 alter table assessments add constraint assessments_kind_check check (kind in ('lia','tia','tpra'));
+
+-- Login and MFA throttle, kept in the database so it survives restarts and is shared by every app instance.
+create table if not exists login_attempts (
+  key text primary key,
+  n int not null default 0,
+  since timestamptz not null default now()
+);

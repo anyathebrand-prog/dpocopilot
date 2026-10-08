@@ -11,6 +11,9 @@ services:
       SINGLE_FIRM: "1"
       APP_URL: https://${DOMAIN}
       CLAMD_HOST: clamav
+      # First start only: creates the Secretary account (password 14+ characters). Remove both afterwards.
+      SECRETARY_EMAIL: "${SECRETARY_EMAIL:-}"
+      SECRETARY_PASSWORD: "${SECRETARY_PASSWORD:-}"
     volumes: [files:/app/data/files]
     depends_on:
       db: { condition: service_healthy }
