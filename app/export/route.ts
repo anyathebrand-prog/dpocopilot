@@ -7,6 +7,7 @@ import { TODO } from "@/lib/templates";
 import { loadCarReport, carReportHtml } from "@/lib/car-report";
 import { buildTracker, loadTracker, trackerHtml, trackerXlsx } from "@/lib/remediation";
 import { loadDpiaReport, dpiaReportHtml } from "@/lib/dpia-report";
+import { htmlToDocx } from "@/lib/docx";
 
 // F15 export. ponytail: PDF = print-ready HTML the browser saves as PDF; Word = HTML served as .doc, which Word opens.
 // Swap for Playwright PDF + the `docx` package (TRD §1) when tagged PDFs or native .docx become a requirement.
@@ -17,14 +18,18 @@ h1{font-size:26px;line-height:34px}h2{font-size:20px;margin-top:28px}.todo{backg
 .meta{font:13px/18px Arial,sans-serif;color:#5f6878}table{border-collapse:collapse;width:100%;font:13px/18px Arial,sans-serif}
 td,th{border:1px solid #c9ced6;padding:6px;text-align:left;vertical-align:top}.noprint{margin:16px 0}@media print{.noprint{display:none}}`;
 
-function page(title: string, inner: string, format: string, filename: string, css = CSS) {
+async function page(title: string, inner: string, format: string, filename: string, css = CSS) {
+  if (format === "doc") {
+    // Native Word: same content as the PDF, with its page header text and orientation.
+    const header = css.match(/@top-center\s*\{\s*content:\s*"((?:[^"\\]|\\.)*)"/)?.[1]?.replace(/\\(.)/g, "$1");
+    const docx = await htmlToDocx(inner, { title, header, landscape: /size:\s*A4 landscape/.test(css) });
+    return new Response(new Uint8Array(docx), { headers: {
+      "content-type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      "content-disposition": `attachment; filename="${filename}.docx"` } });
+  }
   const html = `<!doctype html><html lang="en-NG"><head><meta charset="utf-8"><title>${title}</title><style>${css}</style></head><body>
-    ${format === "pdf" ? `<div class="noprint"><button onclick="print()">Print or save as PDF</button></div>` : ""}${inner}</body></html>`;
-  return new Response(html, {
-    headers: format === "doc"
-      ? { "content-type": "application/msword", "content-disposition": `attachment; filename="${filename}.doc"` }
-      : { "content-type": "text/html; charset=utf-8" },
-  });
+    <div class="noprint"><button onclick="print()">Print or save as PDF</button></div>${inner}</body></html>`;
+  return new Response(html, { headers: { "content-type": "text/html; charset=utf-8" } });
 }
 const esc = (s: unknown) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!);
 /** Same plain-text document format as components/ui Doc, rendered to an HTML string. */

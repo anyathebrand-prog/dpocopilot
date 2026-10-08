@@ -83,7 +83,7 @@ export function dpiaReportHtml(x: DpiaReport) {
   ];
 
   // Heat map: impact 5→1 down, likelihood 1→5 across; cells coloured by rating and labelled with the risks scored there.
-  const heat = `<table style="width:auto;margin:8px 0"><tr><th style="background:#fff;color:#1b2433;border:0"></th>${[1, 2, 3, 4, 5].map((l) => `<th style="text-align:center;width:72px">L${l}</th>`).join("")}</tr>${[5, 4, 3, 2, 1].map((im) =>
+  const heat = `<table style="width:auto;margin:8px 0"><tr><th style="background:#fff;color:#1b2433;border:0;width:44px"></th>${[1, 2, 3, 4, 5].map((l) => `<th style="text-align:center;width:72px">L${l}</th>`).join("")}</tr>${[5, 4, 3, 2, 1].map((im) =>
     `<tr><th style="text-align:center">I${im}</th>${[1, 2, 3, 4, 5].map((l) => { const here = risks.map((r, i) => (r.likelihood === l && r.impact === im ? R(i) : "")).filter(Boolean);
       return `<td style="background:${LEVEL_BG[riskLevel(l * im)]};text-align:center;height:34px;font-weight:700">${here.join(" ") || `<span style="color:#7a7a7a;font-weight:400">${l * im}</span>`}</td>`; }).join("")}</tr>`).join("")}</table>
     <p class="note">L = Likelihood, I = Impact. Each risk is placed by its inherent score. Green Low (1–4), yellow Medium (5–9), orange High (10–15), red Critical (16–25).</p>`;
@@ -211,7 +211,7 @@ export function dpiaReportHtml(x: DpiaReport) {
   <h1>7. Risk Assessment and Risk Chart</h1>
   <p>${risks.length} risk${risks.length === 1 ? " was" : "s were"} identified to the rights and freedoms of data subjects. Inherent risk is the level of risk before any additional controls; residual risk is the level after the controls in Section 8 are implemented.</p>
   <h2>7.1 Inherent risk register</h2>
-  ${risks.length ? `<table><tr><th>ID</th><th>Risk</th><th>Description</th><th>Potential harm</th><th>L</th><th>I</th><th>Score</th></tr>${risks.map((r, i) => `<tr><td>${R(i)}</td><td>${esc(r.description)}</td><td>${v(r.detail)}</td><td>${v(r.harm)}</td><td>${r.likelihood}</td><td>${r.impact}</td><td>${lvl(score(r))}</td></tr>`).join("")}</table>` : `<p>${TBC}</p>`}
+  ${risks.length ? `<table><tr><th style="width:6%">ID</th><th style="width:20%">Risk</th><th>Description</th><th>Potential harm</th><th style="width:5%">L</th><th style="width:5%">I</th><th style="width:14%">Score</th></tr>${risks.map((r, i) => `<tr><td>${R(i)}</td><td>${esc(r.description)}</td><td>${v(r.detail)}</td><td>${v(r.harm)}</td><td>${r.likelihood}</td><td>${r.impact}</td><td>${lvl(score(r))}</td></tr>`).join("")}</table>` : `<p>${TBC}</p>`}
   <p class="note">L = Likelihood (1-5); I = Impact (1-5). Scores must be validated by the Controller's DPO and process owners.</p>
   <h2>7.2 Risk heat map</h2>${heat}
   <h2>7.3 Inherent versus residual risk score</h2>${chart}
