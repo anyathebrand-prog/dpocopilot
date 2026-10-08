@@ -6,6 +6,8 @@ import { CAR_CATEGORIES } from "@/lib/rules";
 import { str, opt, flash } from "@/lib/form";
 import { Flash, Field, Hidden, Chip, Empty, Deadline } from "@/components/ui";
 import { Submit } from "@/components/client";
+import { uploadDocuments } from "@/lib/evidence";
+import { ACCEPT } from "@/lib/files";
 
 async function createRequest(fd: FormData) {
   "use server";
@@ -52,6 +54,24 @@ export default async function Evidence({ params, searchParams }: { params: Promi
               </select>
             </Field>
             <Submit>Request evidence</Submit>
+          </form>
+        </details>
+      )}
+      {!client.archived_at && (
+        <details className="group" open={!!sp.upload}>
+          <summary>Upload documents</summary>
+          <form action={uploadDocuments} style={{ maxWidth: 640 }}>
+            <Hidden values={{ client_id: clientId }} />
+            <Field label="What are these documents?" required><input name="title" required /></Field>
+            <Field label="Notes"><textarea name="description" rows={2} /></Field>
+            <Field label="CAR checklist item">
+              <select name="car_item_id" defaultValue="">
+                <option value="">None</option>
+                {Object.entries(CAR_CATEGORIES).map(([k, l]) => <optgroup key={k} label={l}>{items.filter((i) => i.category_key === k).map((i) => <option key={i.id} value={i.id}>{i.item_text}</option>)}</optgroup>)}
+              </select>
+            </Field>
+            <Field label="Documents" required help="Choose one or more files. Filed as accepted evidence."><input type="file" name="file" multiple accept={ACCEPT} required /></Field>
+            <Submit>Upload documents</Submit>
           </form>
         </details>
       )}
