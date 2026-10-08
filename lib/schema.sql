@@ -655,3 +655,24 @@ create table if not exists remediation_actions (
   updated_at timestamptz not null default now(),
   unique (client_id, audit_year, source, source_key)
 );
+
+-- Legitimate interest assessments (LIA) and cross-border transfer risk assessments (TIA), linked to a RoPA activity.
+create table if not exists assessments (
+  id uuid primary key default gen_random_uuid(),
+  firm_id uuid not null references firms,
+  client_id uuid not null references clients,
+  kind text not null check (kind in ('lia','tia')),
+  title text not null,
+  assessment_year int not null,
+  ropa_entry_id uuid references ropa_entries,
+  answers jsonb not null default '{}',
+  likelihood int check (likelihood between 1 and 5),
+  impact int check (impact between 1 and 5),
+  outcome text,
+  status text not null default 'draft' check (status in ('draft','approved')),
+  created_by uuid not null references users,
+  approved_by uuid references users,
+  approved_at timestamptz,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);

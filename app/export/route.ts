@@ -8,6 +8,7 @@ import { loadCarReport, carReportHtml } from "@/lib/car-report";
 import { buildTracker, loadTracker, trackerHtml, trackerXlsx } from "@/lib/remediation";
 import { loadDpiaReport, dpiaReportHtml } from "@/lib/dpia-report";
 import { htmlToDocx } from "@/lib/docx";
+import { assessmentHtml } from "@/lib/assessments";
 
 // F15 export. ponytail: PDF = print-ready HTML the browser saves as PDF; Word = HTML served as .doc, which Word opens.
 // Swap for Playwright PDF + the `docx` package (TRD §1) when tagged PDFs or native .docx become a requirement.
@@ -85,6 +86,18 @@ export async function GET(req: Request) {
     const r = dpiaReportHtml((await loadDpiaReport(id))!);
     await audit(u, "export", "dpia_report", id, { client_id: dp.client_id, details: { format } });
     return page(r.title, r.body, format, slug(r.title), r.css);
+  }
+
+  if (kind === "assessment") {
+    const id = url.searchParams.get("id") ?? "";
+    const a = /^[0-9a-f-]{36}$/.test(id) ? await one("select a.*, u.name as approver from assessments a left join users u on u.id = a.approved_by where a.id = $1", [id]) : null;
+    if (!a || !(await canSeeClient(a.client_id))) return denied();
+    const c = (await one("select c.name, f.name as firm from clients c join firms f on f.id = c.firm_id where c.id = $1", [a.client_id]))!;
+    const ans = await one("select answer from answers where client_id = $1 and question_key = 'org_legal_name'", [a.client_id]);
+    const ropa = a.ropa_entry_id ? await one("select * from ropa_entries where id = $1", [a.ropa_entry_id]) : null;
+    const r = assessmentHtml(a as any, { org: String(ans?.answer || c.name), firm: c.firm, ropa: ropa as any });
+    await audit(u, "export", `assessment_${a.kind}`, id, { client_id: a.client_id, details: { format } });
+    return page(r.title, r.body, format, slug(r.title));
   }
 
   const clientId = url.searchParams.get("client") ?? "";
