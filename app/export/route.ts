@@ -15,6 +15,7 @@ import { loadFramework, frameworkHtml } from "@/lib/framework";
 import { planHtml } from "@/lib/training";
 import { projectPlanHtml } from "@/lib/project-plan";
 import { proposalHtml, coverLetterHtml } from "@/lib/proposal";
+import { reportCover } from "@/lib/cover-letter";
 
 // F15 export. ponytail: PDF = print-ready HTML the browser saves as PDF; Word = HTML served as .doc, which Word opens.
 // Swap for Playwright PDF + the `docx` package (TRD §1) when tagged PDFs or native .docx become a requirement.
@@ -23,9 +24,11 @@ const CSS = `body{font:17px/28px "Source Serif 4",Georgia,serif;color:#1b2433;ma
 h1{font-size:26px;line-height:34px}h2{font-size:20px;margin-top:28px}.todo{background:#fff3d6}
 .seal{border:2px solid #2a3f9d;outline:2px solid #2a3f9d;outline-offset:2px;padding:10px 14px;margin:24px 4px;font:14px/20px Arial,sans-serif}
 .meta{font:13px/18px Arial,sans-serif;color:#5f6878}table{border-collapse:collapse;width:100%;font:13px/18px Arial,sans-serif}
-td,th{border:1px solid #c9ced6;padding:6px;text-align:left;vertical-align:top}.noprint{margin:16px 0}@media print{.noprint{display:none}}`;
+td,th{border:1px solid #c9ced6;padding:6px;text-align:left;vertical-align:top}.noprint{margin:16px 0}@media print{.noprint{display:none}}.break{break-before:page}.note{font:13px/18px Arial,sans-serif;color:#5f6878}`;
 
-async function page(title: string, inner: string, format: string, filename: string, css = CSS) {
+/** `pre` (the report's cover letter) goes on page 1, before the report. */
+async function page(title: string, inner: string, format: string, filename: string, css = CSS, pre = "") {
+  inner = pre + inner;
   if (format === "doc") {
     // Native Word: same content as the PDF, with its page header text and orientation.
     const header = css.match(/@top-center\s*\{\s*content:\s*"((?:[^"\\]|\\.)*)"/)?.[1]?.replace(/\\(.)/g, "$1");
@@ -63,6 +66,8 @@ export async function GET(req: Request) {
   const kind = url.searchParams.get("kind"), format = url.searchParams.get("format") === "doc" ? "doc" : "pdf";
   const u = await getUser();
   if (!u) return denied();
+  // Every client report comes with a cover letter on page 1; ?cover=0 exports the report alone.
+  const cover = (clientId: string, k: Parameters<typeof reportCover>[1], title: string) => (url.searchParams.get("cover") === "0" ? Promise.resolve("") : reportCover(clientId, k, title));
 
   const canSeeClient = async (clientId: string) =>
     u.kind === "firm" ? !!(await one(`select 1 from clients c where c.id = $3 and ${clientScope(u)}`, [...scopeArgs(u), clientId])) : false;
@@ -81,7 +86,7 @@ export async function GET(req: Request) {
     const sig = await signatureFor(v.id);
     const seal = `<div class="seal"><b>${sig ? "Signed by client" : "Approved"}</b><br>${esc(client!.name)} · Version ${v.version_no}, approved by ${esc(v.approved_by_name)}<br>${fmtWAT(v.approved_at!)}${sig ? `<br>Signed by ${esc(sig.typed_name)} (${esc(sig.contact_name)}) on ${fmtWAT(sig.signed_at)}. Code sent by ${sig.otp_channel}. Document fingerprint (SHA-256): ${sig.content_sha256}` : ""}</div>`;
     await audit(u, "export", v.parent_type, v.parent_id, { client_id: v.client_id, details: { version: v.version_no, format } });
-    return page(title, seal + docHtml(body), format, slug(`${client!.name}-${title}-v${v.version_no}`));
+    return page(title, seal + docHtml(body), format, slug(`${client!.name}-${title}-v${v.version_no}`), CSS, await cover(v.client_id, "version", title));
   }
 
   if (kind === "dpia-report") {
@@ -91,7 +96,7 @@ export async function GET(req: Request) {
     if (!dp || !(await canSeeClient(dp.client_id))) return denied();
     const r = dpiaReportHtml((await loadDpiaReport(id))!);
     await audit(u, "export", "dpia_report", id, { client_id: dp.client_id, details: { format } });
-    return page(r.title, r.body, format, slug(r.title), r.css);
+    return page(r.title, r.body, format, slug(r.title), r.css, await cover(dp.client_id, "dpia-report", "Data Protection Impact Assessment Report"));
   }
 
   if (kind === "invoice" || kind === "receipt") {
@@ -127,11 +132,11 @@ export async function GET(req: Request) {
     if (a.kind === "lia") { // LIA report in the DPCO's LIA report format
       const lr = liaReportHtml((await loadLiaReport(id))!);
       await audit(u, "export", "assessment_lia", id, { client_id: a.client_id, details: { format } });
-      return page(lr.title, lr.body, format, slug(lr.title), lr.css);
+      return page(lr.title, lr.body, format, slug(lr.title), lr.css, await cover(a.client_id, "lia", "Legitimate Interest Assessment Report"));
     }
     const r = assessmentHtml(a as any, { org: String(ans?.answer || c.name), firm: c.firm, ropa: ropa as any });
     await audit(u, "export", `assessment_${a.kind}`, id, { client_id: a.client_id, details: { format } });
-    return page(r.title, r.body, format, slug(r.title));
+    return page(r.title, r.body, format, slug(r.title), CSS, await cover(a.client_id, a.kind, a.kind === "tia" ? "Cross-Border Transfer Risk Assessment" : "Data Processor Third Party Risk Assessment"));
   }
 
   const clientId = url.searchParams.get("client") ?? "";
@@ -146,7 +151,7 @@ export async function GET(req: Request) {
     const firm = (await one("select f.* from firms f join clients c on c.firm_id = f.id where c.id = $1", [clientId]))!;
     const r = projectPlanHtml(String(org), firm, rows);
     await audit(u, "export", "project_plan", clientId, { client_id: clientId, details: { format } });
-    return page(r.title, r.body, format, slug(r.title), r.css);
+    return page(r.title, r.body, format, slug(r.title), r.css, await cover(clientId, "project-plan", "Project Plan"));
   }
   if (kind === "training-plan") {
     const year = /^\d{4}$/.test(url.searchParams.get("year") ?? "") ? url.searchParams.get("year")! : String(client!.car_audit_year ?? new Date().getFullYear());
@@ -158,19 +163,19 @@ export async function GET(req: Request) {
     const firm = (await one("select f.name from firms f join clients c on c.firm_id = f.id where c.id = $1", [clientId]))!.name;
     const r = planHtml(String(org), firm, year, rows, ev);
     await audit(u, "export", "training_plan", clientId, { client_id: clientId, details: { format, year } });
-    return page(r.title, r.body, format, slug(r.title), r.css);
+    return page(r.title, r.body, format, slug(r.title), r.css, await cover(clientId, "training-plan", `Capacity Building Plan ${year}`));
   }
   if (kind === "framework") { // Data Protection Framework in the DPCO's framework format
     const r = frameworkHtml(await loadFramework(clientId));
     await audit(u, "export", "data_protection_framework", clientId, { client_id: clientId, details: { format } });
-    return page(r.title, r.body, format, slug(r.title), r.css);
+    return page(r.title, r.body, format, slug(r.title), r.css, await cover(clientId, "framework", "Data Protection Framework"));
   }
   if (kind === "ropa") {
     const rows = await q("select * from ropa_entries where client_id = $1 and state = 'active' order by purpose", [clientId]);
     const cols: [string, (r: any) => string][] = [["Purpose", (r) => r.purpose], ["Department", (r) => r.department], ["Lawful basis", (r) => (r.lawful_basis ? LAWFUL_BASIS[r.lawful_basis] : "")], ["Data subjects", (r) => r.data_subjects], ["Data categories", (r) => r.data_categories],
       ["Recipients", (r) => r.recipients], ["Transfers outside Nigeria", (r) => (r.has_transfer ? `Yes. ${r.transfer_safeguard ?? "No safeguard recorded"}` : "No")], ["Retention", (r) => r.retention_period], ["Security measures", (r) => r.security_measures], ["System / owner", (r) => r.system_owner]];
     await audit(u, "export", "ropa", clientId, { client_id: clientId, details: { format } });
-    return page("Record of processing activities", `<h1>Record of processing activities</h1>${stamp}<table><tr>${cols.map(([h]) => `<th>${h}</th>`).join("")}</tr>${rows.map((r) => `<tr>${cols.map(([, f]) => `<td>${esc(f(r))}</td>`).join("")}</tr>`).join("")}</table>`, format, slug(`${client!.name}-ropa`));
+    return page("Record of processing activities", `<h1>Record of processing activities</h1>${stamp}<table><tr>${cols.map(([h]) => `<th>${h}</th>`).join("")}</tr>${rows.map((r) => `<tr>${cols.map(([, f]) => `<td>${esc(f(r))}</td>`).join("")}</tr>`).join("")}</table>`, format, slug(`${client!.name}-ropa`), CSS, await cover(clientId, "ropa", "Record of Processing Activities"));
   }
 
   if (kind === "car-report" || kind === "car-plan" || kind === "car-tracker") {
@@ -181,7 +186,7 @@ export async function GET(req: Request) {
     if (kind === "car-report") {
       const r = carReportHtml(d);
       await audit(u, "export", "car_report", clientId, { client_id: clientId, details: { format, audit_year: year } });
-      return page(r.title, r.body, format, slug(r.title), r.css);
+      return page(r.title, r.body, format, slug(r.title), r.css, await cover(clientId, "car-report", `Data Protection Compliance Audit Report ${year}`));
     }
     // Remediation tracker: built from the audit the first time, then whatever the team has maintained in the app.
     let rows = await loadTracker(clientId, year);
@@ -194,7 +199,7 @@ export async function GET(req: Request) {
         "content-disposition": `attachment; filename="${slug(`${d.org} NDPA Remediation Tracker ${year}`)}.xlsx"` } });
     }
     const r = trackerHtml(rows, o);
-    return page(r.title, r.body, format, slug(r.title), r.css);
+    return page(r.title, r.body, format, slug(r.title), r.css, await cover(clientId, "car-plan", `NDPA Remediation Plan ${year}`));
   }
 
   if (kind === "car") {
@@ -220,7 +225,7 @@ export async function GET(req: Request) {
       `<h2>Other findings and observations</h2>` + (findings.length
         ? `<table><tr><th>Finding / observation</th><th>Risk</th><th>Status</th><th>Recommendation</th></tr>${findings.map((f) => `<tr><td>${esc(f.observation)}</td><td>${riskLabel(f.risk)}</td><td>${f.status === "resolved" ? "Resolved" : "Open"}</td><td>${esc(f.recommendation ?? "")}</td></tr>`).join("")}</table>`
         : `<p>None recorded.</p>`),
-      format, slug(`${client!.name}-car-readiness-${auditYear}`));
+      format, slug(`${client!.name}-car-readiness-${auditYear}`), CSS, await cover(clientId, "car", `CAR Readiness Checklist ${auditYear}`));
   }
   return denied();
 }
