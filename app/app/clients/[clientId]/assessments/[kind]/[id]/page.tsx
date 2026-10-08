@@ -66,7 +66,7 @@ export default async function Assessment({ params, searchParams }: { params: Pro
       <nav className="meta" aria-label="Breadcrumb"><Link href={`/app/clients/${clientId}/assessments/${kind}`}>{k.name}s</Link> / {a.title}</nav>
       <div className="spread" style={{ alignItems: "flex-start" }}>
         <h2 style={{ marginTop: 8 }}>{a.title} <span className="meta" style={{ fontSize: "0.7em" }}>· {a.assessment_year}</span> <Chip status={a.status === "approved" ? "approved" : "draft"} /></h2>
-        <div className="row" style={{ marginTop: 8 }}><a className="btn" href={exp("pdf")} target="_blank">PDF</a><a className="btn secondary" href={exp("doc")}>Word</a></div>
+        <div className="row" style={{ marginTop: 8 }}><a className="btn" href={exp("pdf")} target="_blank">PDF</a><a className="btn secondary" href={exp("doc")}>Word</a><a className="btn secondary" href={exp("pdf") + "&cover=only"} target="_blank">Cover letter (PDF)</a><a className="btn secondary" href={exp("doc") + "&cover=only"}>Cover letter (Word)</a></div>
       </div>
       <p className="meta">Activity: {a.purpose ?? "not linked"}{a.status === "approved" && a.approver ? ` · Approved by ${a.approver}` : ""}</p>
       <Flash sp={sp} />

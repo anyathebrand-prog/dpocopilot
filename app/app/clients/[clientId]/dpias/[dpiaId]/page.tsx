@@ -117,6 +117,7 @@ export default async function Dpia({ params, searchParams }: { params: Promise<{
         <div className="row" style={{ marginTop: 8 }}>
           <a className="btn" href={`/export?kind=dpia-report&id=${d.id}&format=pdf`} target="_blank">Generate DPIA report (PDF)</a>
           <a className="btn secondary" href={`/export?kind=dpia-report&id=${d.id}&format=doc`}>Word</a>
+          <a className="btn secondary" href={`/export?kind=dpia-report&id=${d.id}&format=pdf` + "&cover=only"} target="_blank">Cover letter (PDF)</a><a className="btn secondary" href={`/export?kind=dpia-report&id=${d.id}&format=doc` + "&cover=only"}>Cover letter (Word)</a>
         </div>
       </div>
       <p className="meta">Covers: {ropa.map((r, i) => <span key={r.id}>{i > 0 && ", "}<Link href={`/app/clients/${clientId}/ropa/${r.id}`}>{r.purpose}</Link>{r.state === "archived" && " (archived)"}</span>)}</p>

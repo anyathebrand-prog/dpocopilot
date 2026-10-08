@@ -23,6 +23,7 @@ export default async function Ropa({ params, searchParams }: { params: Promise<{
         <div className="row">
           <a className="btn secondary" href={`/export?kind=ropa&client=${clientId}&format=pdf`} target="_blank">Export PDF</a>
           <a className="btn secondary" href={`/export?kind=ropa&client=${clientId}&format=doc`}>Export Word</a>
+          <a className="btn secondary" href={`/export?kind=ropa&client=${clientId}&format=pdf` + "&cover=only"} target="_blank">Cover letter (PDF)</a><a className="btn secondary" href={`/export?kind=ropa&client=${clientId}&format=doc` + "&cover=only"}>Cover letter (Word)</a>
           {!client.archived_at && <Link className="btn" href={`${b}/new`}>Add entry</Link>}
         </div>
       </div>

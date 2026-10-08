@@ -72,6 +72,7 @@ export default async function Tasks({ searchParams }: { searchParams: Promise<Re
           <Field label="Project plan for"><select name="client" defaultValue={sp.client ?? clients[0].id}>{clients.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></Field>
           <Field label="Format"><select name="format" defaultValue="pdf"><option value="pdf">PDF</option><option value="doc">Word</option></select></Field>
           <button className="btn">Generate project plan</button>
+          <button className="btn secondary" name="cover" value="only">Cover letter</button>
           <span className="meta">All the client&apos;s tasks with start and due dates, as a timeline.</span>
         </form>
       )}

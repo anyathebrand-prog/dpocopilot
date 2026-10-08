@@ -1,4 +1,4 @@
-// Cover letter on the first page of every client report export: the DPCO's letterhead, addressed to the client's DPO,
+// Cover letter for every client report export (downloaded beside the report with ?cover=only): the DPCO's letterhead, addressed to the client's DPO,
 // saying what the report is, its basis in the NDPA 2023 / GAID 2025, and what the client should do next.
 import { one } from "./db";
 import { answersOf } from "./data";
@@ -50,5 +50,5 @@ export async function reportCover(clientId: string, kind: Kind, title: string) {
 <p><b>For: ${esc(c.name).toUpperCase()}</b></p>
 <p style="margin-top:32px"><b>${esc(c.signatory_name ?? "")}</b>${c.signatory_credentials ? `, ${esc(c.signatory_credentials)}` : ""}<br>${esc(c.signatory_title ?? "")}</p>
 <p class="note">Enclosure: ${esc(title)}</p>
-</section><section class="break"></section>`;
+</section>`;
 }

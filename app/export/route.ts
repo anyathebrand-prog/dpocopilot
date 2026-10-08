@@ -26,9 +26,9 @@ h1{font-size:26px;line-height:34px}h2{font-size:20px;margin-top:28px}.todo{backg
 .meta{font:13px/18px Arial,sans-serif;color:#5f6878}table{border-collapse:collapse;width:100%;font:13px/18px Arial,sans-serif}
 td,th{border:1px solid #c9ced6;padding:6px;text-align:left;vertical-align:top}.noprint{margin:16px 0}@media print{.noprint{display:none}}.break{break-before:page}.note{font:13px/18px Arial,sans-serif;color:#5f6878}`;
 
-/** `pre` (the report's cover letter) goes on page 1, before the report. */
-async function page(title: string, inner: string, format: string, filename: string, css = CSS, pre = "") {
-  inner = pre + inner;
+/** `letter` (?cover=only) replaces the report with its cover letter. */
+async function page(title: string, inner: string, format: string, filename: string, css = CSS, letter = "") {
+  if (letter) { inner = letter; title = `Cover letter - ${title}`; filename = `cover-letter-${filename}`; }
   if (format === "doc") {
     // Native Word: same content as the PDF, with its page header text and orientation.
     const header = css.match(/@top-center\s*\{\s*content:\s*"((?:[^"\\]|\\.)*)"/)?.[1]?.replace(/\\(.)/g, "$1");
@@ -66,8 +66,8 @@ export async function GET(req: Request) {
   const kind = url.searchParams.get("kind"), format = url.searchParams.get("format") === "doc" ? "doc" : "pdf";
   const u = await getUser();
   if (!u) return denied();
-  // Every client report comes with a cover letter on page 1; ?cover=0 exports the report alone.
-  const cover = (clientId: string, k: Parameters<typeof reportCover>[1], title: string) => (url.searchParams.get("cover") === "0" ? Promise.resolve("") : reportCover(clientId, k, title));
+  // Each client report has a cover letter, downloaded on its own with ?cover=only (the "Cover letter" buttons).
+  const cover = (clientId: string, k: Parameters<typeof reportCover>[1], title: string) => (url.searchParams.get("cover") === "only" ? reportCover(clientId, k, title) : Promise.resolve(""));
 
   const canSeeClient = async (clientId: string) =>
     u.kind === "firm" ? !!(await one(`select 1 from clients c where c.id = $3 and ${clientScope(u)}`, [...scopeArgs(u), clientId])) : false;

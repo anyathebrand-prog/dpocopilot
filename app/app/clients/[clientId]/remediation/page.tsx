@@ -62,6 +62,7 @@ export default async function Remediation({ params, searchParams }: { params: Pr
             <a className="btn" href={exp("car-tracker", "xlsx")}>Download Excel tracker</a>
             <a className="btn secondary" href={exp("car-plan", "pdf")} target="_blank">PDF</a>
             <a className="btn secondary" href={exp("car-plan", "doc")}>Word</a>
+            <a className="btn secondary" href={exp("car-plan", "pdf") + "&cover=only"} target="_blank">Cover letter (PDF)</a><a className="btn secondary" href={exp("car-plan", "doc") + "&cover=only"}>Cover letter (Word)</a>
           </div>
         )}
       </div>

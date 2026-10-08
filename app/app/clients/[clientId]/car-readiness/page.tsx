@@ -194,6 +194,7 @@ export default async function Car({ params, searchParams }: { params: Promise<{ 
           <div className="row">
             <a className="btn secondary" href={`/export?kind=car&client=${clientId}&year=${year}&format=pdf`} target="_blank">Export PDF</a>
             <a className="btn secondary" href={`/export?kind=car&client=${clientId}&year=${year}&format=doc`}>Export Word</a>
+            <a className="btn secondary" href={`/export?kind=car&client=${clientId}&year=${year}&format=pdf` + "&cover=only"} target="_blank">Cover letter (PDF)</a><a className="btn secondary" href={`/export?kind=car&client=${clientId}&year=${year}&format=doc` + "&cover=only"}>Cover letter (Word)</a>
           </div>
         )}
       </div>
@@ -350,6 +351,7 @@ export default async function Car({ params, searchParams }: { params: Promise<{ 
         <div className="row" style={{ marginTop: 16 }}>
           <a className="btn" href={exp("car-report", "pdf")} target="_blank">Generate audit report (PDF)</a>
           <a className="btn secondary" href={exp("car-report", "doc")}>Report (Word)</a>
+          <a className="btn secondary" href={exp("car-report", "pdf") + "&cover=only"} target="_blank">Cover letter (PDF)</a><a className="btn secondary" href={exp("car-report", "doc") + "&cover=only"}>Cover letter (Word)</a>
           <Link className="btn" href={`/app/clients/${clientId}/remediation?year=${year}`}>Remediation tracker</Link>
           <a className="btn secondary" href={exp("car-tracker", "xlsx")}>Tracker (Excel)</a>
         </div>

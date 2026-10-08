@@ -40,7 +40,7 @@ export default async function TrainingPlan({ params, searchParams }: { params: P
     <>
       <div className="spread" style={{ alignItems: "flex-start" }}>
         <div><h2 style={{ marginTop: 0 }}>Capacity building plan</h2><p className="meta">Schedule each data protection training, record attendance, and attach evidence once it has taken place.</p></div>
-        <div className="row"><a className="btn" href={exp("pdf")} target="_blank">PDF</a><a className="btn secondary" href={exp("doc")}>Word</a></div>
+        <div className="row"><a className="btn" href={exp("pdf")} target="_blank">PDF</a><a className="btn secondary" href={exp("doc")}>Word</a><a className="btn secondary" href={exp("pdf") + "&cover=only"} target="_blank">Cover letter (PDF)</a><a className="btn secondary" href={exp("doc") + "&cover=only"}>Cover letter (Word)</a></div>
       </div>
       <Flash sp={sp} />
       <form className="row" style={{ alignItems: "flex-end", marginBottom: 16 }}>
