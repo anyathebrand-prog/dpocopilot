@@ -14,6 +14,7 @@ import { invoiceHtml } from "@/lib/invoice";
 import { loadFramework, frameworkHtml } from "@/lib/framework";
 import { planHtml } from "@/lib/training";
 import { projectPlanHtml } from "@/lib/project-plan";
+import { proposalHtml, coverLetterHtml } from "@/lib/proposal";
 
 // F15 export. ponytail: PDF = print-ready HTML the browser saves as PDF; Word = HTML served as .doc, which Word opens.
 // Swap for Playwright PDF + the `docx` package (TRD §1) when tagged PDFs or native .docx become a requirement.
@@ -104,6 +105,16 @@ export async function GET(req: Request) {
     const c = (await one("select name from clients where id = $1", [inv.client_id]))!;
     const r = invoiceHtml(inv, firm, { name: String(ans.org_legal_name || c.name), address: ans.org_address, email: ans.org_email, phone: ans.org_phone }, kind === "receipt");
     await audit(u, "export", kind, id, { client_id: inv.client_id, details: { format } });
+    return page(r.title, r.body, format, slug(r.title), r.css);
+  }
+  if (kind === "proposal") { // prospect, not a client yet: firm-scoped
+    const id = url.searchParams.get("id") ?? "";
+    const p = u.kind === "firm" && /^[0-9a-f-]{36}$/.test(id) ? await one("select * from proposals where id = $1 and firm_id = $2", [id, u.firm_id]) : null;
+    if (!p) return denied();
+    const firm = (await one("select * from firms where id = $1", [u.firm_id]))!;
+    const created = p.created_at instanceof Date ? p.created_at.toISOString() : String(p.created_at);
+    const r = (url.searchParams.get("doc") === "letter" ? coverLetterHtml : proposalHtml)({ ...p, created_at: created } as any, firm);
+    await audit(u, "export", "proposal", id, { details: { format, doc: url.searchParams.get("doc") ?? "proposal" } });
     return page(r.title, r.body, format, slug(r.title), r.css);
   }
   if (kind === "assessment") {

@@ -90,9 +90,9 @@ function blocks(nodes: Node[], ctx: Ctx): (Paragraph | Table)[] {
     const e = n as El, s = style(e);
     const align = s["text-align"] === "center" ? AlignmentType.CENTER : ctx.align;
     switch (e.tag) {
-      case "h1": out.push(new Paragraph({ heading: HeadingLevel.HEADING_1, alignment: align, spacing: { before: 240, after: 120 }, children: runs(e.kids, { color: NAVY, bold: true, size: 30 }) })); break;
-      case "h2": out.push(new Paragraph({ heading: HeadingLevel.HEADING_2, alignment: align, spacing: { before: 200, after: 100 }, children: runs(e.kids, { color: NAVY, bold: true, size: 24 }) })); break;
-      case "h3": case "h4": out.push(new Paragraph({ heading: HeadingLevel.HEADING_3, alignment: align, spacing: { before: 160, after: 80 }, children: runs(e.kids, { color: NAVY, bold: true, size: 21 }) })); break;
+      case "h1": out.push(new Paragraph({ heading: HeadingLevel.HEADING_1, alignment: align, spacing: { before: 240, after: 120 }, children: runs(e.kids, { color: hex(style(e).color) ?? NAVY, bold: true, size: 30 }) })); break;
+      case "h2": out.push(new Paragraph({ heading: HeadingLevel.HEADING_2, alignment: align, spacing: { before: 200, after: 100 }, children: runs(e.kids, { color: hex(style(e).color) ?? NAVY, bold: true, size: 24 }) })); break;
+      case "h3": case "h4": out.push(new Paragraph({ heading: HeadingLevel.HEADING_3, alignment: align, spacing: { before: 160, after: 80 }, children: runs(e.kids, { color: hex(style(e).color) ?? NAVY, bold: true, size: 21 }) })); break;
       case "p": {
         const note = cls(e, "note") || cls(e, "meta") || cls(e, "caption");
         const size = s["font-size"]?.endsWith("pt") ? Math.round(parseFloat(s["font-size"]) * 2) : note ? 17 : undefined;
@@ -140,7 +140,7 @@ function table(t: El, ctx: Ctx): Table {
       children: tr.kids.filter((c): c is El => typeof c !== "string" && (c.tag === "td" || c.tag === "th")).map((c) => {
         const s = style(c), head = c.tag === "th", label = cls(c, "k"), sub = cls(tr, "sub");
         const fill = hex(s.background) ?? (head ? NAVY : label ? "F4F6FA" : sub ? "E8EEF7" : undefined);
-        const fmt: Fmt = { bold: head || label || sub || undefined, color: head && !hex(s.background) ? "FFFFFF" : undefined };
+        const fmt: Fmt = { bold: head || label || sub || undefined, color: hex(s.color) ?? (head && !hex(s.background) ? "FFFFFF" : undefined) };
         for (const r of Object.keys(RISK_COLOR)) if (cls(c, r)) { fmt.color = RISK_COLOR[r]; fmt.bold = true; }
         const inner = c.kids.some(isBlock) ? blocks(c.kids, { ...ctx, first: { pending: false } }).filter((b): b is Paragraph => b instanceof Paragraph)
           : [new Paragraph({ alignment: s["text-align"] === "center" ? AlignmentType.CENTER : undefined, children: runs(c.kids, fmt) })];

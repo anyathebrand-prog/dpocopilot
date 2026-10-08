@@ -739,3 +739,33 @@ alter table files add constraint files_size_bytes_check check (size_bytes > 0 an
 -- Tasks have a start date as well as a due date, and record when they were done (project plan).
 alter table tasks add column if not exists start_on date;
 alter table tasks add column if not exists done_on date;
+
+-- Proposals to prospective clients (not yet clients): scope, fees, terms, and the prospect's colours and logo.
+create table if not exists proposals (
+  id uuid primary key default gen_random_uuid(),
+  firm_id uuid not null references firms,
+  number text not null,
+  client_name text not null,
+  address text not null,
+  email text not null,
+  contact_name text,
+  contact_title text,
+  sector text,
+  primary_color text not null default '#0D1F4A' check (primary_color ~ '^#[0-9A-Fa-f]{6}$'),
+  secondary_color text not null default '#2A7DE1' check (secondary_color ~ '^#[0-9A-Fa-f]{6}$'),
+  logo text,
+  logo_w int,
+  logo_h int,
+  lines jsonb not null,
+  vat_rate numeric not null default 0,
+  payment_terms text,
+  validity_days int not null default 30 check (validity_days between 1 and 365),
+  start_on date,
+  duration_weeks int check (duration_weeks between 1 and 104),
+  notes text,
+  status text not null default 'draft' check (status in ('draft','sent','accepted','declined')),
+  created_by uuid not null references users,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique (firm_id, number)
+);
