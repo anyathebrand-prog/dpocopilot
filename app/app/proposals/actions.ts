@@ -4,7 +4,7 @@ import { requireFirm, audit } from "@/lib/auth";
 import { q, one } from "@/lib/db";
 import { str, opt, flash } from "@/lib/form";
 import { imageSize } from "@/lib/files";
-import { PROPOSAL_SECTORS, TIERS, MILESTONES, type Fin } from "@/lib/proposal";
+import { PROPOSAL_SECTORS, TIERS, type Fin } from "@/lib/proposal";
 import { SERVICES, type Line } from "@/lib/invoice";
 import { todayWAT } from "@/lib/rules";
 
@@ -38,8 +38,7 @@ export async function saveProposal(fd: FormData) {
     lines.push({ service, description: str(fd, `d${i}`), amount });
   }
   if (!lines.length) fail("Select at least one service.");
-  const fin: Fin = { dpias: dpias ?? 5, schedule: MILESTONES.map((_, i) => int(str(fd, `pay${i}`) || "0", 0, 100) as number) };
-  if (fin.schedule!.some(Number.isNaN) || fin.schedule!.reduce((a, b) => a + b, 0) !== 100) fail("The payment schedule percentages must add up to 100.");
+  const fin: Fin = { dpias: dpias ?? 5 };
 
   let logo: { data: string; w: number; h: number } | null | undefined; // undefined = keep
   const f = fd.get("logo");

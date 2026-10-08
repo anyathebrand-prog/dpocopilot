@@ -1,4 +1,4 @@
-import { PROPOSAL_SECTORS, TIERS, MILESTONES, type Fin } from "@/lib/proposal";
+import { PROPOSAL_SECTORS, TIERS, type Fin } from "@/lib/proposal";
 import { SERVICES, type Line } from "@/lib/invoice";
 import { Field, Hidden } from "@/components/ui";
 import { Submit } from "@/components/client";
@@ -56,9 +56,7 @@ export function ProposalForm({ p }: { p?: Record<string, any> }) {
           </tr>
         ))}</tbody>
       </table>
-      <Field label="Payment terms"><input name="payment_terms" defaultValue={p?.payment_terms ?? "Payments are linked to the delivery milestones below."} /></Field>
-      <h3>Payment schedule (% of the total)</h3>
-      <div className="row">{MILESTONES.map((ms, i) => <Field key={ms} label={`Stage ${i + 1}`} help={ms.replace(/ \(Gate \d\)/, "")}><input type="number" name={`pay${i}`} min={0} max={100} defaultValue={(f.schedule ?? [30, 20, 20, 20, 10])[i]} style={{ width: 80 }} /></Field>)}</div>
+      <Field label="Payment terms"><input name="payment_terms" defaultValue={p?.payment_terms ?? "50% mobilisation on acceptance; 50% on delivery of the final reports."} /></Field>
       <label className="check" style={{ marginTop: 8 }}><input type="checkbox" name="vat" defaultChecked={p ? Number(p.vat_rate) > 0 : true} />Add VAT (7.5%)</label>
       <Field label="Additional payment notes"><textarea name="notes" rows={2} defaultValue={p?.notes ?? ""} /></Field>
       <Submit>{p ? "Save proposal" : "Create proposal"}</Submit>

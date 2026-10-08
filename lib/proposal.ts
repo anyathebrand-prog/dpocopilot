@@ -46,10 +46,9 @@ export const TRAINING_TIERS: [key: string, name: string, audience: string, forma
   ["t5", "General Staff Training", "All staff", "Blended e-learning and in-person cohort sessions", "Baseline awareness: lawful handling, email and messaging discipline, sharing rules, disposal, incident reporting; completion tracked per unit"],
   ["t6", "Role Based Data Protection Training", "ICT, HR, finance, customer-facing and marketing staff", "3-day technical and role workshops plus a live breach simulation", "Security of processing, access control, logging, encryption, backup and disposal; tested 72-hour incident response with after-action report"],
 ];
-export const MILESTONES = ["Execution of contract and mobilisation (Gate 1)", "Acceptance of RoPA and gap assessment report (Gate 2)", "Adoption of the policy suite by the Board (Gate 3)", "Completion of DPO and champion certification (Gate 4)", "CAR filed and acknowledgement received (Gate 5)"];
 
-/** Programme settings kept with the proposal: milestone payment percentages and number of DPIAs. */
-export type Fin = { schedule?: number[]; dpias?: number; honorarium?: number };
+/** Programme settings kept with the proposal: number of DPIAs (honorarium only on older proposals). */
+export type Fin = { dpias?: number; honorarium?: number };
 
 /** The fees: service lines, subtotal, VAT and total. */
 export function money(p: Record<string, any>) {
@@ -126,7 +125,6 @@ export function proposalHtml(p: Proposal, firm: any) {
   const footer = `${org} · Data Protection Compliance Programme · NDPA 2023 / GAID 2025`;
   const d1 = Math.max(2, Math.round(months / 3)), r1 = Math.max(d1 + 1, Math.round((months * 2) / 3)), a1 = Math.max(r1, Math.round(months * 0.75));
   const dpias = f.dpias ?? 5;
-  const sched = (f.schedule?.length ? f.schedule : [30, 20, 20, 20, 10]).slice(0, 5);
   const services = m.lines.map((l) => l.service);
 
   const body = `
@@ -295,11 +293,7 @@ export function proposalHtml(p: Proposal, firm: any) {
   <tr><td style="background:${T.P}"></td><td colspan="2" style="background:${T.P};color:${T.on}"><b>Total investment</b></td><td style="background:${T.P};color:${T.on};text-align:right"><b>${NGN(m.total)}</b></td></tr></table>
   ${services.length < SERVICES.length ? `<p class="note">Services not included above (${SERVICES.filter((x) => !services.includes(x)).map(esc).join(", ")}) can be added by agreement.</p>` : ""}
   ${T.h(2, "9.2 Payment terms")}
-  <p>${esc(p.payment_terms || "Payments are linked to the delivery milestones below.")}</p>
-  ${T.h(2, "9.3 Payment schedule")}
-  <table>${T.head([["Stage", "8%"], ["Milestone"], ["%", "8%"], ["Amount (₦, excl. VAT)", "20%"]])}
-  ${MILESTONES.map((ms, i) => `<tr><td>${i + 1}</td><td>${ms.replace("the Board", `the ${board}`)}</td><td>${sched[i] ?? 0}%</td><td style="text-align:right">${N(Math.round(m.subtotal * (sched[i] ?? 0)) / 100)}</td></tr>`).join("")}
-  <tr class="sub"><td></td><td><b>Total</b></td><td><b>${sched.reduce((a, b) => a + b, 0)}%</b></td><td style="text-align:right"><b>${N(m.subtotal)}</b></td></tr></table>
+  <p>${esc(p.payment_terms || "50% mobilisation on acceptance; 50% on delivery of the final reports.")}</p>
   <p class="note">Withholding tax at the applicable rate will be deducted at source and remitted in the ordinary course; a credit note will be issued against each deduction. Statutory fees payable to the Commission are not included unless listed above, and are billed at cost with the receipt attached.${p.notes ? ` ${esc(p.notes)}` : ""}</p>
 </section>
 
@@ -372,7 +366,7 @@ export function coverLetterHtml(p: Proposal, firm: any) {
 ${T.h(3, "PROPOSAL FOR A DATA PROTECTION COMPLIANCE PROGRAMME UNDER THE NIGERIA DATA PROTECTION ACT 2023 AND THE GAID 2025")}
 <p>We are pleased to submit our proposal to implement a data protection compliance programme across ${org}, in line with the Nigeria Data Protection Act 2023 (NDPA) and the General Application and Implementation Directive (GAID) 2025${SECTOR_REGS[p.sector ?? ""]?.length ? `, together with the regulation that applies to the ${esc((p.sector ?? "").toLowerCase())} sector` : ""}.</p>
 <p>Since GAID took effect on 19 September 2025, organisations must be able to demonstrate compliance: registration with the Nigeria Data Protection Commission, a certified Data Protection Officer, a documented compliance audit, and an annual Compliance Audit Return filed through a licensed DPCO by 31 March. Our proposal sets out a ${months}-month programme that puts these in place and builds the capability to sustain them — a certified DPO reporting to the ${esc(p.accountable_title || "Chief Executive Officer")}, ${units0 ? `${units0} trained Data Protection Champions across your departments` : "a trained Data Protection Champion network"}, a complete Record of Processing Activities, an adopted policy suite and a filed CAR.</p>
-<p>The total investment is <b>${NGN(m.subtotal)}</b> excluding VAT${m.vat ? ` (${NGN(m.total)} including VAT)` : ""}, covering ${m.lines.map((l) => esc(l.service)).join(", ")}, with payments linked to delivery milestones.</p>
+<p>The total investment is <b>${NGN(m.subtotal)}</b> excluding VAT${m.vat ? ` (${NGN(m.total)} including VAT)` : ""}, covering ${m.lines.map((l) => esc(l.service)).join(", ")}.</p>
 <p>${esc(firm.name)} is a Data Protection Compliance Organisation licensed by the NDPC${firm.ndpc_licence_no ? ` (Licence ${esc(firm.ndpc_licence_no)})` : ""}. We would welcome the opportunity to present this proposal to Management. It is valid for ${p.validity_days} days from the date of issue.</p>
 <p>Yours faithfully,</p>
 <p style="margin-top:36px"><b>${esc(firm.signatory_name ?? "")}</b>${firm.signatory_credentials ? `, ${esc(firm.signatory_credentials)}` : ""}<br>${esc(firm.signatory_title ?? "")}<br>For: ${esc(firm.name)}</p>
