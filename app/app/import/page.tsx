@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { requireFirmRole, requireClient, audit } from "@/lib/auth";
+import { requireFirmRole, requireFirmPlan, requireClient, audit } from "@/lib/auth";
 import { q, one, tx } from "@/lib/db";
 import { validateImport, IMPORT_TYPES, type ImportType, type Row } from "@/lib/importer";
 import { insertClient } from "@/lib/clients";
@@ -10,6 +10,7 @@ import { Submit } from "@/components/client";
 
 async function upload(fd: FormData) {
   "use server";
+  await requireFirmPlan("Spreadsheet import");
   const u = await requireFirmRole("firm_admin");
   const type = str(fd, "type") as ImportType;
   if (!IMPORT_TYPES[type]) redirect(flash("/app/import", "Choose what you are importing.", "error"));
@@ -29,6 +30,7 @@ async function upload(fd: FormData) {
 /** Nothing is saved until confirm; then every valid row is created in one transaction and logged as imported (FR17.2–17.3). */
 async function confirm(fd: FormData) {
   "use server";
+  await requireFirmPlan("Spreadsheet import");
   const u = await requireFirmRole("firm_admin");
   const job = await one("select * from import_jobs where id = $1 and firm_id = $2 and status = 'ready'", [str(fd, "job_id"), u.firm_id]);
   if (!job) redirect(flash("/app/import", "This import has already been completed or cancelled.", "error"));
@@ -63,6 +65,7 @@ async function confirm(fd: FormData) {
 }
 
 export default async function Import({ searchParams }: { searchParams: Promise<Record<string, string>> }) {
+  await requireFirmPlan("Spreadsheet import");
   const u = await requireFirmRole("firm_admin");
   const sp = await searchParams;
   const job = sp.job ? await one("select * from import_jobs where id = $1 and firm_id = $2 and status = 'ready'", [sp.job, u.firm_id]) : null;

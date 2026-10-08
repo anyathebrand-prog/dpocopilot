@@ -781,3 +781,11 @@ alter table proposals add column if not exists fin jsonb not null default '{}';
 
 -- Firm RC (CAC registration) number, printed on letterheads.
 alter table firms add column if not exists rc_number text;
+
+-- Subscription plan per firm (pricing page): Solo DPO has one seat and no spreadsheet import; DPCO Firm has everything.
+alter table firms add column if not exists plan text not null default 'firm';
+do $$ begin
+  if not exists (select 1 from pg_constraint where conname = 'firms_plan_check') then
+    alter table firms add constraint firms_plan_check check (plan in ('solo','firm'));
+  end if;
+end $$;

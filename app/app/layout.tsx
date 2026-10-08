@@ -1,7 +1,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { Users, ListChecks, Calendar, MessageSquareText, Upload, Settings, Bell, Menu, LayoutList, LogOut, Building2, Receipt, FileSignature } from "lucide-react";
-import { requireFirm, isAdmin, ROLE_LABEL } from "@/lib/auth";
+import { requireFirm, isAdmin, ROLE_LABEL, PLAN_LABEL } from "@/lib/auth";
 import { one } from "@/lib/db";
 import { signOut } from "@/lib/auth-actions";
 import { NavLink } from "@/components/client";
@@ -24,6 +24,7 @@ export default async function FirmLayout({ children }: { children: ReactNode }) 
               <span className="menu-toggle cx-menu" aria-label="Menu"><Menu aria-hidden /></span>
             </span>
             <span className="cx-pill">{u.firm_name}</span>
+            <span className="meta" style={{ display: "block", marginTop: 4, fontSize: 12 }}>{PLAN_LABEL[u.plan ?? "firm"]} plan</span>
           </summary>
           <nav className="nav" aria-label="Main">
             <NavLink href="/app" exact><LayoutList aria-hidden />Clients</NavLink>
@@ -32,7 +33,7 @@ export default async function FirmLayout({ children }: { children: ReactNode }) 
             <NavLink href="/app/proposals"><FileSignature aria-hidden />Proposals</NavLink>
             <NavLink href="/app/billing"><Receipt aria-hidden />Billing</NavLink>
             <NavLink href="/app/ask"><MessageSquareText aria-hidden />Ask</NavLink>
-            {isAdmin(u) && <NavLink href="/app/import"><Upload aria-hidden />Import</NavLink>}
+            {isAdmin(u) && u.plan !== "solo" && <NavLink href="/app/import"><Upload aria-hidden />Import</NavLink>}
             {isAdmin(u) && <NavLink href="/app/settings/firm"><Building2 aria-hidden />Firm profile</NavLink>}
             {isAdmin(u) && <NavLink href="/app/settings/team"><Users aria-hidden />Team</NavLink>}
             {isAdmin(u) && <NavLink href="/app/settings/activity"><Settings aria-hidden />Activity log</NavLink>}

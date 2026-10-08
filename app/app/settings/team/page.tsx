@@ -1,15 +1,16 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { requireFirmRole, audit, ROLE_LABEL } from "@/lib/auth";
+import { requireFirmRole, requireFirmPlan, audit, ROLE_LABEL } from "@/lib/auth";
 import { q, one } from "@/lib/db";
 import { invite } from "@/lib/invites";
 import { str, flash } from "@/lib/form";
 import { fmtWAT } from "@/lib/rules";
-import { Flash, Field, Hidden, Chip, PageHead } from "@/components/ui";
+import { Flash, Field, Hidden, Chip, PageHead, Banner } from "@/components/ui";
 import { Submit } from "@/components/client";
 
 async function inviteMember(fd: FormData) {
   "use server";
+  await requireFirmPlan("Team seats");
   const u = await requireFirmRole("firm_admin");
   const email = str(fd, "email").toLowerCase(), role = str(fd, "role");
   if (!/^\S+@\S+\.\S+$/.test(email) || !ROLE_LABEL[role]) redirect(flash("/app/settings/team", "Enter an email and choose a role.", "error"));
@@ -39,6 +40,7 @@ export default async function Team({ searchParams }: { searchParams: Promise<Rec
     <>
       <PageHead title="Team" />
       <Flash sp={sp} />
+      {u.plan === "solo" && <Banner kind="info">Your practice is on the <b>Solo DPO</b> plan: one seat, so team invitations are not available. Team seats with Admin, Lead and Associate roles come with the DPCO Firm plan.</Banner>}
       <table className="register">
         <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Status</th><th className="num">Assigned clients</th></tr></thead>
         <tbody>{members.map((m) => (
@@ -63,14 +65,14 @@ export default async function Team({ searchParams }: { searchParams: Promise<Rec
           ))}
         </>
       )}
-      <form action={inviteMember} className="panel" style={{ maxWidth: 640, marginTop: 32 }}>
+      {u.plan !== "solo" && (<form action={inviteMember} className="panel" style={{ maxWidth: 640, marginTop: 32 }}>
         <h3>Invite a team member</h3>
         <Field label="Email" required><input type="email" name="email" required /></Field>
         <Field label="Role" help="Associates only see clients they are assigned to and cannot approve.">
           <select name="role" defaultValue="associate">{Object.entries(ROLE_LABEL).map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select>
         </Field>
         <Submit>Send invitation</Submit>
-      </form>
+      </form>)}
     </>
   );
 }

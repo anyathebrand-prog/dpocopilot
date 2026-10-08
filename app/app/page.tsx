@@ -74,7 +74,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
           <p>Add your first client to start their compliance file.</p>
           <div className="row" style={{ justifyContent: "center" }}>
             <Link className="btn" href="/app/clients/new">Add client</Link>
-            {isAdmin(u) && <Link className="btn secondary" href="/app/import">Import existing clients</Link>}
+            {isAdmin(u) && u.plan !== "solo" && <Link className="btn secondary" href="/app/import">Import existing clients</Link>}
           </div>
         </Empty>
       ) : (
