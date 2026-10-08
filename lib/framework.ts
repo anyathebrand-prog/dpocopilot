@@ -26,6 +26,19 @@ function roleDept(depts: string[], re: RegExp) {
   return d.length ? d.map(esc).join(", ") : TBC;
 }
 
+/** Overview, vision and mission from the company profile's text: labelled sections where present, else the opening sentences. */
+export function profileExtract(text: string) {
+  const t = text.replace(/\s+/g, " ").trim();
+  const grab = (label: RegExp) => { const m = label.exec(t); return m ? (t.slice(m.index + m[0].length).match(/^[\s:\-–]*(.{20,400}?[.!])(\s|$)/)?.[1] ?? null) : null; };
+  const vision = grab(/\b(our\s+)?vision(\s+statement)?\b/i), mission = grab(/\b(our\s+)?mission(\s+statement)?\b/i);
+  const start = /\b(about\s+us|who\s+we\s+are|company\s+overview|corporate\s+profile|overview|introduction)\b/i.exec(t);
+  const from = start ? t.slice(start.index + start[0].length) : t;
+  const sentences = (from.match(/[^.!?]+[.!?]+/g) ?? []).map((x) => x.trim()).filter((x) => x.length >= 40 && x.length <= 400 && !/vision|mission/i.test(x) && x.replace(/[^a-z]/g, "").length > x.length / 2);
+  let overview = "";
+  for (const x of sentences) { if (overview.length + x.length > 900) break; overview += (overview ? " " : "") + x; }
+  return { overview: overview || null, vision, mission };
+}
+
 export async function loadFramework(clientId: string) {
   const c = (await one(`select c.name, c.mi_class, f.name as firm_name, f.signatory_name, f.signatory_title from clients c join firms f on f.id = c.firm_id where c.id = $1`, [clientId]))!;
   const ans = await answersOf(clientId);
@@ -44,6 +57,8 @@ export function frameworkHtml({ c, ans, ropa }: Awaited<ReturnType<typeof loadFr
   const transfers = ans.transfers_yes === "yes" || ropa.some((r) => r.has_transfer);
   const dcpmi = c.mi_class === "major_importance";
   const deptList = depts.length ? depts.map(esc).join(", ") : TBC;
+  const profile = ans.org_profile_file as { name?: string; text?: string } | undefined;
+  const px = profile?.text ? profileExtract(profile.text) : null;
 
   const body = `
 <section class="cover">
@@ -55,7 +70,7 @@ export function frameworkHtml({ c, ans, ropa }: Awaited<ReturnType<typeof loadFr
 
 <section class="break">
   <h1>Document Control</h1>
-  ${table(["Item", "Detail"], [["Organisation", esc(org)], ["Document", "Data Protection Framework (overarching policy and linked policies)"], ["Version", "1.0 (Draft)"], ["Date", today], ["Owner", `Data Protection Officer${dpo ? ` – ${esc(dpo)}` : ""}`], ["Prepared by", esc(c.firm_name)], ["Approved by", "Board of Directors / Governing Council"], ["Review cycle", "Annually, or on any material change in law, GAID guidance or processing"]], ["30%"])}
+  ${table(["Item", "Detail"], [["Organisation", esc(org)], ["Document", "Data Protection Framework (overarching policy and linked policies)"], ["Version", "1.0 (Draft)"], ["Date", today], ["Owner", `Data Protection Officer${dpo ? ` – ${esc(dpo)}` : ""}`], ["Prepared by", esc(c.firm_name)], ["Approved by", "Board of Directors / Governing Council"], ["Review cycle", "Annually, or on any material change in law, GAID guidance or processing"], ["Reference documents", `NDPA 2023; GAID 2025; Record of Processing Activities${profile?.name ? `; Company Profile (${esc(profile.name)})` : ""}`]], ["30%"])}
   <h2>Contents</h2>
   ${ul(["1.0 Data Protection Policy", "2.0 Data Classification Policy", "3.0 Website Privacy Policy", "4.0 Data Protection Impact Assessment Policy", "5.0 Information Security and Incident Response Policy", "6.0 Retention and Disposal Policy", "7.0 Consent Policy", "8.0 Consequences, Review and Approval", "Appendix A – Data Retention Legal Frameworks", "Appendix B – Data Breach Register", "Appendix C – Data Protection Champions"])}
 </section>
@@ -65,6 +80,7 @@ export function frameworkHtml({ c, ans, ropa }: Awaited<ReturnType<typeof loadFr
   <h2>1.1 Introduction</h2>
   <p>The Nigeria Data Protection Act 2023 ("NDPA" or "the Act") is the principal legislation governing the collection, processing and storage of the personal data of persons in Nigeria. Its objectives include regulating the processing of personal data, promoting practices that safeguard the security of personal data and the privacy of data subjects, and ensuring that personal data is processed in a fair, lawful and accountable manner. The NDPA General Application and Implementation Directive (GAID) 2025, issued by the Nigeria Data Protection Commission (NDPC), sets out how controllers and processors are to implement the Act.</p>
   <p>The Act provides for sanctions and penalties for breach or non-compliance. To ensure proactive and sustained compliance, ${esc(org)} (hereinafter "${short}") has put together this Data Protection Framework to guide its data protection practice across all its departments and units${depts.length ? `, namely: ${deptList}` : ""}.</p>
+  ${px && (px.overview || px.vision || px.mission) ? `<h3>About ${esc(org)}</h3>${px.overview ? `<p>${esc(px.overview)}</p>` : ""}${px.vision ? `<p><b>Vision:</b> ${esc(px.vision)}</p>` : ""}${px.mission ? `<p><b>Mission:</b> ${esc(px.mission)}</p>` : ""}<p class="note">Source: ${esc(org)} Company Profile${profile?.name ? ` (${esc(profile.name)})` : ""}. This framework supports that mission by ensuring the personal data entrusted to ${short} is processed lawfully, fairly and securely.</p>` : ""}
   ${dcpmi ? box("Data Controller of Major Importance", `<p style="margin:0">${esc(org)} is classified as a Data Controller or Processor of Major Importance. It shall remain registered with the NDPC, designate a Data Protection Officer, and file its annual Compliance Audit Return (CAR) through a licensed DPCO, as required by the NDPA (ss.32, 44) and the GAID.</p>`) : ""}
   <h2>1.2 Purpose</h2>
   <p>The purpose of this policy is to describe, define and delimit the scope of ${short}'s responsibilities for protecting the personal data it collects, in line with regulatory requirements. It is the overarching data protection framework that links the policies in Sections 2.0 to 7.0.</p>

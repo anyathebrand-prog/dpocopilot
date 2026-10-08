@@ -4,7 +4,7 @@ import { q, one, tx } from "./db";
 import { getUser, requireClient, audit, notifyTeam, send, type User } from "./auth";
 import { SECTIONS, CERT_FILLS, missingRequired, buildInventory } from "./questionnaire";
 import { storeFile } from "./files";
-import { parseCertificate, pdfText } from "./certificate";
+import { parseCertificate, pdfText, docxText } from "./certificate";
 import { answersOf } from "./data";
 import { evaluateMI, type Criterion } from "./rules";
 import { str, flash } from "./form";
@@ -35,18 +35,23 @@ export async function saveSection(fd: FormData) {
   for (const qn of section.questions.filter((x) => x.type === "file")) {
     const f = fd.get(qn.key);
     if (!(f instanceof File) || !f.size) continue; // nothing new attached: keep the current file
-    if (!f.name.toLowerCase().endsWith(".pdf")) redirect(flash(self, "Attach the certificate as a PDF file.", "error"));
+    const isDocx = f.name.toLowerCase().endsWith(".docx");
+    if (!f.name.toLowerCase().endsWith(".pdf") && !(qn.word && isDocx)) redirect(flash(self, qn.word ? `${qn.label}: attach a PDF or Word (.docx) file.` : "Attach the certificate as a PDF file.", "error"));
     const client = await one<{ id: string; firm_id: string }>("select id, firm_id from clients where id = $1", [clientId]);
     const r = await storeFile(u, client!, f, null);
     if ("error" in r) redirect(flash(self, r.error, "error"));
-    await put(qn.key, { file_id: r.id, name: f.name.slice(0, 200) });
+    const bytes = new Uint8Array(await f.arrayBuffer());
+    // Documents that other outputs quote (the company profile) keep their text with the file.
+    const text = qn.word ? (isDocx ? await docxText(bytes) : await pdfText(bytes)).replace(/\s+/g, " ").trim().slice(0, 30000) : undefined;
+    await put(qn.key, { file_id: r.id, name: f.name.slice(0, 200), ...(text !== undefined && { text }) });
+    if (qn.word) note += text ? ` ${qn.label.replace(/ \(.*\)$/, "")} attached and read.` : ` ${qn.label.replace(/ \(.*\)$/, "")} attached, but no text could be read from it (it may be a scanned image).`;
     const fills = CERT_FILLS[qn.key];
     if (!fills) continue;
-    const d = parseCertificate(await pdfText(new Uint8Array(await f.arrayBuffer())));
+    const d = parseCertificate(await pdfText(bytes));
     const read = (Object.keys(fills) as (keyof typeof fills)[]).filter((k) => d[k]);
     for (const k of read) filled[fills[k]] = d[k]!;
     const names = { body: "certifying body", number: "certificate number", issued: "issue date", expires: "expiry date" };
-    note = read.length ? ` Read from the certificate: ${read.map((k) => names[k]).join(", ")}. Please check them.`
+    note += read.length ? ` Read from the certificate: ${read.map((k) => names[k]).join(", ")}. Please check them.`
       : " The certificate is attached, but no details could be read from it (it may be a scanned image). Please fill them in.";
   }
   for (const qn of section.questions) {

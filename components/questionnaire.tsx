@@ -49,9 +49,9 @@ export function Questionnaire({ answers, s, base, clientId, readOnly, portal, up
                 ) : qn.type === "file" ? (
                   <>
                     {(v as { file_id?: string } | undefined)?.file_id && (
-                      <p className="small" style={{ margin: "0 0 6px" }}>Attached: <a href={`/files/${(v as { file_id: string }).file_id}`}>{(v as unknown as { name: string }).name}</a>. Attach a new PDF to replace it.</p>
+                      <p className="small" style={{ margin: "0 0 6px" }}>Attached: <a href={`/files/${(v as { file_id: string }).file_id}`}>{(v as unknown as { name: string }).name}</a>. Attach a new {qn.word ? "file" : "PDF"} to replace it.</p>
                     )}
-                    <input type="file" name={qn.key} accept=".pdf,application/pdf" />
+                    <input type="file" name={qn.key} accept={qn.word ? ".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" : ".pdf,application/pdf"} />
                   </>
                 ) : qn.type === "textarea" || qn.type === "list" ? (
                   <textarea name={qn.key} defaultValue={Array.isArray(v) ? v.join("\n") : (v as string) ?? ""} />

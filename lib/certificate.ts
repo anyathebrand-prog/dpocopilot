@@ -64,6 +64,19 @@ export function parseCertificate(text: string): CertDetails {
 }
 
 /** Plain text of a PDF ("" for scanned/image-only PDFs or unreadable files). */
+/** Plain text of a Word .docx (paragraphs joined by newlines); "" if it can't be read. */
+export async function docxText(bytes: Uint8Array): Promise<string> {
+  try {
+    const JSZip = (await import("jszip")).default;
+    const xml = await (await JSZip.loadAsync(bytes)).file("word/document.xml")?.async("string");
+    if (!xml) return "";
+    return xml.split(/<\/w:p>/).map((p) => [...p.matchAll(/<w:t[^>]*>([^<]*)<\/w:t>/g)].map((m) => m[1]).join(""))
+      .filter(Boolean).join("\n").replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&apos;/g, "'");
+  } catch {
+    return "";
+  }
+}
+
 export async function pdfText(bytes: Uint8Array): Promise<string> {
   try {
     const { extractText, getDocumentProxy } = await import("unpdf");
