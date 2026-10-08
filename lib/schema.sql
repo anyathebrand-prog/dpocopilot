@@ -789,3 +789,7 @@ do $$ begin
     alter table firms add constraint firms_plan_check check (plan in ('solo','firm'));
   end if;
 end $$;
+
+-- Data processor / third-party risk assessments (TPRA) join LIAs and transfer assessments.
+alter table assessments drop constraint if exists assessments_kind_check;
+alter table assessments add constraint assessments_kind_check check (kind in ('lia','tia','tpra'));

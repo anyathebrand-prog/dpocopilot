@@ -5,7 +5,7 @@ import { q, one } from "@/lib/db";
 import { str, flash } from "@/lib/form";
 import { answersOf } from "@/lib/data";
 import { list } from "@/lib/questionnaire";
-import { KINDS, prefill, type Kind } from "@/lib/assessments";
+import { KINDS, RATED, prefill, type Kind } from "@/lib/assessments";
 import { riskLevel } from "@/lib/rules";
 import { Flash, Field, Hidden, Chip, Empty } from "@/components/ui";
 import { Submit } from "@/components/client";
@@ -34,9 +34,9 @@ export default async function Assessments({ params, searchParams }: { params: Pr
   if (!k) notFound();
   const { client } = await requireClient(clientId);
   const rows = await q(`select a.*, r.purpose from assessments a left join ropa_entries r on r.id = a.ropa_entry_id where a.client_id = $1 and a.kind = $2 order by a.assessment_year desc, a.created_at desc`, [clientId, kind]);
-  // Suggest the activities that need one: legitimate interest (LIA) or transfers outside Nigeria (TIA).
-  const ropa = await q(`select id, purpose, lawful_basis, has_transfer from ropa_entries where client_id = $1 and state = 'active' order by purpose`, [clientId]);
-  const needs = ropa.filter((r) => (kind === "lia" ? r.lawful_basis === "legitimate_interest" : r.has_transfer));
+  // Suggest the activities that need one: legitimate interest (LIA), transfers outside Nigeria (TIA), third-party recipients (TPRA).
+  const ropa = await q(`select id, purpose, lawful_basis, has_transfer, recipients from ropa_entries where client_id = $1 and state = 'active' order by purpose`, [clientId]);
+  const needs = ropa.filter((r) => (kind === "lia" ? r.lawful_basis === "legitimate_interest" : kind === "tpra" ? !!r.recipients?.trim() : r.has_transfer));
   const b = `/app/clients/${clientId}/assessments/${kind}`;
   return (
     <>
@@ -45,13 +45,13 @@ export default async function Assessments({ params, searchParams }: { params: Pr
       <Flash sp={sp} />
       {rows.length === 0 ? <Empty><p>No {k.name.toLowerCase()}s yet.</p></Empty> : (
         <table className="register">
-          <thead><tr><th>Assessment</th><th className="num">Year</th><th>Activity</th>{kind === "tia" && <th>Risk</th>}<th>Outcome</th><th>Status</th></tr></thead>
+          <thead><tr><th>Assessment</th><th className="num">Year</th><th>Activity</th>{RATED.includes(kind as Kind) && <th>Risk</th>}<th>Outcome</th><th>Status</th></tr></thead>
           <tbody>{rows.map((r) => (
             <tr key={r.id}>
               <td><Link href={`${b}/${r.id}`}>{r.title}</Link></td>
               <td data-label="Year" className="num">{r.assessment_year}</td>
               <td data-label="Activity">{r.purpose ?? "—"}</td>
-              {kind === "tia" && <td data-label="Risk">{r.likelihood && r.impact ? `${r.likelihood * r.impact} (${riskLevel(r.likelihood * r.impact)})` : "—"}</td>}
+              {RATED.includes(kind as Kind) && <td data-label="Risk">{r.likelihood && r.impact ? `${r.likelihood * r.impact} (${riskLevel(r.likelihood * r.impact)})` : "—"}</td>}
               <td data-label="Outcome" className="small">{r.outcome ?? "—"}</td>
               <td data-label="Status"><Chip status={r.status === "approved" ? "approved" : "draft"} /></td>
             </tr>

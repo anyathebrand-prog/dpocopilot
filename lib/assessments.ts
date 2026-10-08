@@ -3,7 +3,13 @@
 import { LAWFUL_BASIS, type Ropa } from "./templates";
 import { riskLevel, fmtDate } from "./rules";
 
-export type Kind = "lia" | "tia";
+export type Kind = "lia" | "tia" | "tpra";
+/** Kinds with a likelihood × impact risk rating. */
+export const RATED: Kind[] = ["tia", "tpra"];
+/** Kinds with an evidence question that takes attachments. */
+export const ATTACH: Kind[] = ["tia", "tpra"];
+/** Number for the section after the last numbered one (risk rating or outcome). */
+export const nextNo = (k: { sections: { title: string }[] }) => (parseInt(k.sections.at(-1)!.title) || k.sections.length) + 1;
 type Q = { key: string; label: string; help?: string; type?: "choice"; options?: string[] };
 type Section = { title: string; questions: Q[] };
 type Pre = { org: string; ropa: Ropa | null; countries: string[] };
@@ -114,6 +120,49 @@ export const KINDS: Record<Kind, { name: string; short: string; intro: string; o
       ] },
     ],
   },
+  tpra: {
+    name: "Data Processor Third Party Risk Assessment", short: "Third-party risk",
+    intro: "Due diligence on a data processor or other third party that receives personal data, under NDPA s.29 (processors), s.39 (security) and s.40 (breach), and the GAID: who they are, what they process, their controls and contract, and the residual risk.",
+    outcomes: ["Approve", "Approve with conditions", "Reject or terminate"],
+    sections: [
+      { title: "1. Processor and service", questions: [
+        { key: "vendor", label: "Third party / processor name" },
+        { key: "service", label: "Service provided and the processing it involves" },
+        { key: "role", label: "Role under the NDPA", type: "choice", options: ["Data processor", "Sub-processor", "Joint controller", "Independent controller"] },
+        { key: "contract", label: "Contract reference, start and end dates" },
+        { key: "location", label: "Where the data is hosted or accessed from (Nigeria / outside Nigeria, provider, region)" },
+        { key: "business_owner", label: "Business owner of the relationship (name, department)" },
+      ] },
+      { title: "2. Personal data processed", questions: [
+        { key: "data", label: "Categories of personal data and data subjects" },
+        { key: "volume", label: "Volume and frequency (number of records, continuous or one-off)" },
+        { key: "sensitive", label: "Sensitive personal data or children's data involved?", type: "choice", options: ["No", "Yes – sensitive personal data", "Yes – children's data", "Yes – both"] },
+        { key: "access", label: "How the third party accesses the data (hosted copy, remote access, on-site, data transfer)" },
+        { key: "purpose", label: "Purpose, and is it limited to the client's instructions?" },
+      ] },
+      { title: "3. Due diligence", questions: [
+        { key: "standing", label: "Legal standing: CAC registration, NDPC registration (if a DCPMI), DPO contact" },
+        { key: "certifications", label: "Security certifications (ISO/IEC 27001, SOC 2, PCI DSS, NDPC-recognised) and expiry" },
+        { key: "security", label: "Security controls: encryption at rest and in transit, access control, MFA, logging, vulnerability management" },
+        { key: "people", label: "Staff vetting, confidentiality undertakings and data protection training" },
+        { key: "subprocessors", label: "Sub-processors used, where they are, and how the client approves changes" },
+        { key: "transfers", label: "Transfers outside Nigeria and the safeguard relied on (NDPA ss.41–43)" },
+        { key: "breach", label: "Breach history in the last 3 years and notification commitment to the client (hours)" },
+        { key: "resilience", label: "Backups, business continuity and disaster recovery" },
+        { key: "exit", label: "Return or deletion of data at the end of the contract, with certificate" },
+        { key: "evidence", label: "Evidence reviewed (questionnaire, certificates, audit reports, DPA, penetration test summary)" },
+      ] },
+      { title: "4. Contractual safeguards (NDPA s.29)", questions: [
+        { key: "dpa", label: "Data processing agreement in place?", type: "choice", options: ["Yes – signed", "In negotiation", "No"] },
+        { key: "dpa_terms", label: "Does it cover: instructions only, confidentiality, security, sub-processor consent, assistance with rights and DPIAs, breach notice, audit rights, deletion or return?" },
+        { key: "liability", label: "Liability, indemnity and insurance for data protection failures" },
+      ] },
+      { title: "5. Remediation and review", questions: [
+        { key: "gaps", label: "Gaps found and the actions required of the third party (owner, due date)" },
+        { key: "next_review", label: "Next review date (at least annually, and on contract renewal or incident)" },
+      ] },
+    ],
+  },
 };
 
 const TBC = "[To be completed]";
@@ -135,6 +184,17 @@ export function prefill(kind: Kind, p: Pre): Record<string, string> {
     nature: r ? `${or(r.data_categories)} about ${or(r.data_subjects)}.${r.involves_sensitive ? " Includes sensitive personal data: legitimate interest is not an appropriate basis (NDPA s.30); stop and reassess." : ""}` : TBC,
     vulnerable: r && VULNERABLE.test(r.data_subjects ?? "") ? `Yes: ${r.data_subjects}. Enhanced assessment needed.` : TBC,
     dpia: "To be determined",
+  };
+  if (kind === "tpra") return {
+    vendor: or(r?.recipients),
+    service: r ? `Supports ${r.purpose.toLowerCase()}. ${TBC}` : TBC,
+    role: "Data processor",
+    business_owner: or(r?.department),
+    location: r ? (r.has_transfer ? `Outside Nigeria${p.countries.length ? ` (${p.countries.join(", ")})` : ""}. ${TBC}` : `Nigeria. ${TBC}`) : TBC,
+    data: r ? `${or(r.data_categories)} about ${or(r.data_subjects)}` : TBC,
+    sensitive: r?.involves_sensitive ? "Yes – sensitive personal data" : "",
+    purpose: r?.purpose ?? TBC,
+    transfers: r ? (r.has_transfer ? `Yes. Safeguard: ${r.transfer_safeguard ?? TBC}` : "None recorded in the RoPA.") : TBC,
   };
   return {
     destination: p.countries.length ? p.countries.join(", ") : TBC,
@@ -159,8 +219,8 @@ export function assessmentHtml(a: { kind: Kind; title: string; assessment_year: 
     <tr><td class="k">Status</td><td>${a.status === "approved" ? `Approved${a.approver ? ` by ${esc(a.approver)}` : ""}${a.approved_at ? ` on ${fmtDate(new Date(a.approved_at).toISOString().slice(0, 10))}` : ""}` : "Draft"}</td></tr></table>
   <p class="note">${esc(k.intro)}</p>
   ${k.sections.map((s) => `<h2>${esc(s.title)}</h2><table>${s.questions.map((q) => `<tr><td class="k">${esc(q.label)}</td><td>${esc(a.answers[q.key] || TBC)}</td></tr>`).join("")}</table>`).join("")}
-  ${a.kind === "tia" ? `<h2>6. Risk rating</h2><table><tr><td class="k">Likelihood × impact</td><td>${score ? `${a.likelihood} × ${a.impact} = <b>${score} (${riskLevel(score)})</b>` : TBC}</td></tr></table>` : ""}
-  <h2>${a.kind === "tia" ? "7" : "4"}. Outcome</h2><p><b>${esc(a.outcome || TBC)}</b></p>
+  ${RATED.includes(a.kind) ? `<h2>${nextNo(k)}. Risk rating</h2><table><tr><td class="k">Likelihood × impact</td><td>${score ? `${a.likelihood} × ${a.impact} = <b>${score} (${riskLevel(score)})</b>` : TBC}</td></tr></table>` : ""}
+  <h2>${nextNo(k) + (RATED.includes(a.kind) ? 1 : 0)}. Outcome</h2><p><b>${esc(a.outcome || TBC)}</b></p>
   ${a.answers.outcome_notes ? `<p>${esc(a.answers.outcome_notes)}</p>` : ""}
   <table><tr><th>Role</th><th>Name</th><th style="width:25%">Signature</th><th style="width:15%">Date</th></tr><tr><td>DPO</td><td></td><td></td><td></td></tr><tr><td>Approver</td><td>${esc(a.approver ?? "")}</td><td></td><td></td></tr></table>`;
   return { title: `${o.org} ${k.name} - ${a.title}`, body };

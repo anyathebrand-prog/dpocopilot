@@ -3,7 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { requireClient, audit } from "@/lib/auth";
 import { q, one } from "@/lib/db";
 import { str, flash } from "@/lib/form";
-import { KINDS, type Kind } from "@/lib/assessments";
+import { KINDS, RATED, ATTACH, nextNo, type Kind } from "@/lib/assessments";
 import { riskLevel } from "@/lib/rules";
 import { Flash, Hidden, Chip } from "@/components/ui";
 import { Submit } from "@/components/client";
@@ -81,7 +81,7 @@ export default async function Assessment({ params, searchParams }: { params: Pro
                   {qn.type === "choice"
                     ? <select name={qn.key} defaultValue={a.answers[qn.key] ?? ""} style={{ display: "block", width: "auto" }}><option value="">–</option>{qn.options!.map((o) => <option key={o}>{o}</option>)}</select>
                     : <textarea name={qn.key} rows={2} defaultValue={a.answers[qn.key] ?? ""} style={{ display: "block" }} />}
-                  {kind === "tia" && qn.key === "evidence" && (
+                  {ATTACH.includes(kind as Kind) && qn.key === "evidence" && (
                     <span style={{ display: "block", marginTop: 6 }}>
                       {files.map((f) => <span key={f.id} style={{ display: "block" }}><a href={`/files/${f.id}`}>{f.original_name}</a> <span className="meta">({Math.ceil(Number(f.size_bytes) / 1024)} KB)</span></span>)}
                       <span className="meta" style={{ display: "block" }}>Attach documents (PDF, Word, Excel or photos, up to 25 MB each). They upload when you save.</span>
@@ -92,9 +92,9 @@ export default async function Assessment({ params, searchParams }: { params: Pro
               ))}
             </section>
           ))}
-          {kind === "tia" && (
+          {RATED.includes(kind as Kind) && (
             <section className="panel" style={{ marginBottom: 16 }}>
-              <h3 style={{ marginTop: 0 }}>6. Risk rating</h3>
+              <h3 style={{ marginTop: 0 }}>{nextNo(k)}. Risk rating</h3>
               <div className="row" style={{ alignItems: "flex-end" }}>
                 <label className="small">Likelihood (1–5) <select name="likelihood" defaultValue={a.likelihood ?? ""} style={{ display: "block", width: "auto" }}><option value="">–</option>{scale.map((n) => <option key={n}>{n}</option>)}</select></label>
                 <label className="small">Impact (1–5) <select name="impact" defaultValue={a.impact ?? ""} style={{ display: "block", width: "auto" }}><option value="">–</option>{scale.map((n) => <option key={n}>{n}</option>)}</select></label>
@@ -103,7 +103,7 @@ export default async function Assessment({ params, searchParams }: { params: Pro
             </section>
           )}
           <section className="panel" style={{ marginBottom: 16 }}>
-            <h3 style={{ marginTop: 0 }}>{kind === "tia" ? "7" : "4"}. Outcome</h3>
+            <h3 style={{ marginTop: 0 }}>{nextNo(k) + (RATED.includes(kind as Kind) ? 1 : 0)}. Outcome</h3>
             {k.outcomes.map((o) => <label key={o} className="check"><input type="radio" name="outcome" value={o} defaultChecked={a.outcome === o} />{o}</label>)}
             <label className="small" style={{ display: "block", marginTop: 8 }}>Reasons and conditions
               <textarea name="outcome_notes" rows={3} defaultValue={a.answers.outcome_notes ?? ""} style={{ display: "block" }} />
