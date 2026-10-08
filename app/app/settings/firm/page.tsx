@@ -11,6 +11,7 @@ const FIELDS: [key: string, label: string, help?: string][] = [
   ["website", "Website"],
   ["email", "Email"],
   ["phone", "Phone"],
+  ["rc_number", "RC number", "CAC registration number, printed on letterheads."],
   ["ndpc_licence_no", "NDPC DPCO licence number", "Printed on the audit verification statement."],
   ["signatory_name", "Report signatory", "The person who signs audit reports, e.g. Dr. Ivan Anya."],
   ["signatory_credentials", "Signatory credentials", "e.g. FIIM, CDPO, CISA"],

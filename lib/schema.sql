@@ -778,3 +778,6 @@ alter table proposals add column if not exists tier text;
 alter table proposals add column if not exists accountable_title text;
 alter table proposals add column if not exists duration_months int;
 alter table proposals add column if not exists fin jsonb not null default '{}';
+
+-- Firm RC (CAC registration) number, printed on letterheads.
+alter table firms add column if not exists rc_number text;

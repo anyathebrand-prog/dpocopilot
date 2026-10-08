@@ -352,24 +352,52 @@ export function proposalHtml(p: Proposal, firm: any) {
   return { title: `Proposal ${p.number} - ${p.client_name}`, css: CSS(footer) + T.css, body };
 }
 
+/** Cover letter in the DPCO's proposal delivery letter format (blog/Prosal_Delivery_Letter01.docx), with both logos. */
 export function coverLetterHtml(p: Proposal, firm: any) {
-  const T = theme(p, firm), m = money(p), date = fmtDate(todayWAT()), org = esc(p.client_name), months = p.duration_months ?? 12;
-  const salutation = p.contact_name ? `Dear ${esc(p.contact_name)},` : "Dear Sir/Madam,", units0 = units(p.departments).length;
+  const T = theme(p, firm), m = money(p), org = esc(p.client_name), months = p.duration_months ?? 12;
+  const us = units(p.departments), champions = us.length, board = p.sector === "Education" || p.sector === "Government or public sector" ? "Governing Council" : "Board of Directors";
+  const accountable = esc(p.accountable_title || "Chief Executive Officer"), addressee = esc(p.contact_title || p.accountable_title || "Managing Director");
+  const tier = p.tier && p.tier !== "TBC" ? TIERS[p.tier] : null, svc = (re: RegExp) => m.lines.some((l) => re.test(l.service));
+  const words: string[] = p.client_name.split(/\s+/), caps = words.filter((w) => /^[A-Z]/.test(w) && !/^(Ltd|Limited|Plc|PLC)\.?$/.test(w));
+  const short = esc(caps.length > 2 ? caps.map((w) => w[0]).join("") : p.client_name);
+  const requests = [
+    `establish the Office of the Data Protection Officer and appoint a suitably qualified DPO reporting to the ${accountable}, with direct escalation rights to the ${board};`,
+    `issue an engagement letter to ${esc(firm.name)} as ${org}'s Data Protection Compliance Organisation (DPCO) to deliver the programme and provide guidance;`,
+    ...(champions ? [`designate ${champions} Data Protection Champion${champions === 1 ? "" : "s"} across ${us.length > 4 ? "the departments and key directorates" : us.map(esc).join(", ")}, on the terms of reference in the proposal;`] : []),
+    `approve the Year 1 budget of ${NGN(m.total)}${m.vat ? " (including VAT)" : ""};`,
+    `mandate ${svc(/Registration/) ? `completion of ${org}'s DCPMI registration with the NDPC` : "confirmation of its registration status with the NDPC"}${svc(/CAR/) ? " and the filing of its first Compliance Audit Return" : ""}.`,
+  ];
   const body = `
-<table><tr><td style="width:50%">${T.firmLogo}</td><td style="text-align:right">${T.clientLogo}</td></tr></table>
-<table><tr><td style="background:${T.P};color:${T.on};padding:14px"><p style="margin:0;color:${T.on};font-size:16pt"><b>${esc(firm.name)}</b></p>
-  <p style="margin:2px 0 0;color:${T.on}">${esc([firm.address, [firm.phone, firm.email].filter(Boolean).join(" · "), firm.website].filter(Boolean).join(" | "))}</p></td></tr></table>
-<p>${date}</p>
-<p>Our ref: ${esc(p.number)}</p>
-<p>${p.contact_name ? `${esc(p.contact_name)}${p.contact_title ? `<br>${esc(p.contact_title)}` : ""}<br>` : ""}<b>${org}</b><br>${esc(p.address).replace(/\n/g, "<br>")}<br>${esc(p.email)}</p>
-<p>${salutation}</p>
-${T.h(3, "PROPOSAL FOR A DATA PROTECTION COMPLIANCE PROGRAMME UNDER THE NIGERIA DATA PROTECTION ACT 2023 AND THE GAID 2025")}
-<p>We are pleased to submit our proposal to implement a data protection compliance programme across ${org}, in line with the Nigeria Data Protection Act 2023 (NDPA) and the General Application and Implementation Directive (GAID) 2025${SECTOR_REGS[p.sector ?? ""]?.length ? `, together with the regulation that applies to the ${esc((p.sector ?? "").toLowerCase())} sector` : ""}.</p>
-<p>Since GAID took effect on 19 September 2025, organisations must be able to demonstrate compliance: registration with the Nigeria Data Protection Commission, a certified Data Protection Officer, a documented compliance audit, and an annual Compliance Audit Return filed through a licensed DPCO by 31 March. Our proposal sets out a ${months}-month programme that puts these in place and builds the capability to sustain them — a certified DPO reporting to the ${esc(p.accountable_title || "Chief Executive Officer")}, ${units0 ? `${units0} trained Data Protection Champions across your departments` : "a trained Data Protection Champion network"}, a complete Record of Processing Activities, an adopted policy suite and a filed CAR.</p>
-<p>The total investment is <b>${NGN(m.subtotal)}</b> excluding VAT${m.vat ? ` (${NGN(m.total)} including VAT)` : ""}, covering ${m.lines.map((l) => esc(l.service)).join(", ")}.</p>
-<p>${esc(firm.name)} is a Data Protection Compliance Organisation licensed by the NDPC${firm.ndpc_licence_no ? ` (Licence ${esc(firm.ndpc_licence_no)})` : ""}. We would welcome the opportunity to present this proposal to Management. It is valid for ${p.validity_days} days from the date of issue.</p>
+<table><tr>
+  <td style="width:22%">${T.firmLogo || `<b style="color:${T.P}">${esc(firm.name)}</b>`}</td>
+  <td><p style="margin:0;color:${T.P}"><b>${esc(firm.name)}</b></p>
+    <p style="margin:0;font-size:8.5pt">${[firm.address, firm.email, firm.website, firm.phone, firm.rc_number ? `RC: ${firm.rc_number}` : null].filter(Boolean).map(esc).join("<br>")}</p></td>
+  <td style="width:22%;text-align:right">${T.clientLogo}<p style="margin:4px 0 0;font-size:8pt;color:${T.P}"><b>DPCO</b>${firm.ndpc_licence_no ? ` · ${esc(firm.ndpc_licence_no)}` : ""}</p></td>
+</tr></table>
+<table><tr><td style="background:${T.P};padding:2px"></td></tr></table>
+<p>Ref: ${esc(p.number)}<br>${fmtDate(todayWAT())}</p>
+<p>${p.contact_name && p.contact_title ? `${esc(p.contact_name)}<br>${esc(p.contact_title)}` : `The ${addressee}`}<br>${org}<br>${esc(p.address).replace(/\n/g, "<br>")}</p>
+<p>Dear ${addressee},</p>
+<p><b><u>RE: DATA PROTECTION COMPLIANCE PROPOSAL FOR ${org.toUpperCase()} — TRANSMITTAL FOR MANAGEMENT ENDORSEMENT</u></b></p>
+<p>I am pleased to transmit for your consideration the attached Data Protection Compliance Proposal for ${org} (Ref. ${esc(p.number)}), prepared in response to ${org}'s obligations under the Nigeria Data Protection Act, 2023 (NDPA) and the General Application and Implementation Directive, 2025 (GAID), issued by the Nigeria Data Protection Commission (NDPC).</p>
+<p>The GAID took effect on 19 September 2025 and now replaces the NDPR 2019 in its entirety. Because ${org} processes the personal data of ${p.subjects_count ? `some ${N(p.subjects_count)} data subjects` : "well over 200 data subjects in any six-month period"}${p.sector && p.sector !== "Other" ? `, and operates in the ${esc(p.sector.toLowerCase())} sector` : ""}, ${short} should proceed on the working assumption that it is a Data Controller/Processor of Major Importance (DCPMI)${tier ? `, most likely in the ${tier} band` : ""}. That classification carries three immediate, non-discretionary duties: registration with the NDPC, appointment of a Data Protection Officer, and the annual filing of a Compliance Audit Return.</p>
+<p>The proposal recommends a right-sized governance model rather than a large new bureaucracy: a single, appropriately empowered Data Protection Officer reporting administratively to the ${accountable}, with a direct escalation line to the ${board}${champions ? `, supported by ${champions} Data Protection Champion${champions === 1 ? "" : "s"} drawn from existing staff across ${us.length > 4 ? `${us.slice(0, 4).map(esc).join(", ")} and other units` : us.map(esc).join(", ")}` : ""}. Delivery is sequenced over ${months} month${months === 1 ? "" : "s"} in six phases, so that a defensible baseline of compliance is reached early while the fuller programme is built out alongside normal operations.</p>
+${T.h(2, "Financial Summary")}
+<p>The budget is set out in full at Section 09 of the proposal and summarised below. All figures are in Nigerian Naira and remain subject to final approval by Management${board === "Governing Council" ? " and the Council" : ""}.</p>
+<table>${T.head([["Budget Line"], ["Year 1 (Set-Up)", "26%"]])}
+${m.lines.map((l) => `<tr><td>${esc(l.service)}${l.description ? ` (${esc(l.description)})` : ""}</td><td style="text-align:right">${NGN(l.amount)}</td></tr>`).join("")}
+${m.vat ? `<tr class="sub"><td>Subtotal</td><td style="text-align:right">${NGN(m.subtotal)}</td></tr><tr class="sub"><td>VAT (${Number(p.vat_rate)}%)</td><td style="text-align:right">${NGN(m.vatAmt)}</td></tr>` : ""}
+<tr><td style="background:${T.P};color:${T.on}"><b>TOTAL</b></td><td style="background:${T.P};color:${T.on};text-align:right"><b>${NGN(m.total)}</b></td></tr></table>
+<p>Set against this, Section 48 of the NDPA exposes ${org} to an administrative penalty of up to ₦10,000,000 or 2% of annual gross revenue — whichever is greater — for each instance of default, in addition to compensation payable to affected data subjects and orders to surrender any profit derived from a violation. For an organisation of ${short}'s scale, 2% of annual gross revenue is likely on its own to exceed the entire Year 1 budget proposed here. The investment is, on any reasonable view, materially cheaper than the exposure it removes.</p>
+${T.h(2, "Request")}
+<p>We respectfully request the ${addressee}'s endorsement of this proposal and its onward presentation to the ${board}, seeking approval to:</p>
+<ol>${requests.map((r) => `<li>${r}</li>`).join("")}</ol>
+<p>A detailed programme workplan will be shared upon approval as the next step.</p>
+<p>We look forward to ${org}'s prompt attention to this request and to commencing this important engagement together.</p>
+<p>Please accept the assurances of my highest regard.</p>
 <p>Yours faithfully,</p>
-<p style="margin-top:36px"><b>${esc(firm.signatory_name ?? "")}</b>${firm.signatory_credentials ? `, ${esc(firm.signatory_credentials)}` : ""}<br>${esc(firm.signatory_title ?? "")}<br>For: ${esc(firm.name)}</p>
-<p class="note">Enclosure: Data Protection Compliance Programme proposal ${esc(p.number)}</p>`;
+<p><b>For: ${esc(firm.name).toUpperCase()}</b></p>
+<p style="margin-top:36px"><b>${esc(firm.signatory_name ?? "")}</b>${firm.signatory_credentials ? `, ${esc(firm.signatory_credentials)}` : ""}<br>${esc(firm.signatory_title ?? "")}</p>
+<p class="note">Enclosure: Data Protection Compliance Proposal ${esc(p.number)}</p>`;
   return { title: `Cover Letter ${p.number} - ${p.client_name}`, css: CSS(`${firm.name} · ${p.number}`) + T.css, body };
 }
