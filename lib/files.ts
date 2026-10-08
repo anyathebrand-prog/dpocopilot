@@ -14,7 +14,9 @@ const ALLOWED: Record<string, string> = {
   pdf: "application/pdf", doc: "application/msword", docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
   xls: "application/vnd.ms-excel", xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", csv: "text/csv",
   txt: "text/plain", png: "image/png", jpg: "image/jpeg", jpeg: "image/jpeg", heic: "image/heic",
+  mp4: "video/mp4", mov: "video/quicktime", webm: "video/webm",
 };
+const VIDEO = new Set(["mp4", "mov", "webm"]), MAX_VIDEO = 100 * 1024 * 1024;
 export const ACCEPT = Object.keys(ALLOWED).map((e) => "." + e).join(",");
 
 /** clamd INSTREAM scan (NFR8). Returns null when no scanner is configured. */
@@ -49,8 +51,8 @@ export async function storeFile(u: User, client: { id: string; firm_id: string }
   const fail = (error: string) => ({ error });
   if (!file || !file.size) return fail("Choose a file.");
   const ext = file.name.split(".").pop()?.toLowerCase() ?? "";
-  if (!ALLOWED[ext]) return fail(`${file.name}: this file type isn't allowed. Use PDF, Word, Excel, CSV, text or a photo.`);
-  if (file.size > MAX) return fail(`${file.name} is larger than 25 MB.`);
+  if (!ALLOWED[ext]) return fail(`${file.name}: this file type isn't allowed. Use PDF, Word, Excel, CSV, text, a photo or a video (MP4, MOV, WebM).`);
+  if (VIDEO.has(ext) ? file.size > MAX_VIDEO : file.size > MAX) return fail(`${file.name} is larger than ${VIDEO.has(ext) ? "100" : "25"} MB.`);
   const buf = Buffer.from(await file.arrayBuffer());
   let clean: boolean | null;
   try { clean = await clamScan(buf); } catch { return fail("The virus scanner is unavailable. Try again shortly."); }

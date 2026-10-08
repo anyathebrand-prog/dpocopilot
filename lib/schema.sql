@@ -706,3 +706,32 @@ alter table invoices add column if not exists sent_at timestamptz;
 
 -- Receipt issued automatically when an invoice is marked paid (kept if the invoice is reopened and paid again).
 alter table invoices add column if not exists receipt_no text;
+
+-- Capacity building plan: scheduled training sessions per client, with evidence files (schedules, attendance, photos, videos).
+create table if not exists trainings (
+  id uuid primary key default gen_random_uuid(),
+  firm_id uuid not null references firms,
+  client_id uuid not null references clients,
+  kind text not null check (kind in ('management','dpo_certification','cpd','champion','general_staff','role_based')),
+  title text,
+  starts_on date not null,
+  ends_on date,
+  start_time text,
+  mode text,
+  venue text,
+  facilitator text,
+  audience text,
+  planned_participants int check (planned_participants >= 0),
+  actual_participants int check (actual_participants >= 0),
+  status text not null default 'scheduled' check (status in ('scheduled','completed','cancelled')),
+  completed_on date,
+  notes text,
+  created_by uuid not null references users,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+alter table files add column if not exists training_id uuid references trainings;
+alter table files add column if not exists evidence_kind text;
+-- Videos may be up to 100 MB (other files stay at 25 MB, enforced in lib/files.ts).
+alter table files drop constraint if exists files_size_bytes_check;
+alter table files add constraint files_size_bytes_check check (size_bytes > 0 and size_bytes <= 104857600);

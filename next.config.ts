@@ -7,7 +7,7 @@ const config: NextConfig = {
   serverExternalPackages: ["@electric-sql/pglite", "pg", "unpdf", "exceljs", "docx"],
   turbopack: { root: __dirname },
   experimental: {
-    serverActions: { bodySizeLimit: "25mb" },
+    serverActions: { bodySizeLimit: "100mb" }, // training videos (lib/files.ts caps other files at 25 MB)
     // Off: on Windows the dev server is often force-stopped, which left this cache corrupt (every nested route 404ed).
     turbopackFileSystemCacheForDev: false,
   },

@@ -15,6 +15,7 @@ export default async function ClientLayout({ children, params }: { children: Rea
       (select count(*)::int from dsars where client_id = $1 and status = 'open' and deadline_on < $2) as dsars_overdue,
       (select count(*)::int from gap_findings where client_id = $1 and state = 'open') as gaps,
       (select count(*)::int from evidence_requests where client_id = $1 and status = 'submitted') as evidence_waiting,
+      (select count(*)::int from trainings where client_id = $1 and status = 'scheduled' and starts_on < $2) as training_due,
       (select count(*)::int from remediation_actions where client_id = $1 and status <> 'completed' and audit_year = (select car_audit_year from clients where id = $1)) as remediation_open`, [clientId, todayWAT()]);
   const b = `/app/clients/${clientId}`;
   const groups: [string | null, [string, string, number?][]][] = [
@@ -24,6 +25,7 @@ export default async function ClientLayout({ children, params }: { children: Rea
     ["Documents and evidence", [["/documents", "Documents"], ["/evidence", "Evidence", s!.evidence_waiting]]],
     ["Respond", [["/breaches", "Breaches", s!.breaches], ["/dsars", "DSARs", s!.dsars_overdue]]],
     [null, [["/settings", "Settings"]]],
+    ["Capacity building", [["/training", "Training plan", s!.training_due]]],
     ["Billing", [["/billing", "Invoices"]]],
   ];
   return (
