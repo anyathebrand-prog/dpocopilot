@@ -24,6 +24,7 @@ export default async function ClientLayout({ children, params }: { children: Rea
     ["Documents and evidence", [["/documents", "Documents"], ["/evidence", "Evidence", s!.evidence_waiting]]],
     ["Respond", [["/breaches", "Breaches", s!.breaches], ["/dsars", "DSARs", s!.dsars_overdue]]],
     [null, [["/settings", "Settings"]]],
+    ["Billing", [["/billing", "Invoices"]]],
   ];
   return (
     <>

@@ -10,6 +10,7 @@ import { loadDpiaReport, dpiaReportHtml } from "@/lib/dpia-report";
 import { htmlToDocx } from "@/lib/docx";
 import { assessmentHtml } from "@/lib/assessments";
 import { loadLiaReport, liaReportHtml } from "@/lib/lia-report";
+import { invoiceHtml } from "@/lib/invoice";
 
 // F15 export. ponytail: PDF = print-ready HTML the browser saves as PDF; Word = HTML served as .doc, which Word opens.
 // Swap for Playwright PDF + the `docx` package (TRD §1) when tagged PDFs or native .docx become a requirement.
@@ -89,6 +90,17 @@ export async function GET(req: Request) {
     return page(r.title, r.body, format, slug(r.title), r.css);
   }
 
+  if (kind === "invoice") {
+    const id = url.searchParams.get("id") ?? "";
+    const inv = /^[0-9a-f-]{36}$/.test(id) ? await one("select * from invoices where id = $1", [id]) : null;
+    if (!inv || u.kind !== "firm" || !(await canSeeClient(inv.client_id))) return denied();
+    const firm = (await one("select * from firms where id = $1", [inv.firm_id]))!;
+    const ans = Object.fromEntries((await q("select question_key, answer from answers where client_id = $1 and question_key in ('org_legal_name','org_address','org_email','org_phone')", [inv.client_id])).map((r) => [r.question_key, r.answer]));
+    const c = (await one("select name from clients where id = $1", [inv.client_id]))!;
+    const r = invoiceHtml(inv, firm, { name: String(ans.org_legal_name || c.name), address: ans.org_address, email: ans.org_email, phone: ans.org_phone });
+    await audit(u, "export", "invoice", id, { client_id: inv.client_id, details: { format } });
+    return page(r.title, r.body, format, slug(r.title), r.css);
+  }
   if (kind === "assessment") {
     const id = url.searchParams.get("id") ?? "";
     const a = /^[0-9a-f-]{36}$/.test(id) ? await one("select a.*, u.name as approver from assessments a left join users u on u.id = a.approved_by where a.id = $1", [id]) : null;

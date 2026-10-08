@@ -679,3 +679,21 @@ create table if not exists assessments (
 
 -- Files attached to an assessment (e.g. transfer evidence: contract clauses, certifications, adequacy decisions).
 alter table files add column if not exists assessment_id uuid references assessments;
+
+-- Client invoices: line items are chosen from the DPCO service scope (lib/invoice.ts) with amounts in naira.
+create table if not exists invoices (
+  id uuid primary key default gen_random_uuid(),
+  firm_id uuid not null references firms,
+  client_id uuid not null references clients,
+  number text not null,
+  issued_on date not null,
+  due_on date,
+  lines jsonb not null,
+  vat_rate numeric not null default 0,
+  notes text,
+  status text not null default 'unpaid' check (status in ('unpaid','paid','cancelled')),
+  paid_on date,
+  created_by uuid not null references users,
+  created_at timestamptz not null default now(),
+  unique (firm_id, number)
+);
