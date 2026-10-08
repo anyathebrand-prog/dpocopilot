@@ -100,7 +100,7 @@ export function progress(a: Answers) {
   return Math.round((answered / ALL_QUESTIONS.length) * 100);
 }
 
-const SENSITIVE = new Set(SECTIONS[2].questions[0].options!.filter((o) => o.sensitive).map((o) => o.value));
+const SENSITIVE = new Set(SECTIONS.flatMap((s) => s.questions).find((q) => q.key === "categories")!.options!.filter((o) => o.sensitive).map((o) => o.value));
 
 /** FR3.4 + FR4.1: completed answers → inventory items and one proposed RoPA entry per purpose. */
 export function buildInventory(a: Answers) {
