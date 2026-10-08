@@ -7,6 +7,7 @@ import { KINDS, type Kind } from "@/lib/assessments";
 import { riskLevel } from "@/lib/rules";
 import { Flash, Hidden, Chip } from "@/components/ui";
 import { Submit } from "@/components/client";
+import { storeFile, ACCEPT } from "@/lib/files";
 
 const scale = [1, 2, 3, 4, 5];
 
@@ -29,6 +30,13 @@ async function save(fd: FormData) {
   await q("update assessments set answers = $2, likelihood = $3, impact = $4, outcome = $5, status = 'draft', approved_by = null, approved_at = null, updated_at = now() where id = $1",
     [a.id, JSON.stringify(answers), n("likelihood"), n("impact"), outcome]);
   await audit(user, "update", `assessment_${a.kind}`, a.id, { client_id: a.client_id });
+  const client = (await one<{ id: string; firm_id: string }>("select id, firm_id from clients where id = $1", [a.client_id]))!;
+  for (const f of fd.getAll("evidence_files")) {
+    if (!(f instanceof File) || !f.size) continue;
+    const r = await storeFile(user, client, f, null);
+    if ("error" in r) redirect(flash(back, `Answers saved, but the attachment failed: ${r.error}`, "error"));
+    await q("update files set assessment_id = $2 where id = $1", [r.id, a.id]);
+  }
   redirect(flash(back, a.status === "approved" ? "Saved. It's back to draft and needs approving again." : "Saved"));
 }
 
@@ -50,6 +58,7 @@ export default async function Assessment({ params, searchParams }: { params: Pro
   const a = await one("select a.*, r.purpose, u.name as approver from assessments a left join ropa_entries r on r.id = a.ropa_entry_id left join users u on u.id = a.approved_by where a.id = $1 and a.client_id = $2 and a.kind = $3",
     [/^[0-9a-f-]{36}$/.test(id) ? id : null, clientId, kind]);
   if (!a) notFound();
+  const files = await q("select id, original_name, size_bytes from files where assessment_id = $1 order by created_at", [a.id]);
   const ro = !!client.archived_at, score = a.likelihood && a.impact ? a.likelihood * a.impact : null;
   const exp = (f: string) => `/export?kind=assessment&id=${a.id}&format=${f}`;
   return (
@@ -72,6 +81,13 @@ export default async function Assessment({ params, searchParams }: { params: Pro
                   {qn.type === "choice"
                     ? <select name={qn.key} defaultValue={a.answers[qn.key] ?? ""} style={{ display: "block", width: "auto" }}><option value="">–</option>{qn.options!.map((o) => <option key={o}>{o}</option>)}</select>
                     : <textarea name={qn.key} rows={2} defaultValue={a.answers[qn.key] ?? ""} style={{ display: "block" }} />}
+                  {kind === "tia" && qn.key === "evidence" && (
+                    <span style={{ display: "block", marginTop: 6 }}>
+                      {files.map((f) => <span key={f.id} style={{ display: "block" }}><a href={`/files/${f.id}`}>{f.original_name}</a> <span className="meta">({Math.ceil(Number(f.size_bytes) / 1024)} KB)</span></span>)}
+                      <span className="meta" style={{ display: "block" }}>Attach documents (PDF, Word, Excel or photos, up to 25 MB each). They upload when you save.</span>
+                      <input type="file" name="evidence_files" multiple accept={ACCEPT} />
+                    </span>
+                  )}
                 </label>
               ))}
             </section>

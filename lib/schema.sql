@@ -676,3 +676,6 @@ create table if not exists assessments (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+-- Files attached to an assessment (e.g. transfer evidence: contract clauses, certifications, adequacy decisions).
+alter table files add column if not exists assessment_id uuid references assessments;
