@@ -13,23 +13,20 @@ export const metadata = { title: "Pricing · DPO Copilot" };
 const TIERS = [
   { key: "solo", name: "Solo DPO", who: "Independent DPOs managing a few clients", price: "Contact us", cta: "Register interest", note: "Coming later" },
   { key: "firm", name: "DPCO Firm", who: "Licensed compliance firms serving many clients", price: "On request", cta: "Request pilot access", note: "Pilot open now" },
-  { key: "ent", name: "Enterprise", who: "Large firms and in-house teams at banks, fintechs and hospitals", price: "Contact us", cta: "Register interest", note: "Coming later" },
 ] as const;
 
-// [feature, solo, firm, enterprise]
-const FEATURES: [string, boolean, boolean, boolean][] = [
-  ["Multi-client dashboard and review queue", true, true, true],
-  ["Onboarding questionnaire and data mapping", true, true, true],
-  ["RoPA, DPIA workflow and policy generator", true, true, true],
-  ["Breach management with 72-hour countdown", true, true, true],
-  ["DSAR tracker with 30-day deadlines", true, true, true],
-  ["Evidence vault and CAR readiness score", true, true, true],
-  ["Client portal with verified sign-off", true, true, true],
-  ["Copilot drafting, gap analysis and cited Q&A", true, true, true],
-  ["Team seats with Admin, Lead and Associate roles", false, true, true],
-  ["Import from your existing spreadsheets", false, true, true],
-  ["Custom onboarding", false, false, true],
-  ["Priority support", false, false, true],
+// [feature, solo, firm]
+const FEATURES: [string, boolean, boolean][] = [
+  ["Multi-client dashboard and review queue", true, true],
+  ["Onboarding questionnaire and data mapping", true, true],
+  ["RoPA, DPIA workflow and policy generator", true, true],
+  ["Breach management with 72-hour countdown", true, true],
+  ["DSAR tracker with 30-day deadlines", true, true],
+  ["Evidence vault and CAR readiness score", true, true],
+  ["Client portal with verified sign-off", true, true],
+  ["Copilot drafting, gap analysis and cited Q&A", true, true],
+  ["Team seats with Admin, Lead and Associate roles", false, true],
+  ["Import from your existing spreadsheets", false, true],
 ];
 
 const FAQ: [string, string][] = [
@@ -79,7 +76,7 @@ export default function Pricing() {
               </tbody>
             </table>
           </Reveal>
-          <p className="sp-foot">DPCO Firm is the V1 plan. The Solo DPO and Enterprise feature split is provisional.</p>
+          <p className="sp-foot">DPCO Firm is the V1 plan. The Solo DPO feature split is provisional.</p>
         </div>
       </section>
 
