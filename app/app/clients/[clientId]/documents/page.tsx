@@ -18,6 +18,10 @@ export default async function Documents({ params, searchParams }: { params: Prom
     <>
       <h2 style={{ marginTop: 0 }}>Documents</h2>
       <Flash sp={sp} />
+      <div className="panel spread" style={{ marginBottom: 16 }}>
+        <div><b>Data Protection Framework</b><div className="meta">Overarching policy and linked policies (classification, website privacy, DPIA, incident response, retention, consent), built from the onboarding answers, departments and RoPA. Aligned with the NDPA and GAID.</div></div>
+        <div className="row"><a className="btn" href={`/export?kind=framework&client=${clientId}&format=pdf`} target="_blank">PDF</a><a className="btn secondary" href={`/export?kind=framework&client=${clientId}&format=doc`}>Word</a></div>
+      </div>
       {!client.archived_at && (
         <form action={generateDocument} className="panel row" style={{ alignItems: "flex-end", marginBottom: 24 }}>
           <Hidden values={{ client_id: clientId }} />

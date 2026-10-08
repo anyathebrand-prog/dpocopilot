@@ -11,6 +11,7 @@ import { htmlToDocx } from "@/lib/docx";
 import { assessmentHtml } from "@/lib/assessments";
 import { loadLiaReport, liaReportHtml } from "@/lib/lia-report";
 import { invoiceHtml } from "@/lib/invoice";
+import { loadFramework, frameworkHtml } from "@/lib/framework";
 
 // F15 export. ponytail: PDF = print-ready HTML the browser saves as PDF; Word = HTML served as .doc, which Word opens.
 // Swap for Playwright PDF + the `docx` package (TRD §1) when tagged PDFs or native .docx become a requirement.
@@ -125,6 +126,11 @@ export async function GET(req: Request) {
   const client = await one("select name, car_audit_year from clients where id = $1", [clientId]);
   const stamp = `<p class="meta">${esc(client!.name)} · exported ${fmtWAT(new Date())} by ${esc(u.name)}</p>`;
 
+  if (kind === "framework") { // Data Protection Framework in the DPCO's framework format
+    const r = frameworkHtml(await loadFramework(clientId));
+    await audit(u, "export", "data_protection_framework", clientId, { client_id: clientId, details: { format } });
+    return page(r.title, r.body, format, slug(r.title), r.css);
+  }
   if (kind === "ropa") {
     const rows = await q("select * from ropa_entries where client_id = $1 and state = 'active' order by purpose", [clientId]);
     const cols: [string, (r: any) => string][] = [["Purpose", (r) => r.purpose], ["Department", (r) => r.department], ["Lawful basis", (r) => (r.lawful_basis ? LAWFUL_BASIS[r.lawful_basis] : "")], ["Data subjects", (r) => r.data_subjects], ["Data categories", (r) => r.data_categories],
