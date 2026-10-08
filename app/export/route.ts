@@ -9,6 +9,7 @@ import { buildTracker, loadTracker, trackerHtml, trackerXlsx } from "@/lib/remed
 import { loadDpiaReport, dpiaReportHtml } from "@/lib/dpia-report";
 import { htmlToDocx } from "@/lib/docx";
 import { assessmentHtml } from "@/lib/assessments";
+import { loadLiaReport, liaReportHtml } from "@/lib/lia-report";
 
 // F15 export. ponytail: PDF = print-ready HTML the browser saves as PDF; Word = HTML served as .doc, which Word opens.
 // Swap for Playwright PDF + the `docx` package (TRD §1) when tagged PDFs or native .docx become a requirement.
@@ -95,6 +96,11 @@ export async function GET(req: Request) {
     const c = (await one("select c.name, f.name as firm from clients c join firms f on f.id = c.firm_id where c.id = $1", [a.client_id]))!;
     const ans = await one("select answer from answers where client_id = $1 and question_key = 'org_legal_name'", [a.client_id]);
     const ropa = a.ropa_entry_id ? await one("select * from ropa_entries where id = $1", [a.ropa_entry_id]) : null;
+    if (a.kind === "lia") { // LIA report in the DPCO's LIA report format
+      const lr = liaReportHtml((await loadLiaReport(id))!);
+      await audit(u, "export", "assessment_lia", id, { client_id: a.client_id, details: { format } });
+      return page(lr.title, lr.body, format, slug(lr.title), lr.css);
+    }
     const r = assessmentHtml(a as any, { org: String(ans?.answer || c.name), firm: c.firm, ropa: ropa as any });
     await audit(u, "export", `assessment_${a.kind}`, id, { client_id: a.client_id, details: { format } });
     return page(r.title, r.body, format, slug(r.title));

@@ -4,33 +4,83 @@ import { LAWFUL_BASIS, type Ropa } from "./templates";
 import { riskLevel, fmtDate } from "./rules";
 
 export type Kind = "lia" | "tia";
-type Q = { key: string; label: string; help?: string };
+type Q = { key: string; label: string; help?: string; type?: "choice"; options?: string[] };
 type Section = { title: string; questions: Q[] };
 type Pre = { org: string; ropa: Ropa | null; countries: string[] };
+
+/** Safeguards in the LIA report (section 8): key, name, standard implementation. */
+export const LIA_SAFEGUARDS: [string, string, string][] = [
+  ["transparency", "Transparency", "Name the legitimate interest in the privacy notice; give notice at or before collection."],
+  ["objection", "Right to object", "Simple opt-out or objection route; objections assessed and recorded; processing stopped unless compelling grounds are shown."],
+  ["minimisation", "Data minimisation", "Collect only the data identified in Section 6; pseudonymise where possible."],
+  ["retention", "Retention", "Defined retention schedule with automatic deletion or review."],
+  ["security", "Security", "Access controls, encryption, logging and staff training appropriate to the risk."],
+  ["processors", "Processor oversight", "Written data processing agreements in place with all processors."],
+  ["breach", "Breach readiness", "Breach response procedure aligned to NDPC notification timelines."],
+  ["monitoring", "Monitoring", "Periodic checks that processing remains within the assessed scope."],
+];
+/** Potential impacts in the LIA report (section 7.3). */
+export const LIA_IMPACTS: [string, string][] = [["privacy", "Loss of privacy or intrusion"], ["unfair", "Unfair or discriminatory outcome"], ["financial", "Financial harm or loss of opportunity"], ["distress", "Distress or loss of control over personal data"]];
 
 export const KINDS: Record<Kind, { name: string; short: string; intro: string; outcomes: string[]; sections: Section[] }> = {
   lia: {
     name: "Legitimate Interest Assessment", short: "LIAs",
-    intro: "Records the three-part test for relying on legitimate interests as the lawful basis (NDPA s.25): purpose, necessity and balancing.",
-    outcomes: ["Legitimate interest can be relied on", "Can be relied on with the safeguards recorded", "Cannot be relied on: choose another lawful basis"],
+    intro: "The three-part test (purpose, necessity, balancing) the GAID requires where legitimate interest is relied on as the lawful basis (NDPA s.25). Follows the LIA report format.",
+    outcomes: ["Proceed", "Proceed with safeguards", "Do not proceed"],
     sections: [
+      { title: "Context and processing activity", questions: [
+        { key: "role", label: "Role under the NDPA", type: "choice", options: ["Data Controller", "Data Processor", "Joint Controller"] },
+        { key: "third_parties", label: "Third parties pursuing the interest (or None)" },
+        { key: "business_owner", label: "Business owner of the activity (name, department)" },
+        { key: "description", label: "Description of the activity, step by step" },
+        { key: "function", label: "Business function" },
+        { key: "systems", label: "Systems and tools used (applications, processors, hosting location)" },
+        { key: "frequency", label: "Start date / frequency" },
+        { key: "scale", label: "Scale of processing (number of data subjects and records)" },
+        { key: "source", label: "Source of the data (collected directly / from a third party)" },
+        { key: "retention", label: "Retention period and justification" },
+        { key: "residual", label: "Residual risk to data subjects", type: "choice", options: ["Low", "Medium", "High"] },
+        { key: "dpia", label: "DPIA required?", type: "choice", options: ["Yes", "No", "To be determined"] },
+      ] },
       { title: "1. Purpose test", questions: [
-        { key: "interest", label: "What is the legitimate interest being pursued?" },
-        { key: "benefit", label: "Who benefits from the processing, and how?", help: "The organisation, third parties, the data subjects, society." },
-        { key: "lawful_ethical", label: "Is the interest lawful and ethical, and would anyone be harmed if it were not pursued?" },
+        { key: "interest", label: "What is the specific interest being pursued?" },
+        { key: "whose", label: "Whose interest is it?" },
+        { key: "benefit", label: "What benefit does the interest bring, and to whom?" },
+        { key: "if_not", label: "What would be the impact if the processing did not go ahead?" },
+        { key: "lawful", label: "Is the interest lawful and clearly articulated?" },
+        { key: "support", label: "Does any law, code or sector guidance support the interest?" },
+        { key: "real", label: "Is the interest real and present rather than speculative?" },
+        { key: "purpose_result", label: "Purpose test outcome", type: "choice", options: ["Met", "Partly met", "Not met"] },
+        { key: "purpose_reason", label: "Reasoning (two or three sentences)" },
       ] },
       { title: "2. Necessity test", questions: [
-        { key: "achieves", label: "Does the processing actually help achieve the purpose?" },
+        { key: "achieves", label: "Does the processing actually help achieve the interest?" },
         { key: "alternatives", label: "Is there a less intrusive way to achieve the same result?" },
-        { key: "minimisation", label: "Is only the minimum personal data used?" },
+        { key: "anonymised", label: "Can the purpose be met with anonymised or pseudonymised data?" },
+        { key: "minimisation", label: "Is each data element necessary (data minimisation)?" },
+        { key: "retention_ok", label: "Is the retention period no longer than needed?" },
+        { key: "access", label: "Is access limited to those who need it?" },
+        { key: "other_basis", label: "Would another lawful basis be more appropriate?" },
+        { key: "necessity_result", label: "Necessity test outcome", type: "choice", options: ["Met", "Partly met", "Not met"] },
+        { key: "necessity_reason", label: "Reasoning (two or three sentences)" },
       ] },
       { title: "3. Balancing test", questions: [
-        { key: "nature", label: "What is the nature of the data? Is any of it sensitive, or about children or vulnerable people?" },
-        { key: "expectations", label: "Would data subjects reasonably expect this processing, given their relationship with the organisation?" },
-        { key: "impact", label: "What is the likely impact on data subjects, including any harm or distress?" },
-        { key: "safeguards", label: "What safeguards reduce the impact (transparency, opt-out, retention limits, security)?" },
-        { key: "objection", label: "How can data subjects object (NDPA s.36), and how are objections handled?" },
+        { key: "relationship", label: "Relationship with data subjects" },
+        { key: "nature", label: "Is the data private, financial, location or behavioural in nature?" },
+        { key: "vulnerable", label: "Are vulnerable individuals or children affected?" },
+        { key: "expected", label: "Would data subjects reasonably expect this processing at the time of collection?" },
+        { key: "notice", label: "Has the activity been explained in the privacy notice?" },
+        { key: "consistent", label: "Is the use consistent with the original purpose of collection?" },
+        ...LIA_IMPACTS.flatMap(([k, l]) => [
+          { key: `imp_${k}_l`, label: `${l}: likelihood`, type: "choice" as const, options: ["Low", "Med", "High"] },
+          { key: `imp_${k}_s`, label: `${l}: severity`, type: "choice" as const, options: ["Low", "Med", "High"] },
+        ]),
+        { key: "balance", label: "Balance: how the interest compares with the impact, taking the safeguards into account" },
+        { key: "balancing_result", label: "Balancing test outcome", type: "choice", options: ["Met", "Met with safeguards", "Not met"] },
+        { key: "balancing_reason", label: "Reasoning (two or three sentences)" },
       ] },
+      { title: "4. Safeguards: owner / due date", questions: LIA_SAFEGUARDS.map(([k, l]) => ({ key: `sg_${k}`, label: `${l}: owner / due date` })) },
+      { title: "5. Review", questions: [{ key: "next_review", label: "Next full review (not later than 12 months from approval)" }] },
     ],
   },
   tia: {
@@ -67,15 +117,24 @@ export const KINDS: Record<Kind, { name: string; short: string; intro: string; o
 };
 
 const TBC = "[To be completed]";
+const VULNERABLE = /child|minor|student|pupil|patient|elderly|vulnerable/i;
 const or = (v: string | null | undefined) => (v && v.trim() ? v.trim() : TBC);
 
 /** Starting answers from the linked RoPA activity and onboarding. */
 export function prefill(kind: Kind, p: Pre): Record<string, string> {
   const r = p.ropa;
   if (kind === "lia") return {
+    role: "Data Controller",
     interest: r ? `${p.org}'s interest in ${r.purpose.toLowerCase()}. ${TBC}` : TBC,
-    nature: r ? `${or(r.data_categories)} about ${or(r.data_subjects)}.${r.involves_sensitive ? " Includes sensitive personal data, which cannot rely on legitimate interests alone (NDPA s.30)." : ""}` : TBC,
-    safeguards: r?.security_measures ? `${r.security_measures}. Retention: ${or(r.retention_period)}.` : TBC,
+    whose: p.org,
+    business_owner: or(r?.department),
+    description: r?.purpose ?? TBC,
+    function: or(r?.department),
+    systems: or(r?.system_owner),
+    retention: or(r?.retention_period),
+    nature: r ? `${or(r.data_categories)} about ${or(r.data_subjects)}.${r.involves_sensitive ? " Includes sensitive personal data: legitimate interest is not an appropriate basis (NDPA s.30); stop and reassess." : ""}` : TBC,
+    vulnerable: r && VULNERABLE.test(r.data_subjects ?? "") ? `Yes: ${r.data_subjects}. Enhanced assessment needed.` : TBC,
+    dpia: "To be determined",
   };
   return {
     destination: p.countries.length ? p.countries.join(", ") : TBC,

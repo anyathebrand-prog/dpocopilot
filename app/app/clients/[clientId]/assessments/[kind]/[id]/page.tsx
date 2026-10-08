@@ -69,7 +69,9 @@ export default async function Assessment({ params, searchParams }: { params: Pro
               <h3 style={{ marginTop: 0 }}>{s.title}</h3>
               {s.questions.map((qn) => (
                 <label key={qn.key} className="small" style={{ display: "block", marginBottom: 12 }}>{qn.label}{qn.help && <span className="meta"> {qn.help}</span>}
-                  <textarea name={qn.key} rows={3} defaultValue={a.answers[qn.key] ?? ""} style={{ display: "block" }} />
+                  {qn.type === "choice"
+                    ? <select name={qn.key} defaultValue={a.answers[qn.key] ?? ""} style={{ display: "block", width: "auto" }}><option value="">–</option>{qn.options!.map((o) => <option key={o}>{o}</option>)}</select>
+                    : <textarea name={qn.key} rows={2} defaultValue={a.answers[qn.key] ?? ""} style={{ display: "block" }} />}
                 </label>
               ))}
             </section>
