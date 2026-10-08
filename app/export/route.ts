@@ -13,6 +13,7 @@ import { loadLiaReport, liaReportHtml } from "@/lib/lia-report";
 import { invoiceHtml } from "@/lib/invoice";
 import { loadFramework, frameworkHtml } from "@/lib/framework";
 import { planHtml } from "@/lib/training";
+import { projectPlanHtml } from "@/lib/project-plan";
 
 // F15 export. ponytail: PDF = print-ready HTML the browser saves as PDF; Word = HTML served as .doc, which Word opens.
 // Swap for Playwright PDF + the `docx` package (TRD §1) when tagged PDFs or native .docx become a requirement.
@@ -127,6 +128,15 @@ export async function GET(req: Request) {
   const client = await one("select name, car_audit_year from clients where id = $1", [clientId]);
   const stamp = `<p class="meta">${esc(client!.name)} · exported ${fmtWAT(new Date())} by ${esc(u.name)}</p>`;
 
+  if (kind === "project-plan") {
+    const rows = await q(`select t.*, us.name as assignee from tasks t left join memberships m on m.id = t.assignee_membership_id left join users us on us.id = m.user_id
+      where t.client_id = $1 order by coalesce(t.start_on, t.due_on) nulls last, t.created_at`, [clientId]);
+    const org = (await one("select answer from answers where client_id = $1 and question_key = 'org_legal_name'", [clientId]))?.answer || client!.name;
+    const firm = (await one("select f.* from firms f join clients c on c.firm_id = f.id where c.id = $1", [clientId]))!;
+    const r = projectPlanHtml(String(org), firm, rows);
+    await audit(u, "export", "project_plan", clientId, { client_id: clientId, details: { format } });
+    return page(r.title, r.body, format, slug(r.title), r.css);
+  }
   if (kind === "training-plan") {
     const year = /^\d{4}$/.test(url.searchParams.get("year") ?? "") ? url.searchParams.get("year")! : String(client!.car_audit_year ?? new Date().getFullYear());
     const rows = await q("select * from trainings where client_id = $1 and extract(year from starts_on) = $2 order by starts_on, created_at", [clientId, Number(year)]);

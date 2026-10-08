@@ -735,3 +735,7 @@ alter table files add column if not exists evidence_kind text;
 -- Videos may be up to 100 MB (other files stay at 25 MB, enforced in lib/files.ts).
 alter table files drop constraint if exists files_size_bytes_check;
 alter table files add constraint files_size_bytes_check check (size_bytes > 0 and size_bytes <= 104857600);
+
+-- Tasks have a start date as well as a due date, and record when they were done (project plan).
+alter table tasks add column if not exists start_on date;
+alter table tasks add column if not exists done_on date;
