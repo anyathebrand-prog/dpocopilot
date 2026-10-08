@@ -39,9 +39,11 @@ export async function signIn(fd: FormData) {
   if (u.status !== "active" || m?.status === "deactivated" || (!m && !c && u.platform_role !== "secretary") || (c && c.status !== "active"))
     redirect(flash("/sign-in", "Your access has been removed. Contact your firm administrator.", "error"));
   attempts.delete(key);
-  await createSession(u.id, !u.mfa_enabled, u.platform_role === "secretary" ? 2 : 12);
+  // DEV_SKIP_MFA=1 (never in production) also skips the code step for accounts that already enrolled.
+  const askCode = u.mfa_enabled && !(process.env.DEV_SKIP_MFA === "1" && process.env.NODE_ENV !== "production");
+  await createSession(u.id, !askCode, u.platform_role === "secretary" ? 2 : 12);
   await audit({ id: u.id, firm_id: m?.firm_id ?? c?.firm_id ?? "", role: m?.role, kind: m ? "firm" : c ? "contact" : "secretary" }, "login", "user", u.id, { firm_id: m?.firm_id ?? c?.firm_id ?? null });
-  if (u.mfa_enabled) redirect("/sign-in/verify");
+  if (askCode) redirect("/sign-in/verify");
   await toHome();
 }
 
