@@ -6,6 +6,7 @@ import { fmtWAT, riskLevel, readiness, CAR_CATEGORIES, carItemRisk, carRisk } fr
 import { TODO } from "@/lib/templates";
 import { loadCarReport, carReportHtml } from "@/lib/car-report";
 import { buildTracker, loadTracker, trackerHtml, trackerXlsx } from "@/lib/remediation";
+import { loadDpiaReport, dpiaReportHtml } from "@/lib/dpia-report";
 
 // F15 export. ponytail: PDF = print-ready HTML the browser saves as PDF; Word = HTML served as .doc, which Word opens.
 // Swap for Playwright PDF + the `docx` package (TRD §1) when tagged PDFs or native .docx become a requirement.
@@ -69,6 +70,16 @@ export async function GET(req: Request) {
     const seal = `<div class="seal"><b>${sig ? "Signed by client" : "Approved"}</b><br>${esc(client!.name)} · Version ${v.version_no}, approved by ${esc(v.approved_by_name)}<br>${fmtWAT(v.approved_at!)}${sig ? `<br>Signed by ${esc(sig.typed_name)} (${esc(sig.contact_name)}) on ${fmtWAT(sig.signed_at)}. Code sent by ${sig.otp_channel}. Document fingerprint (SHA-256): ${sig.content_sha256}` : ""}</div>`;
     await audit(u, "export", v.parent_type, v.parent_id, { client_id: v.client_id, details: { version: v.version_no, format } });
     return page(title, seal + docHtml(body), format, slug(`${client!.name}-${title}-v${v.version_no}`));
+  }
+
+  if (kind === "dpia-report") {
+    // DPIA report in the DPCO format, from the DPIA's current version (drafts included, marked as such). Firm users only.
+    const id = url.searchParams.get("id") ?? "";
+    const dp = /^[0-9a-f-]{36}$/.test(id) ? await one("select client_id from dpias where id = $1", [id]) : null;
+    if (!dp || !(await canSeeClient(dp.client_id))) return denied();
+    const r = dpiaReportHtml((await loadDpiaReport(id))!);
+    await audit(u, "export", "dpia_report", id, { client_id: dp.client_id, details: { format } });
+    return page(r.title, r.body, format, slug(r.title), r.css);
   }
 
   const clientId = url.searchParams.get("client") ?? "";

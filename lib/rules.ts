@@ -76,9 +76,10 @@ export function countdown(due: Date, now: Date) {
   return `${Math.floor(ms / HOUR)}h ${Math.floor((ms % HOUR) / 60_000)}m left`;
 }
 
-/** DPIA risk score = likelihood × impact on a 1–5 scale (schema SQ-13, provisional). */
+/** DPIA risk score = likelihood × impact on a 1–5 scale, rated as in the DPIA report format (blog/DPIA_Report_GAID.docx):
+ *  Low 1–4, Medium 5–9, High 10–15, Critical 16–25. */
 export function riskLevel(score: number) {
-  return score >= 17 ? "Very high" : score >= 10 ? "High" : score >= 5 ? "Medium" : "Low";
+  return score >= 16 ? "Critical" : score >= 10 ? "High" : score >= 5 ? "Medium" : "Low";
 }
 
 // ---------- CAR readiness (FR8.4–8.5) ----------

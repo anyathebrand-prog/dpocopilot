@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { requireClient, audit } from "@/lib/auth";
 import { q, one } from "@/lib/db";
 import { latestVersion, versionsOf, getVersion, loadCtx, signatureFor } from "@/lib/data";
-import { DPIA_STEPS, suggestedRisks, dpiaStep, normalizeDpia, type Risk } from "@/lib/templates";
+import { DPIA_STEPS, suggestedRisks, dpiaStep, normalizeDpia, standardRisk, type Risk } from "@/lib/templates";
 import { riskLevel } from "@/lib/rules";
 import { str, opt, flash } from "@/lib/form";
 import { Flash, Field, Hidden, Chip, Seal, Doc, Banner } from "@/components/ui";
@@ -21,16 +21,23 @@ async function saveStep(fd: FormData) {
   if (v.status !== "draft") redirect(flash(`${back}?step=${step}`, "This version is locked. Edit creates a new version.", "error"));
   const body = normalizeDpia(v.body);
   if (step === "scoring") {
+    // Keep each risk's step-12 details (measures, residual score, owner…) when its scores are re-saved here.
+    const prev = body.risks_list ?? [];
     const risks: Risk[] = [];
     for (let i = 0; fd.has(`r${i}_description`); i++) {
       const description = str(fd, `r${i}_description`);
-      if (description) risks.push({ description, likelihood: Number(str(fd, `r${i}_l`)) || 1, impact: Number(str(fd, `r${i}_i`)) || 1 });
+      if (!description) continue;
+      const std = standardRisk(description);
+      risks.push({ ...(std ? { mitigation: std.mitigation, owner: std.owner } : {}), ...prev[i], description, likelihood: Number(str(fd, `r${i}_l`)) || 1, impact: Number(str(fd, `r${i}_i`)) || 1,
+        detail: str(fd, `r${i}_detail`) || undefined, harm: str(fd, `r${i}_harm`) || undefined });
     }
     body.risks_list = risks;
   } else if (step === "measures") {
     // Per-risk mitigation and residual score, plus the general measures text.
     body.risks_list = (body.risks_list ?? []).map((r, i) => ({ ...r, mitigation: str(fd, `r${i}_mitigation`) || undefined,
-      residual_likelihood: Number(str(fd, `r${i}_rl`)) || undefined, residual_impact: Number(str(fd, `r${i}_ri`)) || undefined }));
+      residual_likelihood: Number(str(fd, `r${i}_rl`)) || undefined, residual_impact: Number(str(fd, `r${i}_ri`)) || undefined,
+      owner: str(fd, `r${i}_owner`) || undefined, target_date: /^\d{4}-\d{2}-\d{2}$/.test(str(fd, `r${i}_due`)) ? str(fd, `r${i}_due`) : undefined,
+      accepted: str(fd, `r${i}_accepted`) === "yes" ? "yes" as const : str(fd, `r${i}_accepted`) === "no" ? "no" as const : undefined }));
     body.measures = str(fd, "text");
   } else if (DPIA_STEPS.some((s) => s.key === step)) {
     body[step as Exclude<(typeof DPIA_STEPS)[number]["key"], "scoring">] = str(fd, "text");
@@ -105,7 +112,13 @@ export default async function Dpia({ params, searchParams }: { params: Promise<{
   return (
     <>
       <nav className="meta" aria-label="Breadcrumb"><Link href={`/app/clients/${clientId}/dpias`}>DPIAs</Link> / <Link href={`/app/clients/${clientId}/dpias?year=${d.assessment_year}`}>{d.assessment_year}</Link> / {d.title}</nav>
-      <h2 style={{ marginTop: 8 }}>{d.title} <span className="meta" style={{ fontSize: "0.7em" }}>· {d.assessment_year}</span> <Chip status={v.status} ai={v.ai_generated} /></h2>
+      <div className="spread" style={{ alignItems: "flex-start" }}>
+        <h2 style={{ marginTop: 8 }}>{d.title} <span className="meta" style={{ fontSize: "0.7em" }}>· {d.assessment_year}</span> <Chip status={v.status} ai={v.ai_generated} /></h2>
+        <div className="row" style={{ marginTop: 8 }}>
+          <a className="btn" href={`/export?kind=dpia-report&id=${d.id}&format=pdf`} target="_blank">Generate DPIA report (PDF)</a>
+          <a className="btn secondary" href={`/export?kind=dpia-report&id=${d.id}&format=doc`}>Word</a>
+        </div>
+      </div>
       <p className="meta">Covers: {ropa.map((r, i) => <span key={r.id}>{i > 0 && ", "}<Link href={`/app/clients/${clientId}/ropa/${r.id}`}>{r.purpose}</Link>{r.state === "archived" && " (archived)"}</span>)}</p>
       <Flash sp={sp} />
       {viewingOld && <Banner>You are viewing version {v.version_no}. <Link href={back}>Go to the current version</Link></Banner>}
@@ -133,11 +146,13 @@ export default async function Dpia({ params, searchParams }: { params: Promise<{
               <fieldset disabled={!editable}>
                 <div className="scroll">
                   <table className="register">
-                    <thead><tr><th>Risk</th><th>Likelihood (1–5)</th><th>Impact (1–5)</th><th>Score and level</th></tr></thead>
+                    <thead><tr><th>Risk</th><th>Description</th><th>Potential harm</th><th>Likelihood (1–5)</th><th>Impact (1–5)</th><th>Score and level</th></tr></thead>
                     <tbody>
                       {[...risks, ...(editable ? [{ description: "", likelihood: 1, impact: 1 }] : [])].map((r, i) => (
                         <tr key={i}>
-                          <td><input name={`r${i}_description`} defaultValue={r.description} aria-label={`Risk ${i + 1} description`} placeholder={r.description ? undefined : "Add a risk"} /></td>
+                          <td><b className="meta">R{i + 1}</b><input name={`r${i}_description`} defaultValue={r.description} aria-label={`Risk ${i + 1}`} placeholder={r.description ? undefined : "Add a risk"} /></td>
+                          <td data-label="Description"><textarea name={`r${i}_detail`} rows={2} defaultValue={r.detail ?? ""} aria-label={`Risk ${i + 1} description`} /></td>
+                          <td data-label="Potential harm"><textarea name={`r${i}_harm`} rows={2} defaultValue={r.harm ?? ""} aria-label={`Risk ${i + 1} potential harm`} /></td>
                           <td data-label="Likelihood"><select name={`r${i}_l`} defaultValue={r.likelihood} aria-label={`Risk ${i + 1} likelihood`}>{scale.map((n) => <option key={n}>{n}</option>)}</select></td>
                           <td data-label="Impact"><select name={`r${i}_i`} defaultValue={r.impact} aria-label={`Risk ${i + 1} impact`}>{scale.map((n) => <option key={n}>{n}</option>)}</select></td>
                           <td data-label="Score" className="num">{r.description ? `${r.likelihood * r.impact} · ${riskLevel(r.likelihood * r.impact)}` : "—"}</td>
@@ -153,7 +168,7 @@ export default async function Dpia({ params, searchParams }: { params: Promise<{
                 <summary>Scoring guide (likelihood × impact)</summary>
                 <div className="scroll"><table className="risk-grid" style={{ marginTop: 8 }}>
                   <thead><tr><th>Impact ↓ / Likelihood →</th>{scale.map((l) => <th key={l}>{l}</th>)}</tr></thead>
-                  <tbody>{[...scale].reverse().map((i) => <tr key={i}><th>{i}</th>{scale.map((l) => { const s = l * i, lv = riskLevel(s); return <td key={l} className={lv === "Low" ? "" : lv === "Medium" ? "lvl-med" : "lvl-high"}>{s} {lv}</td>; })}</tr>)}</tbody>
+                  <tbody>{[...scale].reverse().map((i) => <tr key={i}><th>{i}</th>{scale.map((l) => { const s = l * i, lv = riskLevel(s); return <td key={l} className={lv === "Low" ? "" : lv === "Medium" ? "lvl-med" : lv === "High" ? "lvl-high" : "lvl-very"}>{s} {lv}</td>; })}</tr>)}</tbody>
                 </table></div>
               </details>
             </form>
@@ -163,14 +178,17 @@ export default async function Dpia({ params, searchParams }: { params: Promise<{
                 body.risks_list?.length ? (
                   <div className="scroll" style={{ marginBottom: 16 }}>
                     <table className="register">
-                      <thead><tr><th>Risk (from step 11)</th><th>Measures to reduce it</th><th>Residual likelihood</th><th>Residual impact</th><th>Residual score</th></tr></thead>
+                      <thead><tr><th>Risk (from step 11)</th><th>Measures to reduce it</th><th>Owner</th><th>Target date</th><th>Residual likelihood</th><th>Residual impact</th><th>Residual score</th><th>Accepted?</th></tr></thead>
                       <tbody>{body.risks_list.map((r, i) => (
                         <tr key={i}>
                           <td>{r.description}<div className="meta">Score {r.likelihood * r.impact} · {riskLevel(r.likelihood * r.impact)}</div></td>
-                          <td data-label="Measures"><textarea name={`r${i}_mitigation`} rows={2} defaultValue={r.mitigation ?? ""} aria-label={`Measures for risk ${i + 1}`} /></td>
+                          <td data-label="Measures"><textarea name={`r${i}_mitigation`} rows={3} defaultValue={r.mitigation ?? standardRisk(r.description)?.mitigation ?? ""} aria-label={`Measures for risk ${i + 1}`} /></td>
+                          <td data-label="Owner"><input name={`r${i}_owner`} defaultValue={r.owner ?? standardRisk(r.description)?.owner ?? ""} aria-label={`Owner for risk ${i + 1}`} /></td>
+                          <td data-label="Target date"><input type="date" name={`r${i}_due`} defaultValue={r.target_date ?? ""} aria-label={`Target date for risk ${i + 1}`} /></td>
                           <td data-label="Residual likelihood"><select name={`r${i}_rl`} defaultValue={r.residual_likelihood ?? ""} aria-label={`Residual likelihood ${i + 1}`}><option value="">–</option>{scale.map((n) => <option key={n}>{n}</option>)}</select></td>
                           <td data-label="Residual impact"><select name={`r${i}_ri`} defaultValue={r.residual_impact ?? ""} aria-label={`Residual impact ${i + 1}`}><option value="">–</option>{scale.map((n) => <option key={n}>{n}</option>)}</select></td>
                           <td data-label="Residual score" className="num">{r.residual_likelihood && r.residual_impact ? `${r.residual_likelihood * r.residual_impact} · ${riskLevel(r.residual_likelihood * r.residual_impact)}` : "—"}</td>
+                          <td data-label="Accepted?"><select name={`r${i}_accepted`} defaultValue={r.accepted ?? ""} aria-label={`Residual risk ${i + 1} accepted`}><option value="">–</option><option value="yes">Yes</option><option value="no">No</option></select></td>
                         </tr>
                       ))}</tbody>
                     </table>

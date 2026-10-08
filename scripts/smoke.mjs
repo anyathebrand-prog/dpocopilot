@@ -185,7 +185,7 @@ const dpiaPath = r.loc.split("?")[0];
 r = await admin.submit(`${dpiaPath}?step=stakeholders`, "Draft this step with AI"); assert.match(r.loc, /AI draft ready/);
 r = await admin.submit(`${dpiaPath}?step=stakeholders`, ">Accept<"); p = await admin.get(`${dpiaPath}?step=stakeholders`); assert.match(p.html, /Nigeria Data Protection Commission/); assert.match(p.html, /Patients/); ok("AI drafts a DPIA step from the linked RoPA entry");
 r = await admin.submit(`${dpiaPath}?step=scoring`, "Scoring guide", { r0_description: "Unauthorised access", r0_l: "4", r0_i: "5", r1_description: "" });
-p = await admin.get(`${dpiaPath}?step=scoring`); assert.match(p.html, /20 · Very high/); ok("risk scoring saves likelihood × impact with level text");
+p = await admin.get(`${dpiaPath}?step=scoring`); assert.match(p.html, /20 · Critical/); ok("risk scoring saves likelihood × impact with level text");
 r = await admin.submit(dpiaPath, "Send for review"); r = await admin.submit(dpiaPath, ">Approve<"); assert.match(r.loc, /Approved/);
 r = await admin.submit(dpiaPath, "Edit (creates a new version)"); p = await admin.get(dpiaPath); assert.match(p.html, /Version 2/); assert.match(p.html, /Versions/); ok("editing an approved DPIA creates version 2; version 1 kept");
 

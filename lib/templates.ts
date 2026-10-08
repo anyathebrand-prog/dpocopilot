@@ -127,7 +127,26 @@ export const DPIA_STEPS = [
   { key: "conclusion", title: "Outcome and review", guide: "Record the outcome of the assessment, the residual risk, the DPO's advice, approval and the review date." },
 ] as const;
 
-export type Risk = { description: string; likelihood: number; impact: number; mitigation?: string; residual_likelihood?: number; residual_impact?: number };
+export type Risk = {
+  description: string; likelihood: number; impact: number; detail?: string; harm?: string;
+  mitigation?: string; residual_likelihood?: number; residual_impact?: number; owner?: string; target_date?: string; accepted?: "yes" | "no";
+};
+
+/** Standard DPIA risks from the DPIA report format (R1–R9, illustrative starting scores) plus the guide's data-subject
+ *  inadvertence risk, each with its usual controls and owner. Scores must be validated with the DPO and process owners. */
+export const STANDARD_RISKS: Required<Pick<Risk, "description" | "detail" | "harm" | "likelihood" | "impact" | "mitigation" | "owner">>[] = [
+  { description: "Unauthorised access / data breach", detail: "Hacking, weak authentication or misconfiguration exposes personal data", harm: "Identity theft, fraud, distress", likelihood: 4, impact: 5, mitigation: "MFA, encryption at rest and in transit, network segmentation, vulnerability scanning and annual penetration test; tested breach response plan with 72-hour NDPC notification", owner: "CISO / IT" },
+  { description: "Excessive collection", detail: "More data collected than needed for the purpose", harm: "Loss of control, privacy intrusion", likelihood: 3, impact: 3, mitigation: "Data minimisation review of all forms and APIs; remove non-essential fields", owner: "Product owner" },
+  { description: "Weak consent and transparency", detail: "Unclear notices; bundled or non-withdrawable consent", harm: "Unfair processing, loss of autonomy", likelihood: 4, impact: 4, mitigation: "Layered privacy notice; granular, recorded and withdrawable consent; consent log", owner: "DPO / Legal" },
+  { description: "Cross-border transfer without safeguards", detail: "Data hosted or accessed abroad without adequate protection", harm: "Reduced legal remedies", likelihood: 3, impact: 4, mitigation: "Transfer impact assessment; contractual safeguards; prefer in-country hosting", owner: "DPO / Legal" },
+  { description: "Excessive retention", detail: "Data kept beyond purpose or legal need", harm: "Increased breach exposure", likelihood: 4, impact: 3, mitigation: "Approved retention schedule; automated deletion and anonymisation", owner: "IT / Records" },
+  { description: "Processor non-compliance", detail: "Vendors process data outside instructions or lack security", harm: "Unauthorised use or disclosure", likelihood: 3, impact: 4, mitigation: "NDPA/GAID-compliant DPAs; vendor due diligence and annual review; audit rights", owner: "Procurement / DPO" },
+  { description: "Failure to honour data subject rights", detail: "Requests missed, delayed or not authenticated", harm: "Breach of rights; complaints to NDPC", likelihood: 3, impact: 4, mitigation: "DSAR procedure, identity verification, request tracker and 30-day SLA", owner: "DPO" },
+  { description: "Inaccurate data / automated decisions", detail: "Wrong data or unreviewed algorithmic outcomes", harm: "Unfair denial of services", likelihood: 3, impact: 3, mitigation: "Data quality checks; human review of automated decisions; right to contest", owner: "Product owner" },
+  { description: "Insider misuse", detail: "Staff access data without business need", harm: "Privacy intrusion, reputational harm", likelihood: 3, impact: 4, mitigation: "Least-privilege access, access logging and review, confidentiality agreements, staff training", owner: "HR / IT" },
+  { description: "Inadvertent disclosure by data subjects", detail: "Data subjects share passwords or one-time codes, respond to phishing, or give more data than needed", harm: "Account takeover, fraud, loss of control", likelihood: 3, impact: 3, mitigation: "Clear guidance at collection points, anti-phishing notices, never asking for full credentials, step-up verification for sensitive actions", owner: "DPO / IT" },
+];
+export const standardRisk = (description: string) => STANDARD_RISKS.find((r) => r.description.toLowerCase() === description.trim().toLowerCase());
 export type DpiaBody = Partial<Record<(typeof DPIA_STEPS)[number]["key"], string>> & { risks_list?: Risk[] };
 
 /** DPIAs written before the 12-point structure: their sections move to the matching new step, so nothing is lost. */
@@ -242,15 +261,10 @@ export function dpiaText(title: string, body: string, level: (n: number) => stri
 }
 
 export function suggestedRisks(c: Ctx): Risk[] {
-  const out: Risk[] = [
-    { description: "Unauthorised access to personal data", likelihood: 3, impact: 4 },
-    { description: "Loss or unavailability of personal data without a tested backup", likelihood: 2, impact: 4 },
-    { description: "Inaccurate or outdated data leading to wrong decisions about people", likelihood: 2, impact: 3 },
-    { description: "Data subjects inadvertently disclosing credentials or more data than needed", likelihood: 3, impact: 2 },
-  ];
-  if (c.ropa.some((e) => e.involves_sensitive)) out.push({ description: "Disclosure of sensitive personal data causing discrimination or distress", likelihood: 2, impact: 5 });
-  if (c.ropa.some((e) => e.has_transfer)) out.push({ description: "Loss of protection when data is transferred outside Nigeria", likelihood: 3, impact: 3 });
-  if (c.ropa.some((e) => !e.retention_period)) out.push({ description: "Data kept longer than necessary", likelihood: 4, impact: 2 });
+  const out: Risk[] = STANDARD_RISKS.map((r) => ({ ...r }));
+  if (c.ropa.some((e) => e.involves_sensitive))
+    out.push({ description: "Disclosure of sensitive personal data", detail: "Health, biometric, religious or other sensitive data exposed or misused", harm: "Discrimination, exclusion, serious distress", likelihood: 2, impact: 5,
+      mitigation: "Explicit consent or another s.30 condition; restricted access; encryption; additional logging", owner: "DPO / IT" });
   return out;
 }
 

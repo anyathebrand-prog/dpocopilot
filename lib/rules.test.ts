@@ -1,7 +1,7 @@
 // Run: npm test  (Node 22.18+ strips TypeScript types natively)
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { parseWATLocal, breachDeadline, dsarDeadline, deadlineState, countdown, readiness, findGaps, evaluateMI, parseCSV, todayWAT, carReminderStage, carItemRisk, carRisk, assurance, maturityLevel, remediationDue, trackerStatus } from "./rules.ts";
+import { parseWATLocal, breachDeadline, dsarDeadline, deadlineState, countdown, readiness, findGaps, evaluateMI, parseCSV, todayWAT, carReminderStage, carItemRisk, carRisk, assurance, maturityLevel, remediationDue, trackerStatus, riskLevel } from "./rules.ts";
 import { buildInventory, missingRequired } from "./questionnaire.ts";
 
 test("breach deadline is 72h after awareness, entered in WAT", () => {
@@ -175,4 +175,8 @@ test("Remediation tracker status: Completed wins; past target date is Overdue; o
   assert.equal(trackerStatus({ status: "in_progress", target_date: "2026-10-06" }, T), "Overdue");
   assert.equal(trackerStatus({ status: "not_started", target_date: "2026-10-07" }, T), "Not Started"); // due today is not overdue
   assert.equal(trackerStatus({ status: "in_progress", target_date: null }, T), "In Progress");
+});
+
+test("DPIA risk rating: Low 1-4, Medium 5-9, High 10-15, Critical 16-25", () => {
+  assert.deepEqual([1, 4, 5, 9, 10, 15, 16, 25].map(riskLevel), ["Low", "Low", "Medium", "Medium", "High", "High", "Critical", "Critical"]);
 });
