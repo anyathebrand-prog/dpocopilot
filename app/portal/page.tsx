@@ -57,7 +57,7 @@ export default async function PortalHome({ searchParams }: { searchParams: Promi
         <Link className="btn secondary" style={{ width: "100%" }} href="/portal/log-request">Log a data subject request</Link>
       </div>
       <h2>More</h2>
-      <div className="cx-links"><Link href="/portal/deadlines">Upcoming deadlines</Link><Link href="/portal/car">CAR checklist</Link><Link href="/portal/ropa">Data inventory</Link><Link href="/portal/documents">Documents</Link><Link href="/portal/evidence">Evidence requests</Link><Link href="/portal/questionnaire">Onboarding answers</Link></div>
+      <div className="cx-links"><Link href="/portal/deadlines">Upcoming deadlines</Link><Link href="/portal/car">CAR checklist</Link><Link href="/portal/ropa">Data inventory</Link><Link href="/portal/documents">Documents</Link><Link href="/portal/evidence">Evidence requests</Link><Link href="/portal/invoices">Invoices</Link><Link href="/portal/questionnaire">Onboarding answers</Link></div>
       {reports.length > 0 && (
         <>
           <h2>What you&apos;ve reported</h2>

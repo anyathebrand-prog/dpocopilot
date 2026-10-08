@@ -93,7 +93,8 @@ export async function GET(req: Request) {
   if (kind === "invoice") {
     const id = url.searchParams.get("id") ?? "";
     const inv = /^[0-9a-f-]{36}$/.test(id) ? await one("select * from invoices where id = $1", [id]) : null;
-    if (!inv || u.kind !== "firm" || !(await canSeeClient(inv.client_id))) return denied();
+    const contactOk = !!inv && u.kind === "contact" && u.client_id === inv.client_id && inv.status !== "cancelled";
+    if (!inv || !(contactOk || (u.kind === "firm" && (await canSeeClient(inv.client_id))))) return denied();
     const firm = (await one("select * from firms where id = $1", [inv.firm_id]))!;
     const ans = Object.fromEntries((await q("select question_key, answer from answers where client_id = $1 and question_key in ('org_legal_name','org_address','org_email','org_phone')", [inv.client_id])).map((r) => [r.question_key, r.answer]));
     const c = (await one("select name from clients where id = $1", [inv.client_id]))!;

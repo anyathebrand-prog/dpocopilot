@@ -28,6 +28,7 @@ const lines2 = (...xs: unknown[]) => xs.filter((x) => x && String(x).trim()).map
 export function invoiceHtml(inv: any, firm: any, client: { name: string; address?: string | null; email?: string | null; phone?: string | null }) {
   const vatRate = Number(inv.vat_rate), t = totals(inv.lines, vatRate);
   const body = `
+${firm.logo ? `<p><img src="${firm.logo}" width="${Math.round(firm.logo_w * 60 / firm.logo_h)}" height="60" alt="${esc(firm.name)}" style="height:60px;width:auto"></p>` : ""}
 <table><tr><td style="background:#0d1f4a;color:#FFFFFF;padding:14px"><p style="margin:0;color:#FFFFFF;font-size:18pt"><b>${esc(firm.name)}</b></p>
   <p style="margin:2px 0 0;color:#FFFFFF">${lines2(firm.address, [firm.phone, firm.email].filter(Boolean).join(" · "), firm.website)}</p></td>
   <td style="background:#0d1f4a;color:#FFFFFF;text-align:right;width:35%"><p style="margin:0;color:#FFFFFF;font-size:22pt"><b>INVOICE</b></p></td></tr></table>

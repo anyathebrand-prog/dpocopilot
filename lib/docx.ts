@@ -3,7 +3,7 @@
 // ponytail: handles only the tags our exports emit (lib/car-report.ts, lib/dpia-report.ts, lib/remediation.ts, export route).
 import {
   AlignmentType, BorderStyle, Document, Footer, Header, HeadingLevel, Packer, PageBreak, PageNumber, PageOrientation, TableLayoutType,
-  Paragraph, ShadingType, Table, TableCell, TableRow, TextRun, VerticalAlign, WidthType,
+  ImageRun, type ParagraphChild, Paragraph, ShadingType, Table, TableCell, TableRow, TextRun, VerticalAlign, WidthType,
 } from "docx";
 
 type El = { tag: string; attrs: Record<string, string>; kids: Node[] };
@@ -42,8 +42,8 @@ const RISK_COLOR: Record<string, string> = { "r-high": "B42318", "r-medium": "B2
 type Fmt = { bold?: boolean; italics?: boolean; color?: string; shading?: string; size?: number; underline?: boolean };
 
 /** Inline content → text runs. */
-function runs(nodes: Node[], f: Fmt = {}): TextRun[] {
-  const out: TextRun[] = [];
+function runs(nodes: Node[], f: Fmt = {}): ParagraphChild[] {
+  const out: ParagraphChild[] = [];
   for (const n of nodes) {
     if (typeof n === "string") {
       const t = n.replace(/\s+/g, " ");
@@ -51,6 +51,11 @@ function runs(nodes: Node[], f: Fmt = {}): TextRun[] {
       continue;
     }
     if (n.tag === "br") { out.push(new TextRun({ text: "", break: 1 })); continue; }
+    if (n.tag === "img") { // data: URL images only (the firm logo)
+      const m = /^data:image\/(png|jpeg);base64,(.+)$/.exec(n.attrs.src ?? "");
+      if (m) out.push(new ImageRun({ type: m[1] === "png" ? "png" : "jpg", data: Buffer.from(m[2], "base64"), transformation: { width: Number(n.attrs.width) || 120, height: Number(n.attrs.height) || 60 } }));
+      continue;
+    }
     const s = style(n), g: Fmt = { ...f };
     if (n.tag === "b" || n.tag === "strong" || s["font-weight"] === "700") g.bold = true;
     if (n.tag === "i" || n.tag === "em" || s["font-style"] === "italic") g.italics = true;

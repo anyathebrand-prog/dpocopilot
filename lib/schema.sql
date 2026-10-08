@@ -697,3 +697,9 @@ create table if not exists invoices (
   created_at timestamptz not null default now(),
   unique (firm_id, number)
 );
+
+-- Firm logo for invoices (data URL, small PNG/JPEG) and invoice email tracking.
+alter table firms add column if not exists logo text;
+alter table firms add column if not exists logo_w int;
+alter table firms add column if not exists logo_h int;
+alter table invoices add column if not exists sent_at timestamptz;

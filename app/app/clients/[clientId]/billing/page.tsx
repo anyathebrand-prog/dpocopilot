@@ -1,9 +1,9 @@
 import { redirect } from "next/navigation";
-import { requireClient, audit } from "@/lib/auth";
+import { requireClient, audit, send } from "@/lib/auth";
 import { q, one } from "@/lib/db";
 import { str, opt, flash } from "@/lib/form";
 import { SERVICES, totals, naira, type Line } from "@/lib/invoice";
-import { fmtDate, todayWAT } from "@/lib/rules";
+import { fmtDate, fmtWAT, todayWAT } from "@/lib/rules";
 import { Flash, Field, Hidden, Chip, Empty } from "@/components/ui";
 import { Submit } from "@/components/client";
 
@@ -39,6 +39,21 @@ async function setStatus(fd: FormData) {
   redirect(flash(`/app/clients/${inv.client_id}/billing`, status === "paid" ? "Marked as paid" : status === "cancelled" ? "Invoice cancelled" : "Marked as unpaid"));
 }
 
+async function email(fd: FormData) {
+  "use server";
+  const inv = await one("select * from invoices where id = $1", [/^[0-9a-f-]{36}$/.test(str(fd, "id")) ? str(fd, "id") : null]);
+  if (!inv) redirect("/forbidden");
+  const { user } = await requireClient(inv.client_id, { write: true });
+  const back = `/app/clients/${inv.client_id}/billing`;
+  const contacts = await q<{ email: string }>("select email from client_contacts where client_id = $1 and status = 'active'", [inv.client_id]);
+  if (!contacts.length) redirect(flash(back, "This client has no active portal contacts to email. Invite one under Settings.", "error"));
+  // Email carries no invoice content, only "log in to view" (TRD 9.1); the invoice is in the portal.
+  for (const c of contacts) await send("email", c.email, "invoice_issued", `${user.firm_name} has sent you invoice ${inv.number}. Log in to view and download it: ${process.env.APP_URL ?? "http://localhost:3000"}/portal/invoices`);
+  await q("update invoices set sent_at = now() where id = $1", [inv.id]);
+  await audit(user, "update", "invoice", inv.id, { client_id: inv.client_id, details: { emailed: contacts.length } });
+  redirect(flash(back, `Invoice ${inv.number} emailed to ${contacts.map((c) => c.email).join(", ")}`));
+}
+
 export default async function Billing({ params, searchParams }: { params: Promise<{ clientId: string }>; searchParams: Promise<Record<string, string>> }) {
   const { clientId } = await params;
   const sp = await searchParams;
@@ -61,12 +76,13 @@ export default async function Billing({ params, searchParams }: { params: Promis
           <tbody>{rows.map((r) => (
             <tr key={r.id}>
               <td><a href={exp(r.id, "pdf")} target="_blank">{r.number}</a></td>
-              <td data-label="Date" className="small">{fmtDate(r.issued_on)}{r.due_on && <span className="meta"><br />Due {fmtDate(r.due_on)}</span>}</td>
+              <td data-label="Date" className="small">{fmtDate(r.issued_on)}{r.due_on && <span className="meta"><br />Due {fmtDate(r.due_on)}</span>}{r.sent_at && <span className="meta"><br />Emailed {fmtWAT(r.sent_at)}</span>}</td>
               <td data-label="Services" className="small">{(r.lines as Line[]).map((l) => l.service).join(", ")}</td>
               <td data-label="Total" className="num">{naira(totals(r.lines, Number(r.vat_rate)).total)}</td>
               <td data-label="Status"><Chip status={r.status === "paid" ? "complete" : r.status === "cancelled" ? "archived" : "open"} /> <span className="small">{r.status}</span></td>
               <td className="row" style={{ gap: 6 }}>
                 <a className="btn secondary" href={exp(r.id, "pdf")} target="_blank">PDF</a><a className="btn secondary" href={exp(r.id, "doc")}>Word</a>
+                {!ro && r.status === "unpaid" && <form action={email} style={{ display: "inline" }}><Hidden values={{ id: r.id }} /><Submit className="btn secondary">{r.sent_at ? "Email again" : "Email to client"}</Submit></form>}
                 {!ro && r.status === "unpaid" && <>{act(r.id, "paid", "Mark paid")}{act(r.id, "cancelled", "Cancel")}</>}
                 {!ro && r.status !== "unpaid" && act(r.id, "unpaid", "Reopen")}
               </td>
