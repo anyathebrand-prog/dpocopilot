@@ -703,3 +703,6 @@ alter table firms add column if not exists logo text;
 alter table firms add column if not exists logo_w int;
 alter table firms add column if not exists logo_h int;
 alter table invoices add column if not exists sent_at timestamptz;
+
+-- Receipt issued automatically when an invoice is marked paid (kept if the invoice is reopened and paid again).
+alter table invoices add column if not exists receipt_no text;

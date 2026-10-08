@@ -38,7 +38,7 @@ export default async function FirmBilling({ searchParams }: { searchParams: Prom
               <td data-label="Date" className="small">{fmtDate(r.issued_on)}{r.due_on && <span className="meta"><br />Due {fmtDate(r.due_on)}</span>}</td>
               <td data-label="Services" className="small">{(r.lines as Line[]).map((l) => l.service).join(", ")}</td>
               <td data-label="Total" className="num">{naira(total(r))}</td>
-              <td data-label="Status" className="small">{overdue(r) ? <b>overdue</b> : r.status}</td>
+              <td data-label="Status" className="small">{overdue(r) ? <b>overdue</b> : r.status}{r.status === "paid" && r.receipt_no && <><br /><a href={`/export?kind=receipt&id=${r.id}&format=pdf`} target="_blank">{r.receipt_no}</a></>}</td>
             </tr>
           ))}</tbody>
         </table>

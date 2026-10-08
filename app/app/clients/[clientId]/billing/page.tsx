@@ -35,6 +35,19 @@ async function setStatus(fd: FormData) {
   const status = str(fd, "status");
   if (!["unpaid", "paid", "cancelled"].includes(status)) redirect("/forbidden");
   await q("update invoices set status = $2, paid_on = $3 where id = $1", [inv.id, status, status === "paid" ? todayWAT() : null]);
+  if (status === "paid") { // Receipt generated automatically; the client is told it's in the portal.
+    let receipt = inv.receipt_no;
+    if (!receipt) {
+      const year = todayWAT().slice(0, 4);
+      const n = (await one<{ n: number }>("select count(*)::int as n from invoices where firm_id = $1 and receipt_no like $2", [inv.firm_id, `RCT-${year}-%`]))!.n;
+      receipt = `RCT-${year}-${String(n + 1).padStart(3, "0")}`;
+      await q("update invoices set receipt_no = $2 where id = $1", [inv.id, receipt]);
+    }
+    const contacts = await q<{ email: string }>("select email from client_contacts where client_id = $1 and status = 'active'", [inv.client_id]);
+    for (const c of contacts) await send("email", c.email, "receipt_issued", `${user.firm_name} has received your payment for invoice ${inv.number}. Your receipt ${receipt} is ready. Log in to download it: ${process.env.APP_URL ?? "http://localhost:3000"}/portal/invoices`);
+    await audit(user, "update", "invoice", inv.id, { client_id: inv.client_id, details: { status, receipt } });
+    redirect(flash(`/app/clients/${inv.client_id}/billing`, `Marked as paid. Receipt ${receipt} generated${contacts.length ? " and the client notified" : ""}.`));
+  }
   await audit(user, "update", "invoice", inv.id, { client_id: inv.client_id, details: { status } });
   redirect(flash(`/app/clients/${inv.client_id}/billing`, status === "paid" ? "Marked as paid" : status === "cancelled" ? "Invoice cancelled" : "Marked as unpaid"));
 }
@@ -79,9 +92,10 @@ export default async function Billing({ params, searchParams }: { params: Promis
               <td data-label="Date" className="small">{fmtDate(r.issued_on)}{r.due_on && <span className="meta"><br />Due {fmtDate(r.due_on)}</span>}{r.sent_at && <span className="meta"><br />Emailed {fmtWAT(r.sent_at)}</span>}</td>
               <td data-label="Services" className="small">{(r.lines as Line[]).map((l) => l.service).join(", ")}</td>
               <td data-label="Total" className="num">{naira(totals(r.lines, Number(r.vat_rate)).total)}</td>
-              <td data-label="Status"><Chip status={r.status === "paid" ? "complete" : r.status === "cancelled" ? "archived" : "open"} /> <span className="small">{r.status}</span></td>
+              <td data-label="Status"><Chip status={r.status === "paid" ? "complete" : r.status === "cancelled" ? "archived" : "open"} /> <span className="small">{r.status}{r.status === "paid" && r.paid_on && <> {fmtDate(r.paid_on)}{r.receipt_no && <><br />{r.receipt_no}</>}</>}</span></td>
               <td className="row" style={{ gap: 6 }}>
                 <a className="btn secondary" href={exp(r.id, "pdf")} target="_blank">PDF</a><a className="btn secondary" href={exp(r.id, "doc")}>Word</a>
+                {r.status === "paid" && r.receipt_no && <><a className="btn" href={`/export?kind=receipt&id=${r.id}&format=pdf`} target="_blank">Receipt</a><a className="btn secondary" href={`/export?kind=receipt&id=${r.id}&format=doc`}>Receipt (Word)</a></>}
                 {!ro && r.status === "unpaid" && <form action={email} style={{ display: "inline" }}><Hidden values={{ id: r.id }} /><Submit className="btn secondary">{r.sent_at ? "Email again" : "Email to client"}</Submit></form>}
                 {!ro && r.status === "unpaid" && <>{act(r.id, "paid", "Mark paid")}{act(r.id, "cancelled", "Cancel")}</>}
                 {!ro && r.status !== "unpaid" && act(r.id, "unpaid", "Reopen")}
