@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { House, ListChecks, Database, CalendarClock, FileText, Upload, Receipt, ClipboardList, ShieldAlert, UserSearch, Menu, LogOut } from "lucide-react";
+import { House, ListChecks, Database, CalendarClock, FileText, Upload, Receipt, ClipboardList, ShieldAlert, UserSearch, BadgeCheck, Menu, LogOut } from "lucide-react";
 import { requireContact } from "@/lib/auth";
 import { one } from "@/lib/db";
 import { signOut } from "@/lib/auth-actions";
@@ -14,7 +14,8 @@ export default async function PortalLayout({ children }: { children: ReactNode }
   const c = await one(`select c.name,
       (select count(*)::int from evidence_requests e where e.client_id = c.id and e.status in ('open','rejected')) as evidence,
       (select count(*)::int from signoff_requests s where s.client_id = c.id and s.status = 'pending') as signoffs,
-      (select count(*)::int from invoices i where i.client_id = c.id and i.status = 'unpaid' and i.sent_at is not null) as invoices
+      (select count(*)::int from invoices i where i.client_id = c.id and i.status = 'unpaid' and i.sent_at is not null) as invoices,
+      (select count(*)::int from dsars d where d.client_id = c.id and d.status = 'open' and (d.id_status = 'not_verified' or d.department is null)) as unverified
     from clients c where c.id = $1`, [u.client_id]);
   const badge = (n: number) => (n ? <span className="chip neutral num" aria-label={`${n} need attention`}>{n}</span> : null);
   return (
@@ -43,6 +44,7 @@ export default async function PortalLayout({ children }: { children: ReactNode }
             <NavLink href="/portal/questionnaire"><ClipboardList aria-hidden />Onboarding answers</NavLink>
             <NavLink href="/portal/report-breach"><ShieldAlert aria-hidden />Report a breach</NavLink>
             <NavLink href="/portal/log-request"><UserSearch aria-hidden />Log a data request</NavLink>
+            <NavLink href="/portal/requests"><BadgeCheck aria-hidden /><span>Verify &amp; assign requests</span>{badge(c!.unverified)}</NavLink>
           </nav>
         </details>
       </aside>

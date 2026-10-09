@@ -853,3 +853,10 @@ create table if not exists audit_notices (
   created_at timestamptz not null default now(),
   unique (client_id, audit_year)
 );
+
+-- DSAR identity verification and the executing department, recorded by the client in the portal.
+alter table dsars add column if not exists id_method text;
+alter table dsars add column if not exists id_notes text;
+alter table dsars add column if not exists id_checked_by uuid references users;
+alter table dsars add column if not exists id_checked_at timestamptz;
+alter table dsars add column if not exists department text;

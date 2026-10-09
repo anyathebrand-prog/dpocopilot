@@ -81,7 +81,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
       ) : (
         <div className="scroll">
           <table className="register">
-            <thead><tr><th>Client</th><th>Status</th><th className="num">Open gaps</th><th className="num">Overdue</th><th className="num">Breaches</th><th className="num">DSARs</th><th style={{ minWidth: 160 }}>CAR readiness</th></tr></thead>
+            <thead><tr><th>Client</th><th>Status</th><th className="num">Open gaps</th><th className="num">Overdue</th><th className="num">Breaches</th><th style={{ minWidth: 160 }}>CAR readiness</th></tr></thead>
             <tbody>
               {clients.map((c) => (
                 <tr key={c.id}>
@@ -90,7 +90,6 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
                   <td data-label="Open gaps" className="num">{c.gaps}</td>
                   <td data-label="Overdue" className="num">{c.overdue > 0 ? <span className="chip overdue">{c.overdue} overdue</span> : 0}</td>
                   <td data-label="Breaches" className="num">{c.breaches > 0 ? <b style={{ color: "var(--red-700)" }}>{c.breaches} active</b> : 0}</td>
-                  <td data-label="DSARs" className="num">{c.dsars}</td>
                   <td data-label="CAR readiness"><Bar pct={c.readiness} /></td>
                 </tr>
               ))}
