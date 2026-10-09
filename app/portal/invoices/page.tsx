@@ -9,6 +9,7 @@ import { Empty } from "@/components/ui";
 export default async function PortalInvoices() {
   const u = await requireContact();
   const rows = await q("select * from invoices where client_id = $1 and status <> 'cancelled' order by issued_on desc, created_at desc", [u.client_id]);
+  const notices = await q("select n.id, n.audit_year, n.sent_at, i.number from audit_notices n left join invoices i on i.id = n.invoice_id where n.client_id = $1 and n.sent_at is not null order by n.audit_year desc", [u.client_id]);
   const due = rows.filter((r) => r.status === "unpaid").reduce((s, r) => s + totals(r.lines, Number(r.vat_rate)).total, 0);
   const exp = (id: string, f: string) => `/export?kind=invoice&id=${id}&format=${f}`;
   return (
@@ -16,6 +17,15 @@ export default async function PortalInvoices() {
       <nav className="meta"><Link href="/portal">Home</Link> / Invoices</nav>
       <h1>Invoices</h1>
       <p className="meta">From {u.firm_name}. Outstanding: <b>{naira(due)}</b></p>
+      {notices.length > 0 && (
+        <section style={{ marginBottom: 16 }}>
+          <h2 style={{ fontSize: 18 }}>Compliance audit notices</h2>
+          {notices.map((n) => (
+            <div key={n.id} className="rule-row info"><span><b>{n.audit_year} Compliance Audit Notification</b>{n.number && <span className="meta"> · with invoice {n.number}</span>}</span>
+              <a className="btn secondary" href={`/export?kind=audit-notice&id=${n.id}&format=pdf`} target="_blank">Open letter</a></div>
+          ))}
+        </section>
+      )}
       {rows.length === 0 ? <Empty><p>No invoices yet.</p></Empty> : (
         <table className="register">
           <thead><tr><th>Invoice</th><th>Date</th><th>Services</th><th className="num">Total</th><th>Status</th><th></th></tr></thead>

@@ -16,6 +16,7 @@ import { planHtml } from "@/lib/training";
 import { projectPlanHtml } from "@/lib/project-plan";
 import { proposalHtml, coverLetterHtml } from "@/lib/proposal";
 import { reportCover } from "@/lib/cover-letter";
+import { loadAuditNotice, auditNoticeHtml } from "@/lib/audit-notice";
 import { loadReadinessLetter, readinessLetterHtml } from "@/lib/readiness-letter";
 import { clientDepartments, workplanFor } from "@/lib/audit-workplan";
 import { list } from "@/lib/questionnaire";
@@ -103,6 +104,15 @@ export async function GET(req: Request) {
     return page(r.title, r.body, format, slug(r.title), r.css, await cover(dp.client_id, "dpia-report", "Data Protection Impact Assessment Report"));
   }
 
+  if (kind === "audit-notice") { // letter + attached invoice; contacts may open their own once sent
+    const id = url.searchParams.get("id") ?? "";
+    const d = /^[0-9a-f-]{36}$/.test(id) ? await loadAuditNotice(id) : null;
+    const contactOk = !!d && u.kind === "contact" && u.client_id === d.n.client_id && !!d.n.sent_at;
+    if (!d || !(contactOk || (u.kind === "firm" && (await canSeeClient(d.n.client_id))))) return denied();
+    const r = auditNoticeHtml(d);
+    await audit(u, "export", "audit_notice", id, { client_id: d.n.client_id, details: { format } });
+    return page(r.title, r.body, format, slug(r.title), r.css);
+  }
   if (kind === "readiness") { // Data Protection Audit Readiness Letter
     const id = url.searchParams.get("id") ?? "";
     const d = /^[0-9a-f-]{36}$/.test(id) ? await loadReadinessLetter(id) : null;

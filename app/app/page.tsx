@@ -64,6 +64,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
 
       <PageHead title={archived ? "Archived clients" : "Clients"}>
         <Link className="btn quiet" href={archived ? "/app" : "/app?archived=1"}>{archived ? "Show active clients" : "Show archived"}</Link>
+        {u.role !== "associate" && !archived && <Link className="btn secondary" href="/app/audit-notices">Generate Compliance Audit Notification Letter</Link>}
         {u.role !== "associate" && !archived && <Link className="btn" href="/app/clients/new">Add client</Link>}
       </PageHead>
 

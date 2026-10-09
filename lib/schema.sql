@@ -838,3 +838,18 @@ create table if not exists readiness_letters (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+-- Compliance Audit Notification Letter per client and audit year, with the engagement invoice attached; visible in the portal once sent.
+create table if not exists audit_notices (
+  id uuid primary key default gen_random_uuid(),
+  firm_id uuid not null references firms,
+  client_id uuid not null references clients,
+  audit_year int not null,
+  invoice_id uuid references invoices,
+  our_ref text not null,
+  letter_date date not null default current_date,
+  sent_at timestamptz,
+  created_by uuid not null references users,
+  created_at timestamptz not null default now(),
+  unique (client_id, audit_year)
+);
