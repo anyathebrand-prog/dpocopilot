@@ -803,3 +803,15 @@ create table if not exists login_attempts (
 
 -- Professional fee payable to the assignee for a task (visible to the assignee, Firm Admins and Lead Consultants).
 alter table tasks add column if not exists fee numeric check (fee >= 0);
+
+-- Auditor's observation per control of a department's CAR audit work plan (Section B), per audit year.
+create table if not exists workplan_observations (
+  client_id uuid not null references clients,
+  audit_year int not null,
+  dept text not null,
+  ref text not null,
+  observation text not null,
+  updated_by uuid not null references users,
+  updated_at timestamptz not null default now(),
+  primary key (client_id, audit_year, dept, ref)
+);

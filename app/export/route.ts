@@ -183,11 +183,13 @@ export async function GET(req: Request) {
     if (!clientDepartments((ans.org_structure_file as { text?: string } | undefined)?.text, list(ans.org_departments)).includes(dept)) return denied();
     const p = workplanFor(dept, await q("select purpose, data_categories, system_owner from ropa_entries where client_id = $1 and state = 'active' and lower(department) = lower($2)", [clientId, dept]) as any);
     const org = String(ans.org_legal_name || client!.name), title = `${org} CAR Audit Work Plan - ${dept}`;
+    const asked = Number(url.searchParams.get("year")), wpYear = Number.isInteger(asked) && asked >= 2019 && asked <= 2100 ? asked : client!.car_audit_year;
+    const obs = Object.fromEntries((await q<{ ref: string; observation: string }>("select ref, observation from workplan_observations where client_id = $1 and audit_year = $2 and dept = $3", [clientId, wpYear, dept])).map((o) => [o.ref, o.observation]));
     await audit(u, "export", "audit_workplan", clientId, { client_id: clientId, details: { format, dept } });
     return page(title, `<h1>CAR Audit Work Plan — ${esc(dept)}</h1><p class="meta">${esc(org)} · NDPA 2023 / GAID 2025 Article 10 Compliance Audit Returns${p.unit ? ` · based on the work plan for ${esc(p.unit.name)}` : ""}</p>
       <table>${[["Data subjects", p.profile.subjects], ["Key personal data", p.profile.data], ["Key systems / records", p.profile.systems], ["Key processes", p.profile.keyProcesses], ["Inherent data risk", p.profile.risk]].filter(([, v]) => v).map(([k, v]) => `<tr><td class="k">${k}</td><td>${esc(v)}</td></tr>`).join("")}</table>
-      <table><tr><th>Ref</th><th>CAR area</th><th>GAID / NDPA reference</th><th>Control objective</th><th>Audit procedure</th><th>Evidence to obtain</th><th>Risk</th><th>Status</th><th>Rating</th><th>Findings</th></tr>
-      ${p.rows.map((c) => `<tr><td>${esc(c.ref)}</td><td>${c.specific ? `<b>${esc(c.area)}</b>` : esc(c.area)}</td><td>${esc(c.law)}</td><td>${esc(c.objective)}</td><td>${esc(c.procedure)}</td><td>${esc(c.evidence)}</td><td>${esc(c.risk)}</td><td></td><td></td><td></td></tr>`).join("")}</table>
+      <table><tr><th>Ref</th><th>CAR area</th><th>GAID / NDPA reference</th><th>Control objective</th><th>Audit procedure</th><th>Evidence to obtain</th><th>Risk</th><th>Observation</th><th>Status</th><th>Rating</th></tr>
+      ${p.rows.map((c) => `<tr><td>${esc(c.ref)}</td><td>${c.specific ? `<b>${esc(c.area)}</b>` : esc(c.area)}</td><td>${esc(c.law)}</td><td>${esc(c.objective)}</td><td>${esc(c.procedure)}</td><td>${esc(c.evidence)}</td><td>${esc(c.risk)}</td><td>${esc(obs[c.ref] ?? "")}</td><td></td><td></td></tr>`).join("")}</table>
       <p class="meta">Bold CAR areas are controls specific to this department. Ratings: Compliant, Partially Compliant, Non-Compliant, Not Applicable.</p>`,
       format, slug(title), CSS + "@page{size:A4 landscape}td,th{font-size:11px}");
   }

@@ -67,6 +67,28 @@ async function switchTemplate(fd: FormData) {
 const RISKS = [["high", "High"], ["medium", "Medium"], ["low", "Low"]];
 
 /** Findings outside the Schedule 2 questions, recorded per client and audit year. */
+async function saveObservations(fd: FormData) {
+  "use server";
+  const { user, client } = await requireClient(str(fd, "client_id"), { write: true });
+  const year = validYear(str(fd, "year")), dept = str(fd, "dept");
+  if (!year) redirect(`/app/clients/${client.id}/car-readiness`);
+  const ans = await answersOf(client.id);
+  if (!clientDepartments((ans.org_structure_file as { text?: string } | undefined)?.text, list(ans.org_departments)).includes(dept)) redirect("/forbidden");
+  const refs = new Set(workplanFor(dept).rows.map((r) => r.ref));
+  await tx(async (t) => {
+    for (const [k, v] of fd.entries()) {
+      const ref = k.startsWith("obs_") ? k.slice(4) : null;
+      if (!ref || !refs.has(ref)) continue;
+      const text = String(v).trim();
+      if (text) await t.query(`insert into workplan_observations (client_id, audit_year, dept, ref, observation, updated_by) values ($1,$2,$3,$4,$5,$6)
+        on conflict (client_id, audit_year, dept, ref) do update set observation = excluded.observation, updated_by = excluded.updated_by, updated_at = now()`, [client.id, year, dept, ref, text, user.id]);
+      else await t.query("delete from workplan_observations where client_id = $1 and audit_year = $2 and dept = $3 and ref = $4", [client.id, year, dept, ref]);
+    }
+  });
+  await audit(user, "update", "audit_workplan", client.id, { client_id: client.id, details: { audit_year: year, dept } });
+  redirect(flash(`${yearPath(client.id, year)}&dept=${encodeURIComponent(dept)}#workplan`, "Observations saved"));
+}
+
 async function addFinding(fd: FormData) {
   "use server";
   const { user, client } = await requireClient(str(fd, "client_id"), { write: true });
@@ -185,6 +207,7 @@ export default async function Car({ params, searchParams }: { params: Promise<{ 
   const plan = sp.dept && depts.includes(sp.dept)
     ? workplanFor(sp.dept, await q("select purpose, data_categories, system_owner from ropa_entries where client_id = $1 and state = 'active' and lower(department) = lower($2)", [clientId, sp.dept]) as any)
     : null;
+  const obs = plan ? Object.fromEntries((await q<{ ref: string; observation: string }>("select ref, observation from workplan_observations where client_id = $1 and audit_year = $2 and dept = $3", [clientId, year, plan.dept])).map((o) => [o.ref, o.observation])) : {};
   const suggestedBackground = defaultBackground(String(answers.org_legal_name || client.name), answers);
   const open = items.filter((i) => i.status === "missing" || i.status === "in_progress");
   const noRecommendation = open.filter((i) => !i.recommendation).length, noObservation = open.filter((i) => !i.na_reason).length;
@@ -306,10 +329,12 @@ export default async function Car({ params, searchParams }: { params: Promise<{ 
             <div className="spread" style={{ alignItems: "flex-start" }}>
               <div><b>{plan.dept}</b>{plan.unit ? <span className="meta"> · based on the work plan for {plan.unit.name}</span> : <span className="meta"> · base controls (no matching unit in the work plan)</span>}
                 <div className="meta small">{[plan.profile.subjects && `Data subjects: ${plan.profile.subjects}`, plan.profile.data && `Key personal data: ${plan.profile.data}`, plan.profile.systems && `Systems: ${plan.profile.systems}`, plan.profile.risk && `Inherent risk: ${plan.profile.risk}`].filter(Boolean).join(" · ")}</div></div>
-              <div className="row"><a className="btn secondary" href={`/export?kind=workplan&client=${clientId}&dept=${encodeURIComponent(plan.dept)}&format=pdf`} target="_blank">PDF</a><a className="btn secondary" href={`/export?kind=workplan&client=${clientId}&dept=${encodeURIComponent(plan.dept)}&format=doc`}>Word</a></div>
+              <div className="row"><a className="btn secondary" href={`/export?kind=workplan&client=${clientId}&year=${year}&dept=${encodeURIComponent(plan.dept)}&format=pdf`} target="_blank">PDF</a><a className="btn secondary" href={`/export?kind=workplan&client=${clientId}&year=${year}&dept=${encodeURIComponent(plan.dept)}&format=doc`}>Word</a></div>
             </div>
+            <form action={saveObservations}>
+            <Hidden values={{ client_id: clientId, year: String(year), dept: plan.dept }} />
             <table className="register" style={{ marginTop: 8 }}>
-              <thead><tr><th>Ref</th><th>CAR area</th><th>GAID / NDPA reference</th><th>Control objective</th><th>Audit procedure</th><th>Evidence to obtain</th><th>Risk</th></tr></thead>
+              <thead><tr><th>Ref</th><th>CAR area</th><th>GAID / NDPA reference</th><th>Control objective</th><th>Audit procedure</th><th>Evidence to obtain</th><th>Risk</th><th>Observation</th></tr></thead>
               <tbody>{plan.rows.map((c) => (
                 <tr key={c.ref}>
                   <td className="small">{c.ref}</td>
@@ -319,9 +344,12 @@ export default async function Car({ params, searchParams }: { params: Promise<{ 
                   <td data-label="Procedure" className="small">{c.procedure}</td>
                   <td data-label="Evidence" className="small">{c.evidence}</td>
                   <td data-label="Risk"><Chip status={`risk_${c.risk.toLowerCase()}`} /></td>
+                  <td data-label="Observation" style={{ minWidth: 200 }}><textarea name={`obs_${c.ref}`} rows={3} defaultValue={obs[c.ref] ?? ""} disabled={ro} aria-label={`Observation for ${c.ref}`} /></td>
                 </tr>
               ))}</tbody>
             </table>
+            {!ro && <Submit>Save observations</Submit>}
+            </form>
             <p className="caption">Bold CAR areas are controls specific to this department. {plan.rows.length} controls · NDPA 2023 / GAID 2025 Art. 10 CAR audit.</p>
           </div>
         )}
