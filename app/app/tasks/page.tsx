@@ -63,10 +63,10 @@ export default async function Tasks({ searchParams }: { searchParams: Promise<Re
         <details className="group" open={!rows.length}>
           <summary>New task</summary>
           <form action={create} style={{ maxWidth: 640 }}>
+            <Field label="Client" required><select name="client_id" defaultValue={sp.client ?? ""} required><option value="" disabled>Choose…</option>{clients.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></Field>
             <Field label="Project Name" required><input name="project_name" required placeholder="e.g. NDPA compliance programme 2026" /></Field>
             <Field label="Activity" required><input name="title" required placeholder="e.g. Data mapping" /></Field>
             <Field label="Sub-activity" required><input name="sub_activity" required placeholder="e.g. Interview HR and Finance" /></Field>
-            <Field label="Client" required><select name="client_id" defaultValue={sp.client ?? ""} required><option value="" disabled>Choose…</option>{clients.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></Field>
             <Field label="Assignee"><select name="assignee" defaultValue={u.membership_id}><option value="">Unassigned</option>{members.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}</select></Field>
             <div className="row">
               <Field label="Start date"><input type="date" name="start_on" /></Field>
