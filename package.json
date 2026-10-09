@@ -7,7 +7,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "test": "node --test lib/rules.test.ts lib/audit-workplan.test.ts",
+    "test": "node --test lib/rules.test.ts lib/audit-workplan.test.ts lib/incidents.test.ts",
     "smoke": "node scripts/smoke.mjs",
     "typecheck": "tsc --noEmit"
   },

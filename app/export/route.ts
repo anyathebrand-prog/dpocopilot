@@ -16,6 +16,7 @@ import { planHtml } from "@/lib/training";
 import { projectPlanHtml } from "@/lib/project-plan";
 import { proposalHtml, coverLetterHtml } from "@/lib/proposal";
 import { reportCover } from "@/lib/cover-letter";
+import { registerXlsx } from "@/lib/incidents";
 import { loadAuditNotice, auditNoticeHtml } from "@/lib/audit-notice";
 import { loadReadinessLetter, readinessLetterHtml } from "@/lib/readiness-letter";
 import { clientDepartments, workplanFor } from "@/lib/audit-workplan";
@@ -104,6 +105,16 @@ export async function GET(req: Request) {
     return page(r.title, r.body, format, slug(r.title), r.css, await cover(dp.client_id, "dpia-report", "Data Protection Impact Assessment Report"));
   }
 
+  if (kind === "incident-register") { // the client's own register, as Excel; contacts only (it's their internal log)
+    if (u.kind !== "contact") return denied();
+    const rows = await q<{ number: string; data: Record<string, string> }>("select number, data from incidents where client_id = $1 order by number", [u.client_id]);
+    const ans = await answersOf(u.client_id!), c = (await one("select name from clients where id = $1", [u.client_id]))!;
+    const org = String(ans.org_legal_name || c.name);
+    await audit(u, "export", "incident_register", u.client_id!, { client_id: u.client_id, details: { format: "xlsx" } });
+    return new Response(new Uint8Array(await registerXlsx(org, String(ans.dpo_name ?? ""), rows)), { headers: {
+      "content-type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      "content-disposition": `attachment; filename="${slug(`${org} Data Privacy Incident Register`)}.xlsx"` } });
+  }
   if (kind === "audit-notice") { // letter + attached invoice; contacts may open their own once sent
     const id = url.searchParams.get("id") ?? "";
     const d = /^[0-9a-f-]{36}$/.test(id) ? await loadAuditNotice(id) : null;

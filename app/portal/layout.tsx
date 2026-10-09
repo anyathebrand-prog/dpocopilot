@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { House, ListChecks, Database, CalendarClock, FileText, Upload, Receipt, ClipboardList, ShieldAlert, UserSearch, BadgeCheck, Menu, LogOut } from "lucide-react";
+import { House, ListChecks, Database, CalendarClock, FileText, Upload, Receipt, ClipboardList, ShieldAlert, UserSearch, BadgeCheck, NotebookPen, Menu, LogOut } from "lucide-react";
 import { requireContact } from "@/lib/auth";
 import { one } from "@/lib/db";
 import { signOut } from "@/lib/auth-actions";
@@ -43,6 +43,7 @@ export default async function PortalLayout({ children }: { children: ReactNode }
             <NavLink href="/portal/invoices"><Receipt aria-hidden /><span>Invoices</span>{badge(c!.invoices)}</NavLink>
             <NavLink href="/portal/questionnaire"><ClipboardList aria-hidden />Onboarding answers</NavLink>
             <NavLink href="/portal/report-breach"><ShieldAlert aria-hidden />Report a breach</NavLink>
+            <NavLink href="/portal/incidents"><NotebookPen aria-hidden />Incident register</NavLink>
             <NavLink href="/portal/log-request"><UserSearch aria-hidden />Log a data request</NavLink>
             <NavLink href="/portal/requests"><BadgeCheck aria-hidden /><span>Verify &amp; assign requests</span>{badge(c!.unverified)}</NavLink>
           </nav>

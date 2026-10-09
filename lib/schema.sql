@@ -877,3 +877,17 @@ do $$ begin
     insert into platform_settings (key, published_value) values ('migr_dsar_72h', 'done');
   end if;
 end $$;
+
+-- Client's Data Privacy Incident Register (blog/Data_Privacy_Incident_Register.xlsx): one row per incident, fields in data.
+create table if not exists incidents (
+  id uuid primary key default gen_random_uuid(),
+  firm_id uuid not null references firms,
+  client_id uuid not null references clients,
+  number text not null,
+  data jsonb not null,
+  created_by uuid not null references users,
+  updated_by uuid not null references users,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique (client_id, number)
+);
