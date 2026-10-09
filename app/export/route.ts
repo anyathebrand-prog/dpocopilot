@@ -99,6 +99,16 @@ export async function GET(req: Request) {
     return page(r.title, r.body, format, slug(r.title), r.css, await cover(dp.client_id, "dpia-report", "Data Protection Impact Assessment Report"));
   }
 
+  if (kind === "library") { // published regulatory documents, readable by every firm user
+    const id = url.searchParams.get("id") ?? "";
+    const d = u.kind === "firm" && /^[0-9a-f-]{36}$/.test(id) ? await one("select * from reg_documents where id = $1 and status = 'published'", [id]) : null;
+    if (!d) return denied();
+    const secs = await q("select section_ref, heading, body from reg_sections where document_id = $1 order by position", [id]);
+    await audit(u, "export", "reg_document", id, { details: { format } });
+    return page(d.title, `<h1>${esc(d.title)}</h1><p class="meta">${esc(d.version_label)} · from the DPO Copilot regulatory library · guidance, not legal advice; check the official gazetted text</p>` +
+      secs.map((s) => `<h2>${esc(s.section_ref)}${s.heading ? ` ${esc(s.heading)}` : ""}</h2>${String(s.body).split(/\n\s*\n|\n/).filter((x) => x.trim()).map((x) => `<p>${esc(x)}</p>`).join("")}`).join(""),
+      format, slug(`${d.title}-${d.version_label}`));
+  }
   if (kind === "invoice" || kind === "receipt") {
     const id = url.searchParams.get("id") ?? "";
     const inv = /^[0-9a-f-]{36}$/.test(id) ? await one("select * from invoices where id = $1", [id]) : null;
