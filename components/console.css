@@ -253,3 +253,10 @@
   .cx *, .cx *::before, .cx *::after { animation: none !important; transition: none !important; }
   .cx .rule-row:hover, .cx .panel:hover, .cx .btn:hover { transform: none; }
 }
+
+/* Horizontal scroll area for wide tables inside dark panels: slim, rounded, panel-coloured scrollbar. */
+.cx .cx-hscroll { overflow-x: auto; padding-bottom: 6px; scrollbar-width: thin; scrollbar-color: rgba(255, 255, 255, 0.35) transparent; }
+.cx .cx-hscroll::-webkit-scrollbar { height: 8px; }
+.cx .cx-hscroll::-webkit-scrollbar-track { background: rgba(255, 255, 255, 0.06); border-radius: 999px; }
+.cx .cx-hscroll::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.35); border-radius: 999px; }
+.cx .cx-hscroll::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.55); }

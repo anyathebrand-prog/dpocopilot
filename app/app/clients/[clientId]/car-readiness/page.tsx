@@ -333,7 +333,7 @@ export default async function Car({ params, searchParams }: { params: Promise<{ 
             </div>
             <form action={saveObservations}>
             <Hidden values={{ client_id: clientId, year: String(year), dept: plan.dept }} />
-            <div style={{ overflowX: "auto", marginTop: 8 }}>
+            <div className="cx-hscroll" style={{ marginTop: 8 }}>
             <table className="register" style={{ minWidth: 1100, tableLayout: "fixed" }}>
               <colgroup><col style={{ width: 70 }} /><col style={{ width: 120 }} /><col style={{ width: 110 }} /><col /><col /><col style={{ width: 120 }} /><col style={{ width: 110 }} /><col style={{ width: 220 }} /></colgroup>
               <thead><tr><th>Ref</th><th>CAR area</th><th>GAID / NDPA reference</th><th>Control objective</th><th>Audit procedure</th><th>Evidence to obtain</th><th>Risk</th><th>Observation</th></tr></thead>
@@ -351,7 +351,7 @@ export default async function Car({ params, searchParams }: { params: Promise<{ 
               ))}</tbody>
             </table>
             </div>
-            {!ro && <Submit>Save observations</Submit>}
+            {!ro && <div style={{ marginTop: 16 }}><Submit>Save observations</Submit></div>}
             </form>
             <p className="caption">Bold CAR areas are controls specific to this department. {plan.rows.length} controls · NDPA 2023 / GAID 2025 Art. 10 CAR audit.</p>
           </div>
