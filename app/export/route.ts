@@ -16,6 +16,7 @@ import { planHtml } from "@/lib/training";
 import { projectPlanHtml } from "@/lib/project-plan";
 import { proposalHtml, coverLetterHtml } from "@/lib/proposal";
 import { reportCover } from "@/lib/cover-letter";
+import { loadReadinessLetter, readinessLetterHtml } from "@/lib/readiness-letter";
 import { clientDepartments, workplanFor } from "@/lib/audit-workplan";
 import { list } from "@/lib/questionnaire";
 import { answersOf } from "@/lib/data";
@@ -102,6 +103,14 @@ export async function GET(req: Request) {
     return page(r.title, r.body, format, slug(r.title), r.css, await cover(dp.client_id, "dpia-report", "Data Protection Impact Assessment Report"));
   }
 
+  if (kind === "readiness") { // Data Protection Audit Readiness Letter
+    const id = url.searchParams.get("id") ?? "";
+    const d = /^[0-9a-f-]{36}$/.test(id) ? await loadReadinessLetter(id) : null;
+    if (!d || !(await canSeeClient(d.l.client_id))) return denied();
+    const r = readinessLetterHtml(d);
+    await audit(u, "export", "readiness_letter", id, { client_id: d.l.client_id, details: { format } });
+    return page(r.title, r.body, format, slug(r.title), r.css);
+  }
   if (kind === "library") { // published regulatory documents, readable by every firm user
     const id = url.searchParams.get("id") ?? "";
     const d = u.kind === "firm" && /^[0-9a-f-]{36}$/.test(id) ? await one("select * from reg_documents where id = $1 and status = 'published'", [id]) : null;

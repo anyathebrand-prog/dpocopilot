@@ -6,6 +6,7 @@ import { SERVICES, totals, naira, type Line } from "@/lib/invoice";
 import { fmtDate, fmtWAT, todayWAT } from "@/lib/rules";
 import { Flash, Field, Hidden, Chip, Empty } from "@/components/ui";
 import { Submit } from "@/components/client";
+import { draftReadinessLetter } from "@/lib/readiness-letter";
 
 async function create(fd: FormData) {
   "use server";
@@ -45,8 +46,9 @@ async function setStatus(fd: FormData) {
     }
     const contacts = await q<{ email: string }>("select email from client_contacts where client_id = $1 and status = 'active'", [inv.client_id]);
     for (const c of contacts) await send("email", c.email, "receipt_issued", `${user.firm_name} has received your payment for invoice ${inv.number}. Your receipt ${receipt} is ready. Log in to download it: ${process.env.APP_URL ?? "http://localhost:3000"}/portal/invoices`);
+    await draftReadinessLetter(inv.id, user.id); // the audit can start: draft the readiness letter for the client
     await audit(user, "update", "invoice", inv.id, { client_id: inv.client_id, details: { status, receipt } });
-    redirect(flash(`/app/clients/${inv.client_id}/billing`, `Marked as paid. Receipt ${receipt} generated${contacts.length ? " and the client notified" : ""}.`));
+    redirect(flash(`/app/clients/${inv.client_id}/billing`, `Marked as paid. Receipt ${receipt} generated${contacts.length ? " and the client notified" : ""}. Audit readiness letter drafted under Documents.`));
   }
   await audit(user, "update", "invoice", inv.id, { client_id: inv.client_id, details: { status } });
   redirect(flash(`/app/clients/${inv.client_id}/billing`, status === "paid" ? "Marked as paid" : status === "cancelled" ? "Invoice cancelled" : "Marked as unpaid"));

@@ -819,3 +819,22 @@ create table if not exists workplan_observations (
 -- Tasks: project name and sub-activity (title is the Activity).
 alter table tasks add column if not exists project_name text;
 alter table tasks add column if not exists sub_activity text;
+
+-- Data Protection Audit Readiness Letter, drafted automatically when an invoice is marked paid (one per invoice); editable.
+create table if not exists readiness_letters (
+  id uuid primary key default gen_random_uuid(),
+  firm_id uuid not null references firms,
+  client_id uuid not null references clients,
+  invoice_id uuid unique references invoices,
+  our_ref text not null,
+  your_ref text,
+  letter_date date not null default current_date,
+  audit_year int not null,
+  commencement_on date,
+  addressee text not null,
+  salutation text not null,
+  copy_to text,
+  created_by uuid not null references users,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
