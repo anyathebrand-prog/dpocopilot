@@ -37,7 +37,7 @@ test("readiness excludes Not applicable from the score", () => {
   ]);
   assert.deepEqual(r.overall, { complete: 2, applicable: 3, pct: 67 });
   assert.equal(r.byCategory.governance.pct, 50);
-  assert.equal(r.byCategory.data_processors.pct, 0);
+  assert.equal("data_processors" in r.byCategory, false);
 });
 
 test("seeded client returns every V1 gap type (PRD F12 acceptance)", () => {

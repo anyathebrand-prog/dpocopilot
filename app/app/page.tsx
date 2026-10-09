@@ -29,7 +29,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
       (select count(*)::int from breaches b where b.client_id = c.id and b.status = 'open') as breaches,
       (select count(*)::int from dsars d where d.client_id = c.id and d.status = 'open') as dsars,
       (select coalesce(round(100.0 * count(*) filter (where status = 'complete') / nullif(count(*) filter (where status <> 'not_applicable'), 0)), 0)::int
-        from client_car_items i where i.client_id = c.id and i.audit_year = c.car_audit_year) as readiness
+        from client_car_items i where i.client_id = c.id and i.audit_year = c.car_audit_year and i.category_key <> 'data_processors') as readiness
     from clients c where ${scope} and (c.archived_at is not null) = $4 order by c.name`, [...args, today, archived]);
 
   return (

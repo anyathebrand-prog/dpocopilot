@@ -91,7 +91,8 @@ export const CAR_CATEGORIES: Record<string, string> = {
   technology: "Part 3: Technology and security controls",
   accountability_risk: "Part 4: Accountability and risk evaluation",
   cross_border_transfer: "Part 5: Cross-border data transfer",
-  data_processors: "Part 6: Data processors (third parties)",
+  // Part 6 (data processors) is no longer part of the checklist: processors are assessed under Third-party risk (TPRA),
+  // and departments are audited with the work plan (Section B). Its stored answers are kept but left out of every view and score.
 };
 
 type CarItem = { category_key: string; status: string; priority?: string | null };

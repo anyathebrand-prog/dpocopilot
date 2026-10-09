@@ -1,4 +1,6 @@
 import { Fragment } from "react";
+import { clientDepartments, workplanFor } from "@/lib/audit-workplan";
+import { list } from "@/lib/questionnaire";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { requireClient, audit } from "@/lib/auth";
@@ -8,7 +10,7 @@ import { readiness, CAR_CATEGORIES, carItemRisk, carRisk, maturityLevel, MATURIT
 import { answersOf } from "@/lib/data";
 import { defaultBackground } from "@/lib/car-report";
 import { str, opt, flash } from "@/lib/form";
-import { Flash, Hidden, Chip, Bar, Banner, Empty } from "@/components/ui";
+import { Flash, Field, Hidden, Chip, Bar, Banner, Empty } from "@/components/ui";
 import { Submit, Confirm } from "@/components/client";
 import { INSTALL } from "@/lib/install";
 
@@ -168,7 +170,7 @@ export default async function Car({ params, searchParams }: { params: Promise<{ 
   const years = (await q<{ y: number }>("select distinct audit_year as y from client_car_items where client_id = $1 order by 1 desc", [clientId])).map((r) => r.y);
   const items = await q(`select i.*, (select count(*)::int from evidence_requests e where e.car_item_id = i.id and e.status = 'accepted') as accepted,
       (select count(*)::int from evidence_requests e where e.car_item_id = i.id and e.status <> 'accepted') as pending
-    from client_car_items i where i.client_id = $1 and i.audit_year = $2 order by i.category_key, i.position`, [clientId, year]);
+    from client_car_items i where i.client_id = $1 and i.audit_year = $2 and i.category_key <> 'data_processors' order by i.category_key, i.position`, [clientId, year]);
   type It = { category_key: string; status: string; priority: string | null };
   const r = readiness(items as It[]);
   const risk = carRisk(items as It[]);
@@ -178,6 +180,11 @@ export default async function Car({ params, searchParams }: { params: Promise<{ 
   const rep = (await one("select * from car_reports where client_id = $1 and audit_year = $2", [clientId, year])) ?? {};
   const firm = (await one("select ndpc_licence_no, signatory_name from firms where id = $1", [client.firm_id]))!;
   const answers = await answersOf(clientId);
+  // Section B: departments from the organogram (then the onboarding list), and the chosen department's audit work plan.
+  const depts = clientDepartments((answers.org_structure_file as { text?: string } | undefined)?.text, list(answers.org_departments));
+  const plan = sp.dept && depts.includes(sp.dept)
+    ? workplanFor(sp.dept, await q("select purpose, data_categories, system_owner from ropa_entries where client_id = $1 and state = 'active' and lower(department) = lower($2)", [clientId, sp.dept]) as any)
+    : null;
   const suggestedBackground = defaultBackground(String(answers.org_legal_name || client.name), answers);
   const open = items.filter((i) => i.status === "missing" || i.status === "in_progress");
   const noRecommendation = open.filter((i) => !i.recommendation).length, noObservation = open.filter((i) => !i.na_reason).length;
@@ -234,7 +241,6 @@ export default async function Car({ params, searchParams }: { params: Promise<{ 
       {Object.entries(CAR_CATEGORIES).filter(([k]) => items.some((i) => i.category_key === k)).map(([k, label]) => (
         <Fragment key={k}>
         {k === "governance" && <h3 style={{ margin: "24px 0 8px" }}>Section A <span className="meta">Parts 1 to 5</span></h3>}
-        {k === "data_processors" && <h3 style={{ margin: "24px 0 8px" }}>Section B <span className="meta">Part 6</span></h3>}
         <details className="group" open>
           <summary><span>{label}</span><span className="row" style={{ gap: 8 }}>{(() => { const cr = carRisk(items.filter((i) => i.category_key === k) as It[]); return cr && <Chip status={`risk_${cr.rating}`} />; })()}<span className="num meta">{r.byCategory[k].pct}% · {r.byCategory[k].complete}/{r.byCategory[k].applicable}</span></span></summary>
           <div>
@@ -286,6 +292,40 @@ export default async function Car({ params, searchParams }: { params: Promise<{ 
         </details>
         </Fragment>
       ))}
+      <section id="workplan" style={{ marginTop: 24 }}>
+        <h3 style={{ margin: "0 0 8px" }}>Section B <span className="meta">Audit work plan by department</span></h3>
+        {depts.length === 0 ? <p className="meta">No departments yet. Attach the organogram or list the departments in <a href={`${b}/onboarding?s=0`}>Onboarding</a>.</p> : (
+          <form className="row" style={{ alignItems: "flex-end" }} action={`#workplan`}>
+            <input type="hidden" name="year" value={year} />
+            <Field label="Department"><select name="dept" defaultValue={sp.dept ?? ""}><option value="">Choose a department…</option>{depts.map((d) => <option key={d}>{d}</option>)}</select></Field>
+            <button className="btn secondary">Show work plan</button>
+          </form>
+        )}
+        {plan && (
+          <div className="panel" style={{ marginTop: 12 }}>
+            <div className="spread" style={{ alignItems: "flex-start" }}>
+              <div><b>{plan.dept}</b>{plan.unit ? <span className="meta"> · based on the work plan for {plan.unit.name}</span> : <span className="meta"> · base controls (no matching unit in the work plan)</span>}
+                <div className="meta small">{[plan.profile.subjects && `Data subjects: ${plan.profile.subjects}`, plan.profile.data && `Key personal data: ${plan.profile.data}`, plan.profile.systems && `Systems: ${plan.profile.systems}`, plan.profile.risk && `Inherent risk: ${plan.profile.risk}`].filter(Boolean).join(" · ")}</div></div>
+              <div className="row"><a className="btn secondary" href={`/export?kind=workplan&client=${clientId}&dept=${encodeURIComponent(plan.dept)}&format=pdf`} target="_blank">PDF</a><a className="btn secondary" href={`/export?kind=workplan&client=${clientId}&dept=${encodeURIComponent(plan.dept)}&format=doc`}>Word</a></div>
+            </div>
+            <table className="register" style={{ marginTop: 8 }}>
+              <thead><tr><th>Ref</th><th>CAR area</th><th>GAID / NDPA reference</th><th>Control objective</th><th>Audit procedure</th><th>Evidence to obtain</th><th>Risk</th></tr></thead>
+              <tbody>{plan.rows.map((c) => (
+                <tr key={c.ref}>
+                  <td className="small">{c.ref}</td>
+                  <td data-label="CAR area">{c.specific ? <b>{c.area}</b> : c.area}</td>
+                  <td data-label="Reference" className="small">{c.law}</td>
+                  <td data-label="Objective" className="small">{c.objective}</td>
+                  <td data-label="Procedure" className="small">{c.procedure}</td>
+                  <td data-label="Evidence" className="small">{c.evidence}</td>
+                  <td data-label="Risk"><Chip status={`risk_${c.risk.toLowerCase()}`} /></td>
+                </tr>
+              ))}</tbody>
+            </table>
+            <p className="caption">Bold CAR areas are controls specific to this department. {plan.rows.length} controls · NDPA 2023 / GAID 2025 Art. 10 CAR audit.</p>
+          </div>
+        )}
+      </section>
       <section id="findings" style={{ marginTop: 32 }}>
         <h3 style={{ marginBottom: 4 }}>Other findings and observations</h3>
         <p className="meta" style={{ marginTop: 0 }}>Ancillary high-risk findings that none of the questions above cover. Shown to the client and included in exports.</p>

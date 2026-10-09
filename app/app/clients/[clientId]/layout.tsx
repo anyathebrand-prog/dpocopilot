@@ -10,7 +10,7 @@ export default async function ClientLayout({ children, params }: { children: Rea
   const { clientId } = await params;
   const { client } = await requireClient(clientId);
   const s = await one(`select
-      (select coalesce(round(100.0 * count(*) filter (where status = 'complete') / nullif(count(*) filter (where status <> 'not_applicable'), 0)), 0)::int from client_car_items where client_id = $1 and audit_year = (select car_audit_year from clients where id = $1)) as readiness,
+      (select coalesce(round(100.0 * count(*) filter (where status = 'complete') / nullif(count(*) filter (where status <> 'not_applicable'), 0)), 0)::int from client_car_items where client_id = $1 and audit_year = (select car_audit_year from clients where id = $1) and category_key <> 'data_processors') as readiness,
       (select count(*)::int from breaches where client_id = $1 and status = 'open') as breaches,
       (select count(*)::int from dsars where client_id = $1 and status = 'open' and deadline_on < $2) as dsars_overdue,
       (select count(*)::int from gap_findings where client_id = $1 and state = 'open') as gaps,

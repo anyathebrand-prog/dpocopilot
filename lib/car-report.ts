@@ -25,7 +25,7 @@ const SCOPE: Record<string, string> = {
 
 export async function loadCarReport(clientId: string, year: number) {
   const items = await q<Item>(`select id, category_key, section, item_text, status, priority, answer, na_reason, recommendation from client_car_items
-    where client_id = $1 and audit_year = $2 order by position`, [clientId, year]);
+    where client_id = $1 and audit_year = $2 and category_key <> 'data_processors' order by position`, [clientId, year]);
   if (!items.length) return null;
   const findings = await q<Finding>("select id, observation, risk, recommendation, status from car_findings where client_id = $1 and audit_year = $2 order by created_at", [clientId, year]);
   const c = (await one(`select c.name, c.sector, c.mi_class, f.name as firm_name, f.address as firm_address, f.website as firm_website, f.email as firm_email,

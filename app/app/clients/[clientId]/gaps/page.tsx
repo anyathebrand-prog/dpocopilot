@@ -20,7 +20,7 @@ async function run(fd: FormData) {
       and exists (select 1 from content_versions v where v.parent_type = 'document' and v.parent_id = d.id and v.status in ('approved','awaiting_client_signoff','client_signed_off'))`, [id])).map((r) => r.template_key),
     evidence: await q("select id, title, due_on, status from evidence_requests where client_id = $1", [id]) as any,
     dsars: await q("select id, requester_name, deadline_on, status from dsars where client_id = $1", [id]) as any,
-    car: await q("select id, item_text, status from client_car_items where client_id = $1 and audit_year = (select car_audit_year from clients where id = $1)", [id]) as any,
+    car: await q("select id, item_text, status from client_car_items where client_id = $1 and audit_year = (select car_audit_year from clients where id = $1) and category_key <> 'data_processors'", [id]) as any,
   });
   await tx(async (t) => {
     for (const g of gaps)

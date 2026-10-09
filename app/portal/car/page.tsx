@@ -11,7 +11,7 @@ export default async function PortalCar() {
   const items = await q(`select i.id, i.category_key, i.section, i.item_text, i.status, i.priority, i.recommendation,
       (select json_agg(json_build_object('id', e.id, 'title', e.title, 'status', e.status)) from evidence_requests e
         where e.car_item_id = i.id and e.status in ('open','rejected')) as asks
-    from client_car_items i where i.client_id = $1 and i.audit_year = (select car_audit_year from clients where id = $1) order by i.category_key, i.position`, [u.client_id]);
+    from client_car_items i where i.client_id = $1 and i.audit_year = (select car_audit_year from clients where id = $1) and i.category_key <> 'data_processors' order by i.category_key, i.position`, [u.client_id]);
   const r = readiness(items as { category_key: string; status: string }[]);
   const risk = carRisk(items as { category_key: string; status: string; priority: string | null }[]);
   const findings = await q("select observation, risk, recommendation, status from car_findings where client_id = $1 and audit_year = (select car_audit_year from clients where id = $1) order by status, created_at", [u.client_id]);
