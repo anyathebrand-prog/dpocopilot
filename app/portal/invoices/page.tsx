@@ -26,7 +26,7 @@ export default async function PortalInvoices() {
               <td data-label="Services" className="small">{(r.lines as Line[]).map((l) => l.service).join(", ")}</td>
               <td data-label="Total" className="num">{naira(totals(r.lines, Number(r.vat_rate)).total)}</td>
               <td data-label="Status">{r.status === "paid" ? "Paid" : "Unpaid"}</td>
-              <td className="row" style={{ gap: 6 }}>{r.status === "paid" && r.receipt_no && <a className="btn" href={`/export?kind=receipt&id=${r.id}&format=pdf`} target="_blank">Receipt</a>}<a className="btn secondary" href={exp(r.id, "pdf")} target="_blank">PDF</a><a className="btn secondary" href={exp(r.id, "doc")}>Word</a></td>
+              <td><div className="row" style={{ gap: 6, flexWrap: "wrap" }}>{r.status === "paid" && r.receipt_no && <a className="btn" href={`/export?kind=receipt&id=${r.id}&format=pdf`} target="_blank">Receipt</a>}<a className="btn secondary" href={exp(r.id, "pdf")} target="_blank">PDF</a><a className="btn secondary" href={exp(r.id, "doc")}>Word</a></div></td>
             </tr>
           ))}</tbody>
         </table>

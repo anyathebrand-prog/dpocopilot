@@ -25,7 +25,7 @@ export default async function FirmLibrary({ searchParams }: { searchParams: Prom
               <td data-label="Type">{TYPE[d.doc_type] ?? d.doc_type}</td>
               <td data-label="Version" className="small">{d.version_label}</td>
               <td data-label="Sections" className="num">{d.sections}</td>
-              <td className="row" style={{ gap: 6 }}><a className="btn secondary" href={exp(d.id, "pdf")} target="_blank">PDF</a><a className="btn secondary" href={exp(d.id, "doc")}>Word</a></td>
+              <td><div className="row" style={{ gap: 6, flexWrap: "wrap" }}><a className="btn secondary" href={exp(d.id, "pdf")} target="_blank">PDF</a><a className="btn secondary" href={exp(d.id, "doc")}>Word</a></div></td>
             </tr>
           ))}</tbody>
         </table>
