@@ -1,3 +1,4 @@
+import { Fragment } from "react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { requireClient, audit } from "@/lib/auth";
@@ -231,7 +232,10 @@ export default async function Car({ params, searchParams }: { params: Promise<{ 
         <p className="caption" style={{ marginTop: 8 }}>Items marked Not applicable are left out of both scores. {INSTALL.name} does not file the CAR with the NDPC.</p>
       </section>
       {Object.entries(CAR_CATEGORIES).filter(([k]) => items.some((i) => i.category_key === k)).map(([k, label]) => (
-        <details key={k} className="group" open>
+        <Fragment key={k}>
+        {k === "governance" && <h3 style={{ margin: "24px 0 8px" }}>Section A <span className="meta">Parts 1 to 5</span></h3>}
+        {k === "data_processors" && <h3 style={{ margin: "24px 0 8px" }}>Section B <span className="meta">Part 6</span></h3>}
+        <details className="group" open>
           <summary><span>{label}</span><span className="row" style={{ gap: 8 }}>{(() => { const cr = carRisk(items.filter((i) => i.category_key === k) as It[]); return cr && <Chip status={`risk_${cr.rating}`} />; })()}<span className="num meta">{r.byCategory[k].pct}% · {r.byCategory[k].complete}/{r.byCategory[k].applicable}</span></span></summary>
           <div>
             {items.filter((i) => i.category_key === k).map((i, n, list) => {
@@ -280,6 +284,7 @@ export default async function Car({ params, searchParams }: { params: Promise<{ 
             })}
           </div>
         </details>
+        </Fragment>
       ))}
       <section id="findings" style={{ marginTop: 32 }}>
         <h3 style={{ marginBottom: 4 }}>Other findings and observations</h3>
