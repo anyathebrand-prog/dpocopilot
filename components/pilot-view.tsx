@@ -56,9 +56,9 @@ export function PilotView({ action, ok, error }: { action: (fd: FormData) => Pro
             <motion.form action={action} variants={list} initial="hidden" animate="show">
               <motion.h2 variants={item} className="sp-card-title">Request pilot access</motion.h2>
               {error && <motion.div variants={item} className="sp-error" role="alert"><CircleAlert aria-hidden />{error}</motion.div>}
-              <motion.label variants={item} className="sp-field"><span>Your name <em>(required)</em></span><input name="name" autoComplete="name" required /></motion.label>
-              <motion.label variants={item} className="sp-field"><span>Work email <em>(required)</em></span><input type="email" name="email" autoComplete="email" required /></motion.label>
-              <motion.label variants={item} className="sp-field"><span>Firm name <em>(required)</em></span><input name="firm" autoComplete="organization" required /></motion.label>
+              <motion.label variants={item} className="sp-field"><span>Your name <em className="req" aria-hidden="true">*</em><span className="sr-only">(required)</span></span><input name="name" autoComplete="name" required /></motion.label>
+              <motion.label variants={item} className="sp-field"><span>Work email <em className="req" aria-hidden="true">*</em><span className="sr-only">(required)</span></span><input type="email" name="email" autoComplete="email" required /></motion.label>
+              <motion.label variants={item} className="sp-field"><span>Firm name <em className="req" aria-hidden="true">*</em><span className="sr-only">(required)</span></span><input name="firm" autoComplete="organization" required /></motion.label>
               <motion.fieldset variants={item} className="sp-field">
                 <legend>How many client organisations do you manage?</legend>
                 <div className="sp-sizes">

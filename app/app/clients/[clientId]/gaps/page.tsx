@@ -76,7 +76,7 @@ export default async function Gaps({ params, searchParams }: { params: Promise<{
                   <Hidden values={{ gap_id: g.id }} />
                   <Submit className="btn quiet" name="op" value="resolved">Mark resolved</Submit>
                   <details><summary className="small" style={{ cursor: "pointer", color: "var(--stamp-700)" }}>Not applicable…</summary>
-                    <input name="reason" aria-label="Reason" placeholder="Reason (required)" /><Submit className="btn quiet" name="op" value="na">Mark not applicable</Submit>
+                    <input name="reason" aria-label="Reason" placeholder="Reason *" required /><Submit className="btn quiet" name="op" value="na">Mark not applicable</Submit>
                   </details>
                 </form>
               )}</td>

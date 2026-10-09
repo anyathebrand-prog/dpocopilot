@@ -257,3 +257,6 @@ details.group > div { padding: 0 16px 16px; }
 /* Shared helpers: screen-reader-only text, three.js stamp scene container */
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .pr-scene { height: 300px; position: relative; }
+
+/* Required-field marker. */
+.req { color: #D93025; font-style: normal; font-weight: 700; }

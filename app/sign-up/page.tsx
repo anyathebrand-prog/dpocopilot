@@ -34,10 +34,10 @@ export default async function SignUp({ searchParams }: { searchParams: Promise<R
             {sp.error && <div className="sp-error" role="alert"><CircleAlert aria-hidden />{sp.error}</div>}
             <form action={signUp}>
               {sp.token && <input type="hidden" name="token" value={sp.token} />}
-              <label className="sp-field"><span>Your full name <em>(required)</em></span><input name="name" autoComplete="name" required /></label>
-              <label className="sp-field"><span>Work email <em>(required)</em></span><input type="email" name="email" autoComplete="email" required /></label>
+              <label className="sp-field"><span>Your full name <em className="req" aria-hidden="true">*</em><span className="sr-only">(required)</span></span><input name="name" autoComplete="name" required /></label>
+              <label className="sp-field"><span>Work email <em className="req" aria-hidden="true">*</em><span className="sr-only">(required)</span></span><input type="email" name="email" autoComplete="email" required /></label>
               <label className="sp-field"><span>Password <em>(required, at least 10 characters)</em></span><input type="password" name="password" autoComplete="new-password" minLength={10} required /></label>
-              <label className="sp-field"><span>Firm name <em>(required)</em></span><input name="firm" autoComplete="organization" required /></label>
+              <label className="sp-field"><span>Firm name <em className="req" aria-hidden="true">*</em><span className="sr-only">(required)</span></span><input name="firm" autoComplete="organization" required /></label>
               <div className="sp-submit"><Submit className="btn-cta">Create firm <ArrowRight aria-hidden /></Submit></div>
             </form>
           </Reveal>

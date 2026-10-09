@@ -30,14 +30,14 @@ export function Questionnaire({ answers, s, base, clientId, readOnly, portal, up
             const byFirm = portal && updatedByFirm.includes(qn.key) ? " (updated by your DPCO)" : "";
             if (qn.type === "multi") return (
               <fieldset key={qn.key}>
-                <legend>{qn.label}{qn.required && " (required)"}{byFirm}</legend>
+                <legend>{qn.label}{qn.required && <><span className="req" aria-hidden="true"> *</span><span className="sr-only"> (required)</span></>}{byFirm}</legend>
                 {qn.help && <p className="meta">{qn.help}</p>}
                 {qn.options!.map((o) => <label key={o.value} className="check"><input type="checkbox" name={qn.key} value={o.value} defaultChecked={Array.isArray(v) && v.includes(o.value)} />{o.label}</label>)}
               </fieldset>
             );
             if (qn.type === "yesno") return (
               <fieldset key={qn.key}>
-                <legend>{qn.label}{qn.required && " (required)"}{byFirm}</legend>
+                <legend>{qn.label}{qn.required && <><span className="req" aria-hidden="true"> *</span><span className="sr-only"> (required)</span></>}{byFirm}</legend>
                 {qn.help && <p className="meta">{qn.help}</p>}
                 {["yes", "no"].map((o) => <label key={o} className="check"><input type="radio" name={qn.key} value={o} defaultChecked={v === o} />{o === "yes" ? "Yes" : "No"}</label>)}
               </fieldset>

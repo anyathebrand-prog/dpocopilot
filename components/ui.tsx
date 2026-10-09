@@ -117,7 +117,7 @@ export function PageHead({ title, sub, children }: { title: string; sub?: ReactN
 export function Field({ label, help, required, children }: { label: string; help?: string; required?: boolean; children: ReactNode }) {
   return (
     <label className="field">
-      <span>{label}{required && " (required)"}</span>
+      <span>{label}{required && <><span className="req" aria-hidden="true"> *</span><span className="sr-only"> (required)</span></>}</span>
       {help && <span className="help">{help}</span>}
       {children}
     </label>

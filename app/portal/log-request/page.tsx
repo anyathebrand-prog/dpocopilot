@@ -40,7 +40,7 @@ export default async function LogRequest({ searchParams }: { searchParams: Promi
       <Flash sp={sp} />
       <form action={log}>
         <fieldset>
-          <legend>What are they asking for? (required)</legend>
+          <legend>What are they asking for?<span className="req" aria-hidden="true"> *</span><span className="sr-only"> (required)</span></legend>
           {TYPES.map(([k, l, help]) => <label key={k} className="check"><input type="radio" name="request_type" value={k} required /><span><b>{l}</b><br /><span className="meta">{help}</span></span></label>)}
         </fieldset>
         <Field label="Date you received it" required><input type="date" name="received_on" max={todayWAT()} defaultValue={todayWAT()} required /></Field>

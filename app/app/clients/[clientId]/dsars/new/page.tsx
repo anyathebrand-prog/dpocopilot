@@ -36,7 +36,7 @@ export default async function NewDsar({ params, searchParams }: { params: Promis
       <form action={log} style={{ maxWidth: 640 }}>
         <Hidden values={{ client_id: clientId }} />
         <fieldset>
-          <legend>Request type (required)</legend>
+          <legend>Request type<span className="req" aria-hidden="true"> *</span><span className="sr-only"> (required)</span></legend>
           {Object.entries(DSAR_TYPES).map(([k, l]) => <label key={k} className="check"><input type="radio" name="request_type" value={k} required />{l}</label>)}
         </fieldset>
         <Field label="Date received" help={`The response is due ${days} days after this date.`} required><input type="date" name="received_on" max={todayWAT()} defaultValue={todayWAT()} required /></Field>

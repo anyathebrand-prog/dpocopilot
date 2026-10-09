@@ -43,7 +43,7 @@ export default async function NewDpia({ params, searchParams }: { params: Promis
             <input type="number" name="assessment_year" min={2019} max={2100} required defaultValue={Number(sp.year) || new Date().getFullYear()} style={{ width: 140 }} />
           </Field>
           <fieldset>
-            <legend>Processing activities covered (required)</legend>
+            <legend>Processing activities covered<span className="req" aria-hidden="true"> *</span><span className="sr-only"> (required)</span></legend>
             {ropa.map((r) => (
               <label key={r.id} className="check"><input type="checkbox" name="ropa" value={r.id} defaultChecked={r.id === sp.ropa} />{r.purpose}
                 {(r.involves_sensitive || r.is_high_risk) && <span className="meta"> · {r.involves_sensitive ? "sensitive data" : "high risk"}</span>}</label>
