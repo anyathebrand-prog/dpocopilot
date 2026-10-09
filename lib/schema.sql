@@ -860,3 +860,12 @@ alter table dsars add column if not exists id_notes text;
 alter table dsars add column if not exists id_checked_by uuid references users;
 alter table dsars add column if not exists id_checked_at timestamptz;
 alter table dsars add column if not exists department text;
+
+-- Outbound email body and attached files (data subject request emails carry their text and evidence).
+alter table outbound_messages add column if not exists body text;
+alter table outbound_messages add column if not exists attachments jsonb;
+-- DSAR: executing department's email, when it was notified, and the response evidence files.
+alter table dsars add column if not exists department_email text;
+alter table dsars add column if not exists department_notified_at timestamptz;
+alter table dsars add column if not exists requester_email text;
+alter table files add column if not exists dsar_id uuid references dsars;

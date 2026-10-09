@@ -120,9 +120,11 @@ export async function audit(u: Pick<User, "id" | "firm_id" | "role" | "kind"> | 
  * Email/SMS carry no compliance content — only "log in to view" (TRD §9.1).
  * ponytail: no SMTP/SMS provider wired yet; messages are recorded and printed to the server log. Add a relay behind this function.
  */
-export async function send(channel: "email" | "sms", recipient: string, template: string, devText: string) {
-  await q("insert into outbound_messages (channel, recipient, template_key) values ($1,$2,$3)", [channel, recipient, template]);
-  console.log(`[outbound ${channel} → ${recipient}] ${template}: ${devText}`);
+export async function send(channel: "email" | "sms", recipient: string, template: string, devText: string, opts: { body?: string; attachments?: string[] } = {}) {
+  // body/attachments: kept only for messages that must carry content (e.g. a data subject's response and its evidence files).
+  await q("insert into outbound_messages (channel, recipient, template_key, body, attachments) values ($1,$2,$3,$4,$5)",
+    [channel, recipient, template, opts.body ?? null, opts.attachments?.length ? JSON.stringify(opts.attachments) : null]);
+  console.log(`[outbound ${channel} → ${recipient}] ${template}: ${devText}${opts.attachments?.length ? ` (+${opts.attachments.length} attachment${opts.attachments.length === 1 ? "" : "s"})` : ""}`);
 }
 
 /** In-app alerts. Breach recipients: assigned team + every Lead Consultant and Firm Admin (FLAG-8 default). */
