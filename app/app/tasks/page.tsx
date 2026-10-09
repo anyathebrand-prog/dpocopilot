@@ -1,11 +1,15 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { requireFirm, requireClient, clientScope, scopeArgs, audit } from "@/lib/auth";
+import { requireFirm, requireClient, clientScope, scopeArgs, audit, canApprove } from "@/lib/auth";
+import { naira } from "@/lib/invoice";
 import { q, one } from "@/lib/db";
 import { todayWAT, fmtDate } from "@/lib/rules";
 import { str, opt, flash } from "@/lib/form";
 import { Flash, Field, Hidden, Chip, Empty, Deadline, PageHead } from "@/components/ui";
 import { Submit } from "@/components/client";
+
+/** Fee in naira from the form: null when blank, NaN when not a non-negative amount. */
+const fee = (fd: FormData) => { const v = str(fd, "fee").replace(/[,₦\s]/g, ""); return v === "" ? null : Number.isFinite(Number(v)) && Number(v) >= 0 ? Math.round(Number(v) * 100) / 100 : NaN; };
 
 async function create(fd: FormData) {
   "use server";
@@ -15,7 +19,9 @@ async function create(fd: FormData) {
   const assignee = opt(fd, "assignee"), start = opt(fd, "start_on"), due = opt(fd, "due_on");
   if (start && due && due < start) redirect(flash("/app/tasks", "The due date is before the start date.", "error"));
   if (assignee && !(await one("select 1 from memberships where id = $1 and firm_id = $2", [assignee, user.firm_id]))) redirect("/forbidden");
-  const t = await one("insert into tasks (firm_id, client_id, title, assignee_membership_id, start_on, due_on, created_by) values ($1,$2,$3,$4,$5,$6,$7) returning id", [user.firm_id, client.id, title, assignee, start, due, user.id]);
+  const amount = canApprove(user) ? fee(fd) : null; // only Firm Admins and Lead Consultants set fees
+  if (Number.isNaN(amount)) redirect(flash("/app/tasks", "Enter the professional fee as an amount in naira.", "error"));
+  const t = await one("insert into tasks (firm_id, client_id, title, assignee_membership_id, start_on, due_on, fee, created_by) values ($1,$2,$3,$4,$5,$6,$7,$8) returning id", [user.firm_id, client.id, title, assignee, start, due, amount, user.id]);
   await audit(user, "create", "task", t!.id, { client_id: client.id });
   redirect(flash("/app/tasks", "Task created. It appears on the calendar."));
 }
@@ -30,8 +36,10 @@ async function update(fd: FormData) {
   if (assignee && !(await one("select 1 from memberships where id = $1 and firm_id = $2", [assignee, user.firm_id]))) redirect("/forbidden");
   const start = opt(fd, "start_on"), due = opt(fd, "due_on");
   if (start && due && due < start) redirect(flash("/app/tasks", "The due date is before the start date.", "error"));
-  await q("update tasks set status = $2, assignee_membership_id = $3, start_on = $4, due_on = $5, done_on = case when $2 = 'done' then coalesce(done_on, $6::date) else null end where id = $1",
-    [t.id, status, assignee, start, due, todayWAT()]);
+  const amount = canApprove(user) ? fee(fd) : t.fee; // others keep the fee as it is
+  if (Number.isNaN(amount)) redirect(flash("/app/tasks", "Enter the professional fee as an amount in naira.", "error"));
+  await q("update tasks set status = $2, assignee_membership_id = $3, start_on = $4, due_on = $5, fee = $7, done_on = case when $2 = 'done' then coalesce(done_on, $6::date) else null end where id = $1",
+    [t.id, status, assignee, start, due, todayWAT(), amount]);
   await audit(user, "update", "task", t.id, { client_id: t.client_id, details: { status } });
   redirect(flash("/app/tasks", "Task updated"));
 }
@@ -62,6 +70,7 @@ export default async function Tasks({ searchParams }: { searchParams: Promise<Re
               <Field label="Start date"><input type="date" name="start_on" /></Field>
               <Field label="Due date"><input type="date" name="due_on" /></Field>
             </div>
+            {canApprove(u) && <Field label="Professional Fee Payable (₦)" help="Shown to the assignee on their task."><input name="fee" inputMode="decimal" placeholder="0.00" style={{ width: 200 }} /></Field>}
             <Submit>Create task</Submit>
           </form>
         </details>
@@ -85,18 +94,20 @@ export default async function Tasks({ searchParams }: { searchParams: Promise<Re
       </form>
       {rows.length === 0 ? <Empty><p>No tasks.</p></Empty> : (
         <table className="register">
-          <thead><tr><th>Task</th><th>Client</th><th>Start</th><th>Due</th><th>Dates, assignee and status</th></tr></thead>
+          <thead><tr><th>Task</th><th>Client</th><th>Start</th><th>Due</th><th className="num">Professional Fee Payable</th><th>Dates, assignee and status</th></tr></thead>
           <tbody>{rows.map((t) => (
             <tr key={t.id}>
               <td>{t.title}</td>
               <td data-label="Client"><Link href={`/app/clients/${t.client_id}`}>{t.client_name}</Link></td>
               <td data-label="Start" className="small">{t.start_on ? fmtDate(t.start_on) : "—"}</td>
               <td data-label="Due">{t.due_on ? (t.status === "open" ? <Deadline due={t.due_on} dateOnly soonHours={48} /> : t.due_on) : "—"}</td>
+              <td data-label="Professional Fee Payable" className="num">{(canApprove(u) || t.assignee_membership_id === u.membership_id) && t.fee != null ? naira(Number(t.fee)) : "—"}</td>
               <td data-label="Update">
                 <form action={update} className="row">
                   <Hidden values={{ task_id: t.id }} />
                   <input type="date" name="start_on" defaultValue={t.start_on ?? ""} aria-label="Start date" style={{ width: "auto" }} />
                   <input type="date" name="due_on" defaultValue={t.due_on ?? ""} aria-label="Due date" style={{ width: "auto" }} />
+                  {canApprove(u) && <input name="fee" inputMode="decimal" defaultValue={t.fee ?? ""} placeholder="Fee ₦" aria-label="Professional fee payable" style={{ width: 120 }} />}
                   <select name="assignee" defaultValue={t.assignee_membership_id ?? ""} aria-label="Assignee" style={{ width: "auto" }}><option value="">Unassigned</option>{members.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}</select>
                   <select name="status" defaultValue={t.status} aria-label="Status" style={{ width: "auto" }}><option value="open">Open</option><option value="done">Done</option></select>
                   <Submit className="btn secondary">Save</Submit>

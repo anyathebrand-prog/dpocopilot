@@ -800,3 +800,6 @@ create table if not exists login_attempts (
   n int not null default 0,
   since timestamptz not null default now()
 );
+
+-- Professional fee payable to the assignee for a task (visible to the assignee, Firm Admins and Lead Consultants).
+alter table tasks add column if not exists fee numeric check (fee >= 0);
