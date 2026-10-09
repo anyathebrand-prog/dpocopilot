@@ -333,7 +333,9 @@ export default async function Car({ params, searchParams }: { params: Promise<{ 
             </div>
             <form action={saveObservations}>
             <Hidden values={{ client_id: clientId, year: String(year), dept: plan.dept }} />
-            <table className="register" style={{ marginTop: 8 }}>
+            <div style={{ overflowX: "auto", marginTop: 8 }}>
+            <table className="register" style={{ minWidth: 1100, tableLayout: "fixed" }}>
+              <colgroup><col style={{ width: 70 }} /><col style={{ width: 120 }} /><col style={{ width: 110 }} /><col /><col /><col style={{ width: 120 }} /><col style={{ width: 110 }} /><col style={{ width: 220 }} /></colgroup>
               <thead><tr><th>Ref</th><th>CAR area</th><th>GAID / NDPA reference</th><th>Control objective</th><th>Audit procedure</th><th>Evidence to obtain</th><th>Risk</th><th>Observation</th></tr></thead>
               <tbody>{plan.rows.map((c) => (
                 <tr key={c.ref}>
@@ -344,10 +346,11 @@ export default async function Car({ params, searchParams }: { params: Promise<{ 
                   <td data-label="Procedure" className="small">{c.procedure}</td>
                   <td data-label="Evidence" className="small">{c.evidence}</td>
                   <td data-label="Risk"><Chip status={`risk_${c.risk.toLowerCase()}`} /></td>
-                  <td data-label="Observation" style={{ minWidth: 200 }}><textarea name={`obs_${c.ref}`} rows={3} defaultValue={obs[c.ref] ?? ""} disabled={ro} aria-label={`Observation for ${c.ref}`} /></td>
+                  <td data-label="Observation"><textarea name={`obs_${c.ref}`} rows={4} style={{ width: "100%", boxSizing: "border-box" }} defaultValue={obs[c.ref] ?? ""} disabled={ro} aria-label={`Observation for ${c.ref}`} /></td>
                 </tr>
               ))}</tbody>
             </table>
+            </div>
             {!ro && <Submit>Save observations</Submit>}
             </form>
             <p className="caption">Bold CAR areas are controls specific to this department. {plan.rows.length} controls · NDPA 2023 / GAID 2025 Art. 10 CAR audit.</p>
