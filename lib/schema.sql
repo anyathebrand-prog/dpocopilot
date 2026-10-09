@@ -815,3 +815,7 @@ create table if not exists workplan_observations (
   updated_at timestamptz not null default now(),
   primary key (client_id, audit_year, dept, ref)
 );
+
+-- Tasks: project name and sub-activity (title is the Activity).
+alter table tasks add column if not exists project_name text;
+alter table tasks add column if not exists sub_activity text;

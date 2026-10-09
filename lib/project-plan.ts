@@ -44,12 +44,12 @@ export function projectPlanHtml(org: string, firm: any, rows: any[]) {
   <tr><td class="k">Tasks</td><td>${rows.length} (${done} done, ${rows.filter((r) => status(r) === "Overdue").length} overdue)</td><td class="k">Progress</td><td>${rows.length ? Math.round((100 * done) / rows.length) : 0}% complete</td></tr>
 </table>
 <h2>1. Tasks</h2>
-<table><tr><th style="width:4%">#</th><th>Task</th><th>Owner</th><th style="width:11%">Start</th><th style="width:11%">Due</th><th style="width:8%">Days</th><th style="width:11%">Status</th></tr>
-${rows.map((r, i) => `<tr><td>${i + 1}</td><td>${esc(r.title)}</td><td>${esc(r.assignee) || "Unassigned"}</td><td>${r.start_on ? fmtDate(r.start_on) : "—"}</td><td>${r.due_on ? fmtDate(r.due_on) : "—"}</td><td>${days(r) ?? "—"}</td><td><span style="color:${colour(r)}"><b>${status(r)}</b></span>${r.done_on ? `<br>${fmtDate(r.done_on)}` : ""}</td></tr>`).join("")}
+<table><tr><th style="width:4%">#</th><th>Project</th><th>Activity / sub-activity</th><th>Owner</th><th style="width:11%">Start</th><th style="width:11%">Due</th><th style="width:8%">Days</th><th style="width:11%">Status</th></tr>
+${rows.map((r, i) => `<tr><td>${i + 1}</td><td>${esc(r.project_name ?? "")}</td><td><b>${esc(r.title)}</b>${r.sub_activity ? `<br>${esc(r.sub_activity)}` : ""}</td><td>${esc(r.assignee) || "Unassigned"}</td><td>${r.start_on ? fmtDate(r.start_on) : "—"}</td><td>${r.due_on ? fmtDate(r.due_on) : "—"}</td><td>${days(r) ?? "—"}</td><td><span style="color:${colour(r)}"><b>${status(r)}</b></span>${r.done_on ? `<br>${fmtDate(r.done_on)}` : ""}</td></tr>`).join("")}
 </table>
 ${dated.length ? `<h2 class="break">2. Timeline</h2>
 <table><tr><th style="width:24%">Task</th>${cols.map((c) => `<th style="text-align:center;font-size:7.5pt;padding:4px 2px">${c.label}</th>`).join("")}</tr>
-${dated.map((r) => { const [s, e] = span(r).map(day); return `<tr><td style="font-size:8.5pt">${esc(r.title)}</td>${cols.map((c) => (c.end >= s && c.start <= e ? `<td style="background:${colour(r)}"></td>` : "<td></td>")).join("")}</tr>`; }).join("")}
+${dated.map((r) => { const [s, e] = span(r).map(day); return `<tr><td style="font-size:8.5pt">${esc(r.title)}${r.sub_activity ? ` – ${esc(r.sub_activity)}` : ""}</td>${cols.map((c) => (c.end >= s && c.start <= e ? `<td style="background:${colour(r)}"></td>` : "<td></td>")).join("")}</tr>`; }).join("")}
 </table>
 <p class="note">Key: <span style="color:#8EA9DB"><b>■</b></span> Not started · <span style="color:#1F3864"><b>■</b></span> In progress · <span style="color:#2E7D32"><b>■</b></span> Done · <span style="color:#C62828"><b>■</b></span> Overdue. Columns are ${cols.length && cols[0].end - cols[0].start === 6 ? "weeks (starting Monday)" : "months"}.${rows.length > dated.length ? ` ${rows.length - dated.length} task(s) without dates are not shown on the timeline.` : ""}</p>` : ""}
 <h2>${dated.length ? "3" : "2"}. Approval</h2>

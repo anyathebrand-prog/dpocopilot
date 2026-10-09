@@ -14,14 +14,14 @@ const fee = (fd: FormData) => { const v = str(fd, "fee").replace(/[,₦\s]/g, ""
 async function create(fd: FormData) {
   "use server";
   const { user, client } = await requireClient(str(fd, "client_id"), { write: true });
-  const title = str(fd, "title");
-  if (!title) redirect(flash("/app/tasks", "Enter a task title.", "error"));
+  const title = str(fd, "title"), project = str(fd, "project_name"), sub = str(fd, "sub_activity");
+  if (!project || !title || !sub) redirect(flash("/app/tasks", "Enter the project name, activity and sub-activity.", "error"));
   const assignee = opt(fd, "assignee"), start = opt(fd, "start_on"), due = opt(fd, "due_on");
   if (start && due && due < start) redirect(flash("/app/tasks", "The due date is before the start date.", "error"));
   if (assignee && !(await one("select 1 from memberships where id = $1 and firm_id = $2", [assignee, user.firm_id]))) redirect("/forbidden");
   const amount = canApprove(user) ? fee(fd) : null; // only Firm Admins and Lead Consultants set fees
   if (Number.isNaN(amount)) redirect(flash("/app/tasks", "Enter the professional fee as an amount in naira.", "error"));
-  const t = await one("insert into tasks (firm_id, client_id, title, assignee_membership_id, start_on, due_on, fee, created_by) values ($1,$2,$3,$4,$5,$6,$7,$8) returning id", [user.firm_id, client.id, title, assignee, start, due, amount, user.id]);
+  const t = await one("insert into tasks (firm_id, client_id, title, project_name, sub_activity, assignee_membership_id, start_on, due_on, fee, created_by) values ($1,$2,$3,$9,$10,$4,$5,$6,$7,$8) returning id", [user.firm_id, client.id, title, assignee, start, due, amount, user.id, project, sub]);
   await audit(user, "create", "task", t!.id, { client_id: client.id });
   redirect(flash("/app/tasks", "Task created. It appears on the calendar."));
 }
@@ -63,7 +63,9 @@ export default async function Tasks({ searchParams }: { searchParams: Promise<Re
         <details className="group" open={!rows.length}>
           <summary>New task</summary>
           <form action={create} style={{ maxWidth: 640 }}>
-            <Field label="Title" required><input name="title" required /></Field>
+            <Field label="Project Name" required><input name="project_name" required placeholder="e.g. NDPA compliance programme 2026" /></Field>
+            <Field label="Activity" required><input name="title" required placeholder="e.g. Data mapping" /></Field>
+            <Field label="Sub-activity" required><input name="sub_activity" required placeholder="e.g. Interview HR and Finance" /></Field>
             <Field label="Client" required><select name="client_id" defaultValue={sp.client ?? ""} required><option value="" disabled>Choose…</option>{clients.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></Field>
             <Field label="Assignee"><select name="assignee" defaultValue={u.membership_id}><option value="">Unassigned</option>{members.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}</select></Field>
             <div className="row">
@@ -94,10 +96,10 @@ export default async function Tasks({ searchParams }: { searchParams: Promise<Re
       </form>
       {rows.length === 0 ? <Empty><p>No tasks.</p></Empty> : (
         <table className="register">
-          <thead><tr><th>Task</th><th>Client</th><th>Start</th><th>Due</th><th className="num">Professional Fee Payable</th><th>Dates, assignee and status</th></tr></thead>
+          <thead><tr><th>Project / activity / sub-activity</th><th>Client</th><th>Start</th><th>Due</th><th className="num">Professional Fee Payable</th><th>Dates, assignee and status</th></tr></thead>
           <tbody>{rows.map((t) => (
             <tr key={t.id}>
-              <td>{t.title}</td>
+              <td>{t.project_name && <div className="meta small">{t.project_name}</div>}<b>{t.title}</b>{t.sub_activity && <div className="small">{t.sub_activity}</div>}</td>
               <td data-label="Client"><Link href={`/app/clients/${t.client_id}`}>{t.client_name}</Link></td>
               <td data-label="Start" className="small">{t.start_on ? fmtDate(t.start_on) : "—"}</td>
               <td data-label="Due">{t.due_on ? (t.status === "open" ? <Deadline due={t.due_on} dateOnly soonHours={48} /> : t.due_on) : "—"}</td>
