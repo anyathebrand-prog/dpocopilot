@@ -524,7 +524,7 @@ The checklist has five categories (confirmed by founder). **The items under each
 ### F16 — DSAR Tracker
 - FR16.1 DSARs can be logged by firm users or by Client Contacts through the portal.
 - FR16.2 Each DSAR records: request type (e.g. access, rectification, erasure, objection, portability), date received, requester details, identity verification status, related processing activities, status, and response.
-- FR16.3 Response deadline defaults to **30 days** from date received. The period is a platform setting maintained by the Regulatory Content Secretary (F18).
+- FR16.3 Response deadline defaults to **72 hours (3 days)** from the date received (changed from 30 days in v1.4). The period is a platform setting maintained by the Regulatory Content Secretary (F18).
 - FR16.4 DSARs appear on the calendar and dashboard; approaching and overdue deadlines are flagged.
 - FR16.5 Copilot drafts a response (via F11), which follows the approval flow in F14.
 - FR16.6 Closed DSARs remain as a record and feed the client's evidence file.
@@ -707,7 +707,7 @@ The checklist has five categories (confirmed by founder). **The items under each
 
 **F16 — DSAR Tracker**
 - A Client Contact can log a DSAR from the portal; it appears on the firm dashboard.
-- The deadline is calculated automatically as 30 days from date received (or the current published setting if changed).
+- The deadline is calculated automatically as 72 hours (3 days) from the date received (or the current published setting if changed).
 - DSARs approaching or past their deadline are flagged on dashboard and calendar.
 - DSAR responses cannot be marked sent until approved.
 

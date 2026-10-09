@@ -130,7 +130,7 @@ r = await admin.submit(breachPath, "Record as sent", { sent_at: new Date(Date.no
 assert.match(r.loc, /Approve the notification before/); ok("cannot record as sent before approval");
 
 r = await contact.submit("/portal/log-request", "Send request", { request_type: "access", received_on: new Date(Date.now() + 3600e3).toISOString().slice(0, 10), requester_name: "Chioma Eze" });
-assert.match(r.loc, /Request logged/); p = await admin.get(`${C}/dsars`); assert.match(p.html, /Chioma Eze/); assert.match(p.html, /30 days|29 days/); ok("portal DSAR appears with 30-day deadline");
+assert.match(r.loc, /Request logged/); p = await admin.get(`${C}/dsars`); assert.match(p.html, /Chioma Eze/); assert.match(p.html, /[23] days|72 hours/); ok("portal DSAR appears with 72-hour (3-day) deadline");
 
 r = await admin.submit(`${C}/evidence`, "Request evidence", { title: "Staff training records", due_on: "2026-12-01" });
 assert.match(r.loc, /Evidence requested/);

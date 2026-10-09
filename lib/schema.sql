@@ -869,3 +869,11 @@ alter table dsars add column if not exists department_email text;
 alter table dsars add column if not exists department_notified_at timestamptz;
 alter table dsars add column if not exists requester_email text;
 alter table files add column if not exists dsar_id uuid references dsars;
+
+-- DSAR response period: 72 hours (3 days from the date received), applied once to existing installs; the Secretary can still change it.
+do $$ begin
+  if not exists (select 1 from platform_settings where key = 'migr_dsar_72h') then
+    update platform_settings set published_value = '3', draft_value = null where key = 'dsar_response_days';
+    insert into platform_settings (key, published_value) values ('migr_dsar_72h', 'done');
+  end if;
+end $$;

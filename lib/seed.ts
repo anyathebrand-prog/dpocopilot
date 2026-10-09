@@ -47,7 +47,7 @@ export async function seed(db: Db) {
   await db.transaction(async (t) => {
     await insertSchedule2(t);
 
-    await t.query("insert into platform_settings (key, published_value) values ('dsar_response_days','30') on conflict do nothing");
+    await t.query("insert into platform_settings (key, published_value) values ('dsar_response_days','3') on conflict do nothing");
 
     const doc = await t.query<{ id: string }>("insert into reg_documents (title, doc_type, version_label, status) values ('Nigeria Data Protection Act 2023 (seed summary, verify)','act','v0-seed','published') returning id");
     for (const [i, [ref, heading, body]] of NDPA.entries())
