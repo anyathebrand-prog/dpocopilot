@@ -16,7 +16,7 @@ Set by `SINGLE_FIRM=1` (already in `docker-compose.yml`):
 
 ## New install
 
-Server: one Kasi Cloud VM per DPCO (Nigeria, chosen for TRD Q-2). Ubuntu 24.04, 2 vCPU, 4 GB RAM (ClamAV alone
+Server: one Linux VM per DPCO in a Nigerian data centre (NDPA data residency, TRD Q-2); any provider that keeps the VM and its backups in Nigeria. Ubuntu 24.04, 2 vCPU, 4 GB RAM (ClamAV alone
 needs ~1.5 GB), 40 GB disk, public IP with ports 80 and 443 open, Docker installed, backups/snapshots kept in Nigeria.
 
 1. **DNS.** Ask the DPCO to add an `A` record for their subdomain (e.g. `compliance.theirfirm.ng`) pointing at
