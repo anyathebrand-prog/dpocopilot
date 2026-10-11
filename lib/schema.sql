@@ -891,3 +891,11 @@ create table if not exists incidents (
   updated_at timestamptz not null default now(),
   unique (client_id, number)
 );
+
+-- DSAR response period back to 30 days (reverses migr_dsar_72h), applied once; the Secretary can still change it.
+do $$ begin
+  if not exists (select 1 from platform_settings where key = 'migr_dsar_30d') then
+    update platform_settings set published_value = '30', draft_value = null where key = 'dsar_response_days';
+    insert into platform_settings (key, published_value) values ('migr_dsar_30d', 'done');
+  end if;
+end $$;

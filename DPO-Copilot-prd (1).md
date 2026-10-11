@@ -13,7 +13,7 @@
 | v1.2 | Policies map to NDPA only (other standards as optional tags); CAR checklist replaced with 5-category template; DSAR default set to 30 days; import covers all record types via Excel/CSV; Secretary confirmed as DPO Copilot staff |
 | v1.3 | Added "Waiting for my review" queue on the dashboard for Lead Consultants and Firm Admins (FR2.4) |
 | v1.4 | Brought in line with the build. CAR checklist is now the GAID Schedule 2 audit questionnaire (69 questions) per audit year, with risk scoring, recommendations and other findings (§6.1 replaced). DPIAs follow the NDPC 12-point guide and produce a GAID-format report. New features F21–F31: LIA, cross-border transfer and third-party (processor) risk assessments; CAR audit report and remediation tracker; Data Protection Framework generator; capacity building plan; billing (invoices and receipts); proposal and cover letter generator; project plan; report cover letters; Solo DPO / DPCO Firm plans; public blog; single-firm install per DPCO. Onboarding expanded (departments, DPO and CDPO certificate, company profile, organogram). Exports are native Word (.docx). Client signature method settled (typed name + one-time code). Security requirements updated (§7.1). Exclusions and open questions revised. |
-| v1.5 | CAR readiness split into Section A (Parts 1–5) and Section B (audit work plan by department, with observations); Part 6 removed. Tasks gain Project Name, Activity, Sub-activity and a Professional Fee Payable visible to the assignee. DSARs move to the client: the portal verifies the requester's identity, assigns a department and emails the requester and department; DSARs removed from the DPCO dashboards; response period 72 hours. New: firm regulatory library (F32), audit readiness letter on payment (F33), compliance audit notification letters (F34), client incident register (F35); portal rebuilt in the workspace layout. Required fields marked with an asterisk. Security hardening (headers, DB-backed lockout, patched dependencies). |
+| v1.5 | CAR readiness split into Section A (Parts 1–5) and Section B (audit work plan by department, with observations); Part 6 removed. Tasks gain Project Name, Activity, Sub-activity and a Professional Fee Payable visible to the assignee. DSARs move to the client: the portal verifies the requester's identity, assigns a department and emails the requester and department; DSARs removed from the DPCO dashboards. DSAR response period restored to 30 days. New: firm regulatory library (F32), audit readiness letter on payment (F33), compliance audit notification letters (F34), client incident register (F35); portal rebuilt in the workspace layout. Required fields marked with an asterisk. Security hardening (headers, DB-backed lockout, patched dependencies). |
 
 ---
 
@@ -398,7 +398,7 @@ The checklist has five categories (confirmed by founder). **The items under each
 - FR16.1b **Verify & assign:** the client records the identity check (result, method, notes) and the department to execute the request. Choosing a department requires its email; the department is emailed to attend to the request promptly.
 - FR16.1c Once identity is verified, the client attaches evidence of response and submits; the requester is emailed that the request is completed, with the evidence attached, and the request closes.
 - FR16.2 Each DSAR records: request type (e.g. access, rectification, erasure, objection, portability), date received, requester details, identity verification status, related processing activities, status, and response.
-- FR16.3 Response deadline defaults to **72 hours (3 days)** from the date received (changed from 30 days in v1.4). The period is a platform setting maintained by the Regulatory Content Secretary (F18).
+- FR16.3 Response deadline defaults to **30 days** from the date received (briefly 72 hours; restored to 30 days). The period is a platform setting maintained by the Regulatory Content Secretary (F18).
 - FR16.4 DSAR deadlines appear on the calendar; the portal flags requests awaiting verification or assignment.
 - FR16.5 Copilot drafts a response (via F11), which follows the approval flow in F14.
 - FR16.6 Closed DSARs remain as a record and feed the client's evidence file.
@@ -600,7 +600,7 @@ The checklist has five categories (confirmed by founder). **The items under each
 
 **F16 — DSAR Tracker**
 - A Client Contact can log a DSAR from the portal; it appears on the firm dashboard.
-- The deadline is calculated automatically as 72 hours (3 days) from the date received (or the current published setting if changed).
+- The deadline is calculated automatically as 30 days from the date received (or the current published setting if changed).
 - DSARs approaching or past their deadline are flagged on dashboard and calendar.
 - DSAR responses cannot be marked sent until approved.
 

@@ -21,7 +21,7 @@ const FEATURES: [string, boolean, boolean][] = [
   ["Onboarding questionnaire and data mapping", true, true],
   ["RoPA, DPIA workflow and policy generator", true, true],
   ["Breach management with 72-hour countdown", true, true],
-  ["DSAR tracker with 72-hour deadlines", true, true],
+  ["DSAR tracker with 30-day deadlines", true, true],
   ["Evidence vault and CAR readiness score", true, true],
   ["Client portal with verified sign-off", true, true],
   ["Copilot drafting, gap analysis and cited Q&A", true, true],

@@ -13,7 +13,7 @@ export default async function PlatformSettings({ searchParams }: { searchParams:
       <form action={saveDsarDays} className="panel" style={{ maxWidth: 640 }}>
         <h3>DSAR response period</h3>
         <p>Published: <b>{s!.published_value} days</b>{s!.draft_value && <> · Draft: <b>{s!.draft_value} days</b> (not yet published)</>}</p>
-        <Field label="Days to respond after a request is received (3 days = 72 hours)" help="Applies to new requests only. Existing requests keep the period they were logged with.">
+        <Field label="Days to respond after a request is received" help="Applies to new requests only. Existing requests keep the period they were logged with.">
           <input type="number" name="days" min={1} max={365} defaultValue={s!.draft_value ?? s!.published_value} required />
         </Field>
         <Submit>Save as draft</Submit>

@@ -26,7 +26,7 @@ const MODULES: [Icon, string, string][] = [
   [FileSearch, "DPIA workflow", "Seven guided steps with likelihood × impact scoring, review, approval and locked versions."],
   [FileText, "Policies and notices", "Privacy Notice, Data Retention Policy and Consent Form, pre-filled from the client's own data."],
   [ShieldAlert, "Breach management", "A 72-hour countdown from awareness, with draft notices to the NDPC and to affected people."],
-  [UserSearch, "Data subject requests", "Every request logged with its 72-hour deadline, a drafted response and a record of what was sent."],
+  [UserSearch, "Data subject requests", "Every request logged with its 30-day deadline, a drafted response and a record of what was sent."],
   [FolderCheck, "Evidence and CAR readiness", "Request evidence from clients, accept or reject it, and watch a readiness score across five categories."],
   [CalendarClock, "Compliance calendar", "Breach, DSAR, DPIA review, evidence and filing deadlines for every client in one list."],
 ];
@@ -47,7 +47,7 @@ const FIT: [Icon, string, string][] = [
 // Real product figures only.
 const STATS: [string, string, string][] = [
   ["72", "h", "Breach notice window (NDPA s.40)"],
-  ["72", "h", "Default DSAR response period"],
+  ["30", "days", "Default DSAR response period"],
   ["100", "%", "AI drafts approved by a person"],
   ["5", "", "CAR readiness categories"],
 ];

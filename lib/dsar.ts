@@ -5,13 +5,13 @@ import { dsarDeadline } from "./rules";
 
 export type DsarInput = { request_type: string; received_on: string; requester_name: string; requester_contact: string | null; details: string | null; id_status?: string; ropa?: string[] };
 
-/** FR16.1–16.3: deadline = date received + the published DSAR period (default 3 days = 72 hours), snapshotted on the record. */
+/** FR16.1–16.3: deadline = date received + the published DSAR period (default 30 days), snapshotted on the record. */
 export const DSAR_ACK = "Thank you for your request, consistent with the requirement of the NDP Act and our internal policy, your request will be treated with dispatch.";
 /** The email address in "email or phone", if there is one. */
 export const requesterEmail = (contact?: string | null) => contact?.match(/[^\s@,;]+@[^\s@,;]+\.[^\s@,;]+/)?.[0]?.toLowerCase() ?? null;
 
 export async function createDsar(u: User, client: { id: string; firm_id: string; name: string }, d: DsarInput, via: "firm" | "portal") {
-  const days = Number(await setting("dsar_response_days")) || 3;
+  const days = Number(await setting("dsar_response_days")) || 30;
   const ropa = d.ropa?.length ? (await q("select id from ropa_entries where client_id = $1 and id = any($2::uuid[])", [client.id, d.ropa])).map((r) => r.id) : [];
   const id = await tx(async (t) => {
     const r = await t.query<{ id: string }>(`insert into dsars (firm_id, client_id, source, logged_by, request_type, received_on, period_days, deadline_on, requester_name, requester_contact, details, id_status)
