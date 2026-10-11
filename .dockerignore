@@ -8,3 +8,4 @@ brag-output
 deploy
 dev.log
 .env*
+data-backup-*
