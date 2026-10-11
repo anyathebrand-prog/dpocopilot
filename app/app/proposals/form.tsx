@@ -3,6 +3,7 @@ import { SERVICES, type Line } from "@/lib/invoice";
 import { Field, Hidden } from "@/components/ui";
 import { Submit } from "@/components/client";
 import { saveProposal } from "./actions";
+import { COUNTRY } from "@/lib/country";
 
 /** The proposal form, empty for a new proposal or filled from an existing one. */
 export function ProposalForm({ p }: { p?: Record<string, any> }) {
@@ -47,7 +48,7 @@ export function ProposalForm({ p }: { p?: Record<string, any> }) {
 
       <h3>Services and fees</h3>
       <table className="register">
-        <thead><tr><th>Service</th><th>Detail (optional)</th><th>Fee (₦)</th></tr></thead>
+        <thead><tr><th>Service</th><th>Detail (optional)</th><th>Fee ({COUNTRY.currency.symbol})</th></tr></thead>
         <tbody>{SERVICES.map((s, i) => (
           <tr key={s}>
             <td><label className="check"><input type="checkbox" name={`s${i}`} defaultChecked={!!line(s)} />{s}</label></td>
@@ -57,7 +58,7 @@ export function ProposalForm({ p }: { p?: Record<string, any> }) {
         ))}</tbody>
       </table>
       <Field label="Payment terms"><input name="payment_terms" defaultValue={p?.payment_terms ?? "50% mobilisation on acceptance; 50% on delivery of the final reports."} /></Field>
-      <label className="check" style={{ marginTop: 8 }}><input type="checkbox" name="vat" defaultChecked={p ? Number(p.vat_rate) > 0 : true} />Add VAT (7.5%)</label>
+      <label className="check" style={{ marginTop: 8 }}><input type="checkbox" name="vat" defaultChecked={p ? Number(p.vat_rate) > 0 : true} />Add VAT ({COUNTRY.vatRate}%)</label>
       <Field label="Additional payment notes"><textarea name="notes" rows={2} defaultValue={p?.notes ?? ""} /></Field>
       <Submit>{p ? "Save proposal" : "Create proposal"}</Submit>
     </form>

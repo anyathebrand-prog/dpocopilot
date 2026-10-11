@@ -9,6 +9,7 @@ services:
     environment:
       DATABASE_URL: postgres://dpo:${POSTGRES_PASSWORD}@db:5432/dpo
       SINGLE_FIRM: "1"
+      COUNTRY: "${COUNTRY:-NG}"
       APP_URL: https://${DOMAIN}
       CLAMD_HOST: clamav
       # First start only: creates the Secretary account (password 14+ characters). Remove both afterwards.

@@ -4,6 +4,7 @@
 import { CSS } from "./car-report";
 import { fmtDate, todayWAT } from "./rules";
 import { SERVICES, type Line } from "./invoice";
+import { COUNTRY } from "./country";
 
 export const PROPOSAL_SECTORS = ["Financial services", "Insurance", "Capital markets", "Health", "Education", "Telecoms", "Government or public sector", "Retail or e-commerce", "Technology", "Oil and gas / energy", "Other"];
 export const TIERS: Record<string, string> = { UHL: "Ultra-High Level (UHL)", EHL: "Extra-High Level (EHL)", OHL: "Ordinary-High Level (OHL)", TBC: "To be confirmed with the Commission" };
@@ -60,9 +61,9 @@ export const units = (departments?: string | null) => (departments ?? "").split(
 
 // ---- Helpers --------------------------------------------------------------------------------------------------------
 const esc = (s: unknown) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!);
-const N = (n: number) => n.toLocaleString("en-NG", { maximumFractionDigits: 2 });
-const NGN = (n: number) => "₦" + N(n);
-const millions = (n: number) => (n >= 1_000_000 ? `₦${(n / 1_000_000).toFixed(1).replace(/\.0$/, "")}m` : NGN(n));
+const N = (n: number) => n.toLocaleString(COUNTRY.locale, { maximumFractionDigits: 2 });
+const NGN = (n: number) => COUNTRY.currency.symbol + N(n);
+const millions = (n: number) => (n >= 1_000_000 ? `${COUNTRY.currency.symbol}${(n / 1_000_000).toFixed(1).replace(/\.0$/, "")}m` : NGN(n));
 /** Black or white, whichever reads better on the colour. */
 export const ink = (hex: string) => { const n = parseInt(hex.slice(1), 16), r = n >> 16, g = (n >> 8) & 255, b = n & 255; return 0.299 * r + 0.587 * g + 0.114 * b > 160 ? "#1B2433" : "#FFFFFF"; };
 const addDays = (d: string, n: number) => new Date(Date.parse(d + "T00:00:00Z") + n * 86400000).toISOString().slice(0, 10);
@@ -286,7 +287,7 @@ export function proposalHtml(p: Proposal, firm: any) {
 <section class="break">
   ${T.section("09", "Financial Proposal", `All amounts are in Nigerian Naira${m.vat ? `, with VAT at ${Number(p.vat_rate)}% shown separately` : ""}. Fees are fixed for the scope described in Section 08.`)}
   ${T.h(2, "9.1 Fees by service")}
-  <table>${T.head([["S/N", "6%"], ["Service", "24%"], ["Scope and deliverables"], ["Fee (₦)", "16%"]])}
+  <table>${T.head([["S/N", "6%"], ["Service", "24%"], ["Scope and deliverables"], [`Fee (${COUNTRY.currency.symbol})`, "16%"]])}
   ${m.lines.map((l, i) => { const sc = SERVICE_SCOPE[l.service]; return `<tr><td>${i + 1}</td><td><b>${esc(l.service)}</b>${l.description ? `<br>${esc(l.description)}` : ""}</td><td>${sc ? `${sc.scope}<br><i>${sc.deliverables}</i>` : ""}</td><td style="text-align:right">${N(l.amount)}</td></tr>`; }).join("")}
   <tr class="sub"><td></td><td colspan="2"><b>Subtotal</b></td><td style="text-align:right"><b>${N(m.subtotal)}</b></td></tr>
   ${m.vat ? `<tr class="sub"><td></td><td colspan="2">VAT (${Number(p.vat_rate)}%)</td><td style="text-align:right">${N(m.vatAmt)}</td></tr>` : ""}

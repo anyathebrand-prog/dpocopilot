@@ -8,6 +8,7 @@ import { parseCertificate, pdfText, docxText } from "./certificate";
 import { answersOf } from "./data";
 import { evaluateMI, type Criterion } from "./rules";
 import { str, flash } from "./form";
+import { COUNTRY } from "./country";
 
 /** Firm users (assigned) or the client's own contact, while the questionnaire is open. */
 async function actor(fd: FormData): Promise<{ u: User; clientId: string; base: string }> {
@@ -65,7 +66,7 @@ export async function saveSection(fd: FormData) {
   }
   await q("update questionnaires set status = 'in_progress' where client_id = $1 and status in ('not_sent','sent')", [clientId]);
   await audit(u, "update", "questionnaire", clientId, { client_id: clientId, details: { section: section.key } });
-  const time = new Intl.DateTimeFormat("en-GB", { timeZone: "Africa/Lagos", hour: "2-digit", minute: "2-digit" }).format(new Date());
+  const time = new Intl.DateTimeFormat("en-GB", { timeZone: COUNTRY.timeZone, hour: "2-digit", minute: "2-digit" }).format(new Date());
   // Stay on the section after reading a certificate, so the details can be checked.
   const next = str(fd, "go") === "exit" || note ? i : Math.min(i + 1, SECTIONS.length - 1);
   if (str(fd, "go") === "exit" && u.kind === "contact") redirect(flash("/portal", `Saved ${time}.${note} You can continue any time.`));
@@ -80,7 +81,7 @@ export async function completeQuestionnaire(fd: FormData) {
   const client = await one("select firm_id, name from clients where id = $1", [clientId]);
   const { items, ropa } = buildInventory(a);
   const criteria = await q<Criterion>("select description, question_key, op, value, source_ref from mi_criteria where status = 'published' order by position");
-  const version = (await one("select to_char(max(published_at) at time zone 'Africa/Lagos', 'YYYY-MM-DD HH24:MI') as v from publish_events"))?.v ?? "v0-seed";
+  const version = (await one(`select to_char(max(published_at) at time zone '${COUNTRY.timeZone}', 'YYYY-MM-DD HH24:MI') as v from publish_events`))?.v ?? "v0-seed";
   const mi = evaluateMI(criteria, a);
   await tx(async (t) => {
     for (const it of items)

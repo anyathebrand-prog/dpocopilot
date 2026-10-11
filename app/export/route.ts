@@ -22,6 +22,7 @@ import { loadReadinessLetter, readinessLetterHtml } from "@/lib/readiness-letter
 import { clientDepartments, workplanFor } from "@/lib/audit-workplan";
 import { list } from "@/lib/questionnaire";
 import { answersOf } from "@/lib/data";
+import { COUNTRY } from "@/lib/country";
 
 // F15 export. ponytail: PDF = print-ready HTML the browser saves as PDF; Word = HTML served as .doc, which Word opens.
 // Swap for Playwright PDF + the `docx` package (TRD §1) when tagged PDFs or native .docx become a requirement.
@@ -43,7 +44,7 @@ async function page(title: string, inner: string, format: string, filename: stri
       "content-type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
       "content-disposition": `attachment; filename="${filename}.docx"` } });
   }
-  const html = `<!doctype html><html lang="en-NG"><head><meta charset="utf-8"><title>${title}</title><style>${css}</style></head><body>
+  const html = `<!doctype html><html lang="${COUNTRY.locale}"><head><meta charset="utf-8"><title>${title}</title><style>${css}</style></head><body>
     <div class="noprint"><button onclick="print()">Print or save as PDF</button></div>${inner}</body></html>`;
   return new Response(html, { headers: { "content-type": "text/html; charset=utf-8" } });
 }

@@ -1,17 +1,20 @@
 // Pure compliance logic: no I/O, so it is unit-tested directly (lib/rules.test.ts).
 // All deadlines are computed here and stored, so dashboard, calendar and alerts agree (TRD §2.3).
 
-export const WAT_OFFSET = "+01:00"; // Africa/Lagos, no daylight saving
+import { COUNTRY } from "./country.ts";
+
+export const WAT_OFFSET = COUNTRY.utcOffset; // the install's fixed offset (Nigeria: Africa/Lagos, +01:00)
 const HOUR = 3600_000;
+const OFFSET_MS = (COUNTRY.utcOffset.startsWith("-") ? -1 : 1) * (Number(COUNTRY.utcOffset.slice(1, 3)) * 60 + Number(COUNTRY.utcOffset.slice(4, 6))) * 60_000;
 const DAY = 24 * HOUR;
 
 const watFmt = new Intl.DateTimeFormat("en-GB", {
-  timeZone: "Africa/Lagos", day: "numeric", month: "short", year: "numeric",
+  timeZone: COUNTRY.timeZone, day: "numeric", month: "short", year: "numeric",
   hour: "2-digit", minute: "2-digit", hour12: false,
 });
 const watDateFmt = new Intl.DateTimeFormat("en-GB", { timeZone: "UTC", day: "numeric", month: "short", year: "numeric" });
 
-export const fmtWAT = (d: Date | string) => `${watFmt.format(new Date(d))} WAT`;
+export const fmtWAT = (d: Date | string) => `${watFmt.format(new Date(d))} ${COUNTRY.tzLabel}`;
 export const fmtDate = (d: string) => watDateFmt.format(new Date(d + "T00:00:00Z"));
 
 /** "2026-09-26T10:30" typed in WAT → Date. Returns null for malformed input. */
@@ -22,8 +25,8 @@ export function parseWATLocal(s: string): Date | null {
 }
 
 /** Current WAT time as a datetime-local value, for input max= attributes. */
-export const nowWATLocal = (now = new Date()) => new Date(+now + HOUR).toISOString().slice(0, 16);
-export const todayWAT = (now = new Date()) => new Date(+now + HOUR).toISOString().slice(0, 10);
+export const nowWATLocal = (now = new Date()) => new Date(+now + OFFSET_MS).toISOString().slice(0, 16);
+export const todayWAT = (now = new Date()) => new Date(+now + OFFSET_MS).toISOString().slice(0, 10);
 
 export function addDays(date: string, n: number) {
   const d = new Date(date + "T00:00:00Z");
@@ -32,7 +35,7 @@ export function addDays(date: string, n: number) {
 }
 
 /** FR7.3: regulator notification due 72 hours after awareness. */
-export const breachDeadline = (awareAt: Date) => new Date(+awareAt + 72 * HOUR);
+export const breachDeadline = (awareAt: Date) => new Date(+awareAt + COUNTRY.breachHours * HOUR);
 
 /** FR16.3: DSAR response due `days` after date received (default 30, Secretary setting). */
 export const dsarDeadline = (receivedOn: string, days: number) => addDays(receivedOn, days);

@@ -7,10 +7,11 @@ import { imageSize } from "@/lib/files";
 import { PROPOSAL_SECTORS, TIERS, type Fin } from "@/lib/proposal";
 import { SERVICES, type Line } from "@/lib/invoice";
 import { todayWAT } from "@/lib/rules";
+import { COUNTRY, parseAmount } from "@/lib/country";
 
 const HEX = /^#[0-9A-Fa-f]{6}$/, EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const int = (v: string, lo: number, hi: number) => (v === "" ? null : Number.isInteger(Number(v)) && Number(v) >= lo && Number(v) <= hi ? Number(v) : NaN);
-const naira = (v: string) => { const n = Number(v.replace(/[,₦\s]/g, "")); return v.trim() === "" ? 0 : Number.isFinite(n) && n >= 0 ? Math.round(n * 100) / 100 : NaN; };
+const naira = (v: string) => { if (v.trim() === "") return 0; const n = parseAmount(v); return Number.isNaN(n) ? NaN : Math.round(n * 100) / 100; };
 
 /** Create (no id) or update a proposal from the form. */
 export async function saveProposal(fd: FormData) {
@@ -48,7 +49,7 @@ export async function saveProposal(fd: FormData) {
     logo = { data: `data:image/${dim!.type};base64,${buf.toString("base64")}`, w: dim!.w, h: dim!.h };
   } else if (fd.get("remove_logo") === "on") logo = null;
 
-  const vals = [name, address, email, opt(fd, "contact_name"), opt(fd, "contact_title"), sector, primary.toUpperCase(), secondary.toUpperCase(), fd.get("vat") === "on" ? 7.5 : 0,
+  const vals = [name, address, email, opt(fd, "contact_name"), opt(fd, "contact_title"), sector, primary.toUpperCase(), secondary.toUpperCase(), fd.get("vat") === "on" ? COUNTRY.vatRate : 0,
     validity ?? 90, opt(fd, "start_on"), opt(fd, "notes"), opt(fd, "payment_terms"), JSON.stringify(lines), opt(fd, "departments"), staff, subjects, tier, opt(fd, "accountable_title"), months ?? 12, JSON.stringify(fin)];
   const cols = "client_name, address, email, contact_name, contact_title, sector, primary_color, secondary_color, vat_rate, validity_days, start_on, notes, payment_terms, lines, departments, staff_count, subjects_count, tier, accountable_title, duration_months, fin";
   let pid: string;

@@ -1,6 +1,7 @@
 // Client invoices: services in the DPCO's scope, totals, and the printable invoice.
 import { CSS } from "./car-report";
 import { fmtDate } from "./rules";
+import { COUNTRY, money } from "./country";
 
 export const SERVICES = [
   "NDPC DCMI/DPMI Registration",
@@ -16,7 +17,8 @@ export const SERVICES = [
 ];
 export type Line = { service: string; description: string; amount: number };
 
-export const naira = (n: number) => "₦" + n.toLocaleString("en-NG", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+/** Amount in the install's currency (kept as `naira` for existing callers). */
+export const naira = money;
 export function totals(lines: Line[], vatRate: number) {
   const subtotal = lines.reduce((s, l) => s + l.amount, 0), vat = Math.round(subtotal * vatRate) / 100;
   return { subtotal, vat, total: subtotal + vat };
@@ -41,7 +43,7 @@ ${firm.logo ? `<p><img src="${firm.logo}" width="${Math.round(firm.logo_w * 60 /
   ${inv.due_on && !receipt ? `<tr><td class="k">Due date</td><td>${fmtDate(inv.due_on)}</td></tr>` : ""}
   ${inv.status === "paid" && !receipt ? `<tr><td class="k">Status</td><td><b>PAID</b>${inv.paid_on ? ` on ${fmtDate(inv.paid_on)}` : ""}</td></tr>` : ""}
 </table>
-<table><tr><th style="width:6%">S/N</th><th>Service</th><th style="width:24%;text-align:right">Amount (₦)</th></tr>
+<table><tr><th style="width:6%">S/N</th><th>Service</th><th style="width:24%;text-align:right">Amount (${COUNTRY.currency.symbol})</th></tr>
   ${inv.lines.map((l: Line, i: number) => `<tr><td>${i + 1}</td><td><b>${esc(l.service)}</b>${l.description ? `<br>${esc(l.description)}` : ""}</td><td style="text-align:right">${naira(l.amount)}</td></tr>`).join("")}
   <tr class="sub"><td></td><td>Subtotal</td><td style="text-align:right">${naira(t.subtotal)}</td></tr>
   ${vatRate ? `<tr class="sub"><td></td><td>VAT (${vatRate}%)</td><td style="text-align:right">${naira(t.vat)}</td></tr>` : ""}

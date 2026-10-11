@@ -7,6 +7,7 @@ import { fmtDate, fmtWAT, todayWAT } from "@/lib/rules";
 import { Flash, Field, Hidden, Chip, Empty } from "@/components/ui";
 import { Submit } from "@/components/client";
 import { draftReadinessLetter } from "@/lib/readiness-letter";
+import { COUNTRY, parseAmount } from "@/lib/country";
 
 async function create(fd: FormData) {
   "use server";
@@ -15,7 +16,7 @@ async function create(fd: FormData) {
   const lines: Line[] = [];
   for (const [i, service] of SERVICES.entries()) {
     if (fd.get(`s${i}`) !== "on") continue;
-    const amount = Number(str(fd, `a${i}`).replace(/[,₦\s]/g, ""));
+    const amount = parseAmount(str(fd, `a${i}`));
     if (!Number.isFinite(amount) || amount <= 0) redirect(flash(back, `Enter an amount for ${service}.`, "error"));
     lines.push({ service, description: str(fd, `d${i}`), amount: Math.round(amount * 100) / 100 });
   }
@@ -23,7 +24,7 @@ async function create(fd: FormData) {
   const issued = opt(fd, "issued_on") ?? todayWAT(), year = issued.slice(0, 4);
   const n = (await one<{ n: number }>("select count(*)::int as n from invoices where firm_id = $1 and number like $2", [client.firm_id, `INV-${year}-%`]))!.n;
   const r = await one("insert into invoices (firm_id, client_id, number, issued_on, due_on, lines, vat_rate, notes, created_by) values ($1,$2,$3,$4,$5,$6,$7,$8,$9) returning id",
-    [client.firm_id, client.id, `INV-${year}-${String(n + 1).padStart(3, "0")}`, issued, opt(fd, "due_on"), JSON.stringify(lines), fd.get("vat") === "on" ? 7.5 : 0, opt(fd, "notes"), user.id]);
+    [client.firm_id, client.id, `INV-${year}-${String(n + 1).padStart(3, "0")}`, issued, opt(fd, "due_on"), JSON.stringify(lines), fd.get("vat") === "on" ? COUNTRY.vatRate : 0, opt(fd, "notes"), user.id]);
   await audit(user, "create", "invoice", r!.id, { client_id: client.id });
   redirect(flash(back, "Invoice created"));
 }
@@ -112,7 +113,7 @@ export default async function Billing({ params, searchParams }: { params: Promis
           <h3 style={{ marginTop: 0 }}>New invoice</h3>
           <p className="meta">Tick the services to bill and enter each amount in naira.</p>
           <table className="register">
-            <thead><tr><th>Service</th><th>Description (optional)</th><th>Amount (₦)</th></tr></thead>
+            <thead><tr><th>Service</th><th>Description (optional)</th><th>Amount ({COUNTRY.currency.symbol})</th></tr></thead>
             <tbody>{SERVICES.map((s, i) => (
               <tr key={s}>
                 <td><label className="check"><input type="checkbox" name={`s${i}`} />{i + 1}. {s}</label></td>
@@ -124,7 +125,7 @@ export default async function Billing({ params, searchParams }: { params: Promis
           <div className="row" style={{ alignItems: "flex-end", marginTop: 12 }}>
             <Field label="Invoice date"><input type="date" name="issued_on" defaultValue={todayWAT()} /></Field>
             <Field label="Due date"><input type="date" name="due_on" /></Field>
-            <label className="check"><input type="checkbox" name="vat" />Add VAT (7.5%)</label>
+            <label className="check"><input type="checkbox" name="vat" />Add VAT ({COUNTRY.vatRate}%)</label>
           </div>
           <Field label="Notes and payment details" help="e.g. bank name, account name and number."><textarea name="notes" rows={3} /></Field>
           <Submit>Create invoice</Submit>

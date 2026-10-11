@@ -7,9 +7,10 @@ import { todayWAT, fmtDate } from "@/lib/rules";
 import { str, opt, flash } from "@/lib/form";
 import { Flash, Field, Hidden, Chip, Empty, Deadline, PageHead } from "@/components/ui";
 import { Submit } from "@/components/client";
+import { COUNTRY, parseAmount } from "@/lib/country";
 
 /** Fee in naira from the form: null when blank, NaN when not a non-negative amount. */
-const fee = (fd: FormData) => { const v = str(fd, "fee").replace(/[,₦\s]/g, ""); return v === "" ? null : Number.isFinite(Number(v)) && Number(v) >= 0 ? Math.round(Number(v) * 100) / 100 : NaN; };
+const fee = (fd: FormData) => { const v = str(fd, "fee"); if (!v) return null; const n = parseAmount(v); return Number.isNaN(n) ? NaN : Math.round(n * 100) / 100; };
 
 async function create(fd: FormData) {
   "use server";
@@ -72,7 +73,7 @@ export default async function Tasks({ searchParams }: { searchParams: Promise<Re
               <Field label="Start date"><input type="date" name="start_on" /></Field>
               <Field label="Due date"><input type="date" name="due_on" /></Field>
             </div>
-            {canApprove(u) && <Field label="Professional Fee Payable (₦)" help="Shown to the assignee on their task."><input name="fee" inputMode="decimal" placeholder="0.00" style={{ width: 200 }} /></Field>}
+            {canApprove(u) && <Field label={`Professional Fee Payable (${COUNTRY.currency.symbol})`} help="Shown to the assignee on their task."><input name="fee" inputMode="decimal" placeholder="0.00" style={{ width: 200 }} /></Field>}
             <Submit>Create task</Submit>
           </form>
         </details>
@@ -109,7 +110,7 @@ export default async function Tasks({ searchParams }: { searchParams: Promise<Re
                   <Hidden values={{ task_id: t.id }} />
                   <input type="date" name="start_on" defaultValue={t.start_on ?? ""} aria-label="Start date" style={{ width: "auto" }} />
                   <input type="date" name="due_on" defaultValue={t.due_on ?? ""} aria-label="Due date" style={{ width: "auto" }} />
-                  {canApprove(u) && <input name="fee" inputMode="decimal" defaultValue={t.fee ?? ""} placeholder="Fee ₦" aria-label="Professional fee payable" style={{ width: 120 }} />}
+                  {canApprove(u) && <input name="fee" inputMode="decimal" defaultValue={t.fee ?? ""} placeholder={`Fee ${COUNTRY.currency.symbol}`} aria-label="Professional fee payable" style={{ width: 120 }} />}
                   <select name="assignee" defaultValue={t.assignee_membership_id ?? ""} aria-label="Assignee" style={{ width: "auto" }}><option value="">Unassigned</option>{members.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}</select>
                   <select name="status" defaultValue={t.status} aria-label="Status" style={{ width: "auto" }}><option value="open">Open</option><option value="done">Done</option></select>
                   <Submit className="btn secondary">Save</Submit>

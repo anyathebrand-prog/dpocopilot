@@ -8,6 +8,7 @@ import { evaluateMI, fmtWAT, type Criterion } from "@/lib/rules";
 import { str, flash } from "@/lib/form";
 import { Flash, Field, Hidden, Empty, Banner } from "@/components/ui";
 import { Submit } from "@/components/client";
+import { COUNTRY } from "@/lib/country";
 
 const TYPES: [string, string][] = [["data_subject", "Data subjects"], ["data_category", "Data categories"], ["purpose", "Purposes"], ["system", "Systems and storage"], ["recipient", "Recipients"], ["transfer", "Transfers outside Nigeria"]];
 const path = (id: string) => `/app/clients/${id}/data-inventory`;
@@ -34,7 +35,7 @@ async function recheck(fd: FormData) {
   "use server";
   const { user, client } = await requireClient(str(fd, "client_id"), { write: true });
   const criteria = await q<Criterion>("select description, question_key, op, value, source_ref from mi_criteria where status = 'published' order by position");
-  const version = (await one("select to_char(max(published_at) at time zone 'Africa/Lagos', 'YYYY-MM-DD HH24:MI') as v from publish_events"))?.v ?? "v0-seed";
+  const version = (await one(`select to_char(max(published_at) at time zone '${COUNTRY.timeZone}', 'YYYY-MM-DD HH24:MI') as v from publish_events`))?.v ?? "v0-seed";
   const mi = evaluateMI(criteria, await answersOf(client.id));
   await q("insert into mi_assessments (firm_id, client_id, result, reasoning, criteria_version) values ($1,$2,$3,$4,$5)", [client.firm_id, client.id, mi.result, JSON.stringify(mi.reasoning), version]);
   await audit(user, "create", "mi_assessment", client.id, { client_id: client.id, details: { result: mi.result } });
