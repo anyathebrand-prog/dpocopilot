@@ -47,7 +47,7 @@ const FIT: [Icon, string, string][] = [
 // Real product figures only.
 const STATS: [string, string, string][] = [
   ["72", "h", "Breach notice window (NDPA s.40)"],
-  ["30", "days", "Default DSAR response period"],
+  ["72", "h", "Default DSAR response period"],
   ["100", "%", "AI drafts approved by a person"],
   ["5", "", "CAR readiness categories"],
 ];
