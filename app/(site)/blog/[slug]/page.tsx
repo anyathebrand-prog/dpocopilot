@@ -14,7 +14,10 @@ const post = (slug: string) => one("select slug, title, summary, body, published
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }) {
   const p = await post((await params).slug);
-  return p ? { title: `${p.title} · DPO Copilot`, description: p.summary || undefined } : {};
+  if (!p) return {};
+  const slug = (await params).slug, description = p.summary || undefined;
+  return { title: `${p.title} · DPO Copilot`, description, alternates: { canonical: `/blog/${slug}` },
+    openGraph: { type: "article", title: p.title, description, url: `/blog/${slug}`, ...(p.has_cover ? { images: [`/blog/${slug}/cover`] } : {}) } };
 }
 
 export default async function Post({ params }: { params: Promise<{ slug: string }> }) {

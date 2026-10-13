@@ -8,8 +8,15 @@ import { PublicHeader } from "@/components/public-header";
 import { connection } from "next/server";
 import { INSTALL, headerBrand } from "@/lib/install";
 import { COUNTRY } from "@/lib/country";
+import { SITE_URL } from "@/lib/site-url";
 
-export const generateMetadata = () => ({ title: INSTALL.name, description: "NDPA 2023 compliance workspace" });
+const description = "NDPA 2023 and GAID 2025 compliance workspace for Nigerian DPCOs";
+export const generateMetadata = () => ({
+  metadataBase: new URL(SITE_URL),
+  title: INSTALL.name, description,
+  openGraph: { type: "website", siteName: INSTALL.name, title: INSTALL.name, description, url: "/" },
+  twitter: { card: "summary_large_image", title: INSTALL.name, description },
+});
 
 export default async function RootLayout({ children }: { children: ReactNode }) {
   await connection(); // per-install branding (lib/install.ts) is read at request time, never baked in at build
