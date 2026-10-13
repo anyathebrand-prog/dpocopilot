@@ -1,4 +1,5 @@
 import { mkdirSync, writeFileSync, readFileSync } from "node:fs";
+import { bucketOn, bucketPut, bucketGet } from "./bucket";
 import { randomUUID } from "node:crypto";
 import net from "node:net";
 import path from "node:path";
@@ -6,7 +7,8 @@ import { q } from "./db";
 import { sha256 } from "./crypto";
 import { audit, type User } from "./auth";
 
-// ponytail: local disk under ./data/files. Production moves this to Nigeria-hosted S3-compatible storage (TRD §8, FLAG-3).
+// Images and PDFs go to CloudVantage object storage when configured (lib/bucket.ts, storage_path "bucket:<firm>/<id>.<ext>");
+// everything else, and everything when the bucket is not configured, stays on local disk under ./data/files.
 // Storage keys never contain names or original filenames (schema §7).
 const ROOT = path.join(process.cwd(), "data", "files");
 const MAX = 25 * 1024 * 1024;
@@ -16,6 +18,7 @@ const ALLOWED: Record<string, string> = {
   txt: "text/plain", png: "image/png", jpg: "image/jpeg", jpeg: "image/jpeg", heic: "image/heic",
   mp4: "video/mp4", mov: "video/quicktime", webm: "video/webm",
 };
+const TO_BUCKET = new Set(["pdf", "png", "jpg", "jpeg", "heic"]); // the bucket caps these at 20 MB
 const VIDEO = new Set(["mp4", "mov", "webm"]), MAX_VIDEO = 100 * 1024 * 1024;
 export const ACCEPT = Object.keys(ALLOWED).map((e) => "." + e).join(",");
 
@@ -62,9 +65,16 @@ export async function storeFile(u: User, client: { id: string; firm_id: string }
   }
   if (clean === null && process.env.NODE_ENV === "production") return fail("File uploads are disabled until the virus scanner is configured.");
   const id = randomUUID();
-  const rel = path.join(client.firm_id, client.id, id);
-  mkdirSync(path.join(ROOT, client.firm_id, client.id), { recursive: true });
-  writeFileSync(path.join(ROOT, rel), buf);
+  let rel: string;
+  if (bucketOn() && TO_BUCKET.has(ext)) {
+    if (file.size > 20 * 1024 * 1024) return fail(`${file.name} is larger than 20 MB.`);
+    try { await bucketPut(client.firm_id, `${id}.${ext}`, buf, ALLOWED[ext]); } catch (e) { console.error(e); return fail("File storage is unavailable. Try again shortly."); }
+    rel = `bucket:${client.firm_id}/${id}.${ext}`;
+  } else {
+    rel = path.join(client.firm_id, client.id, id);
+    mkdirSync(path.join(ROOT, client.firm_id, client.id), { recursive: true });
+    writeFileSync(path.join(ROOT, rel), buf);
+  }
   await q(`insert into files (id, firm_id, client_id, evidence_request_id, original_name, mime, size_bytes, sha256, storage_path, scan_status, uploaded_by)
     values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`, [id, client.firm_id, client.id, evidenceRequestId, file.name.slice(0, 200), ALLOWED[ext], file.size, sha256(buf), rel, clean ? "clean" : "unscanned", u.id]);
   await audit(u, "create", "file", id, { client_id: client.id, firm_id: client.firm_id, details: { evidence_request: evidenceRequestId } });
@@ -84,4 +94,9 @@ export function imageSize(b: Buffer): { type: "png" | "jpeg"; w: number; h: numb
   return null;
 }
 
-export const readStored = (rel: string) => readFileSync(path.join(ROOT, rel));
+/** Reads a stored file from the bucket or local disk, by its storage_path. */
+export async function readStored(rel: string): Promise<Buffer> {
+  if (!rel.startsWith("bucket:")) return readFileSync(path.join(ROOT, rel));
+  const [folder, name] = rel.slice(7).split("/");
+  return bucketGet(folder, name);
+}

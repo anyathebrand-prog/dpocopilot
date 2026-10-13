@@ -62,7 +62,7 @@ export async function loadFramework(clientId: string) {
   if (org?.file_id) {
     const f = await one<{ storage_path: string }>("select storage_path from files where id = $1 and client_id = $2", [org.file_id, clientId]);
     let src: string | undefined;
-    if (f && org.image) try { src = `data:image/${org.image.type};base64,${readStored(f.storage_path).toString("base64")}`; } catch { /* file missing on disk: reference only */ }
+    if (f && org.image) try { src = `data:image/${org.image.type};base64,${(await readStored(f.storage_path)).toString("base64")}`; } catch { /* file missing: reference only */ }
     organogram = { name: org.name ?? "Organogram", src, w: org.image?.w, h: org.image?.h, positions: positionsFrom(org.text ?? "") };
   }
   return { c, ans, ropa, organogram };
