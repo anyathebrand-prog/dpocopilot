@@ -16,14 +16,14 @@ globalThis.fetch = (async (url: string, init?: RequestInit) => {
 }) as typeof fetch;
 const authOf = (c: { init?: RequestInit }) => (c.init?.headers as Record<string, string>).AuthToken;
 
-test("token is generated once, sent raw in AuthToken, and reused", async () => {
+test("token is generated once, sent as AuthToken: Bearer, and reused", async () => {
   assert.equal(bucketOn(), true);
   await bucketPut("firm-1", "abc.pdf", Buffer.from("x"), "application/pdf");
   await bucketPut("firm-1", "def.pdf", Buffer.from("x"), "application/pdf");
   assert.equal(calls.filter((c) => c.url.endsWith("generate-token")).length, 1);
   const up = calls.at(-1)!;
   assert.equal(up.url, "https://buckets.cloudvantage.com.ng/bucketaas/p1/buckets-aas/docs/upload-object-folder/firm-1");
-  assert.equal(authOf(up), "KEY1");
+  assert.equal(authOf(up), "Bearer KEY1");
   assert.equal(((up.init?.body as FormData).get("file") as File).name, "def.pdf");
 });
 
@@ -31,7 +31,7 @@ test("a 401 regenerates the token and retries once", async () => {
   reply = () => new Response("PDFDATA", { headers: { "content-type": "application/pdf" } });
   nextUnauthorized = true;
   assert.equal((await bucketGet("f", "a.pdf")).toString(), "PDFDATA");
-  assert.equal(authOf(calls.at(-1)!), "KEY2");
+  assert.equal(authOf(calls.at(-1)!), "Bearer KEY2");
 });
 
 test("token errors: 400, 502, and 200 without statuscode 00", async () => {

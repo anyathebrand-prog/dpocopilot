@@ -10,7 +10,7 @@ export const bucketOn = () => !!(EMAIL && PASSWORD && PROJECT && BUCKET);
 
 let token: { key: string; expires: number } | null = null;
 
-/** POST /tokens/generate-token. Succeeds only on HTTP 200 with statuscode "00". Never logs the password or key. */
+/** POST /tokens/generate-token. Succeeds on HTTP 2xx (docs say 200, the live API sends 201) with statuscode "00". Never logs the password or key. */
 export async function generateToken(): Promise<{ key: string; expires: number }> {
   if (!EMAIL || !PASSWORD) throw new Error("CloudVantage: set CLOUDVANTAGE_EMAIL and CLOUDVANTAGE_PASSWORD.");
   const r = await fetch(`${BASE}/tokens/generate-token`, {
@@ -19,7 +19,7 @@ export async function generateToken(): Promise<{ key: string; expires: number }>
   const j = await r.json().catch(() => ({} as Record<string, string>));
   if (r.status === 400) throw new Error(`CloudVantage token: bad request (${j.error ?? "email and password are required"}).`);
   if (r.status === 502) throw new Error(`CloudVantage token: account service unreachable (${j.error ?? "502"}).`);
-  if (r.status !== 200 || j.statuscode !== "00" || !j.key) throw new Error(`CloudVantage token: failed (HTTP ${r.status}, ${j.statusmessage ?? j.error ?? "no key"}).`);
+  if (!r.ok || j.statuscode !== "00" || !j.key) throw new Error(`CloudVantage token: failed (HTTP ${r.status}, ${j.statusmessage ?? j.error ?? "no key"}).`);
   return { key: j.key, expires: Date.parse(j.expires_at) || Date.now() + 23 * 3600 * 1000 };
 }
 
@@ -29,11 +29,11 @@ async function getToken(force = false) {
   return token.key;
 }
 
-/** fetch with "AuthToken: <key>" (raw key, no Bearer). On 401 regenerates the token once and retries once. */
+/** fetch with "AuthToken: Bearer <key>" (the live API rejects the raw key with 403). On 401/403 regenerates the token once and retries once. */
 export async function cvFetch(path: string, init: RequestInit = {}): Promise<Response> {
-  const go = async (force: boolean) => fetch(`${BASE}/${path.replace(/^\//, "")}`, { ...init, headers: { ...(init.headers as Record<string, string>), AuthToken: await getToken(force) } });
+  const go = async (force: boolean) => fetch(`${BASE}/${path.replace(/^\//, "")}`, { ...init, headers: { ...(init.headers as Record<string, string>), AuthToken: `Bearer ${await getToken(force)}` } });
   const r = await go(false);
-  return r.status === 401 ? go(true) : r;
+  return r.status === 401 || r.status === 403 ? go(true) : r;
 }
 
 const obj = (p: string) => `${encodeURIComponent(PROJECT!)}/buckets-aas/${encodeURIComponent(BUCKET!)}/${p}`;
@@ -51,7 +51,9 @@ export async function bucketPut(folder: string, name: string, buf: Buffer, mime:
 
 /** Downloads folder/name. The API can answer 200 with a JSON error, so a JSON reply counts as failure. */
 export async function bucketGet(folder: string, name: string): Promise<Buffer> {
-  const r = await cvFetch(obj(`download-object/${encodeURIComponent(folder)}/${encodeURIComponent(name)}`));
+  const path = obj(`download-object/${encodeURIComponent(folder)}/${encodeURIComponent(name)}`);
+  // The live API occasionally resets the connection (ECONNRESET); one retry recovers it.
+  const r = await cvFetch(path).catch(() => cvFetch(path));
   if (!r.ok || /json/.test(r.headers.get("content-type") ?? "")) throw new Error(`bucket download failed (${r.status}): ${(await r.text()).slice(0, 300)}`);
   return Buffer.from(await r.arrayBuffer());
 }
