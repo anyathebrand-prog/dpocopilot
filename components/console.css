@@ -1,0 +1,262 @@
+/* Signed-in consoles (Secretary, firm workspace, client portal, account) in the public site's style: navy sidebar
+   with the teal logo, white page, Rocpar headings, navy cards for rows, tables and forms, pill buttons. Scoped to .cx. */
+@font-face { font-family: "Rocpar"; src: url("/fonts/Rocpar.otf") format("opentype"); font-weight: 400; font-display: swap; }
+
+.cx {
+  --cx-navy: #0b1220; --cx-navy-2: #111a2e; --cx-line: rgba(255, 255, 255, 0.08); --cx-ink: #0b1220; --cx-muted: #4b5567;
+  --cx-light: #e6e8f0; --cx-light-muted: #9aa6bd; --cx-blue: #a8dcff; --cx-blue-dark: #2a6aa8;
+  background: #ffffff; font-family: "Inter", "Segoe UI", sans-serif; -webkit-font-smoothing: antialiased; color: var(--cx-ink);
+}
+.cx a { color: var(--cx-blue-dark); }
+
+/* Sidebar */
+.cx .sidebar { background: var(--cx-navy); border-right: 0; padding: 22px 0; }
+.cx .brand { display: flex; flex-direction: column; align-items: flex-start; gap: 14px; padding: 0 20px 24px; }
+.cx .brand img { height: 30px; width: auto; }
+.cx .cx-pill { display: inline-flex; padding: 4px 12px; border-radius: 999px; background: rgba(255, 255, 255, 0.06); border: 1px solid var(--cx-line); color: var(--cx-light-muted); font-size: 12px; font-weight: 500; }
+.cx .nav { padding: 0 12px; display: flex; flex-direction: column; gap: 2px; }
+.cx .nav a { gap: 12px; padding: 10px 12px; border-left: 0; border-radius: 12px; color: var(--cx-light-muted); font-size: 14.5px; font-weight: 500; transition: background 0.2s ease, color 0.2s ease; }
+.cx .nav a svg { width: 18px; height: 18px; flex: none; }
+.cx .nav a:hover { background: rgba(255, 255, 255, 0.05); color: #fff; }
+.cx .nav a[aria-current="page"] { background: rgba(168, 220, 255, 0.12); color: var(--cx-blue); font-weight: 600; }
+.cx .nav a:focus-visible { outline: 2px solid var(--cx-blue); outline-offset: 2px; }
+
+/* Top bar */
+.cx .topbar { background: #fff; border-bottom: 1px solid rgba(11, 18, 32, 0.08); padding: 14px 32px; }
+.cx .cx-top { margin-right: auto; font-weight: 600; font-size: 14px; color: var(--cx-ink); }
+.cx .cx-user { font-size: 14px; color: var(--cx-muted); }
+.cx .cx-signout { display: inline-flex; align-items: center; gap: 8px; padding: 8px 16px; border-radius: 999px; border: 1px solid rgba(11, 18, 32, 0.14); background: rgba(11, 18, 32, 0.04); color: var(--cx-ink); font: 500 13.5px/1 "Inter", sans-serif; cursor: pointer; }
+.cx .cx-signout svg { width: 15px; height: 15px; }
+.cx .cx-signout:hover { background: rgba(11, 18, 32, 0.08); }
+
+/* Headings */
+.cx .content { max-width: 1180px; }
+.cx h1 { font-family: "Rocpar", "Inter", sans-serif; font-weight: 400; font-size: clamp(24px, 3vw, 34px); letter-spacing: 0.03em; color: var(--cx-ink); line-height: 1.2; }
+.cx h2 { font-family: "Rocpar", "Inter", sans-serif; font-weight: 400; font-size: 20px; letter-spacing: 0.04em; color: var(--cx-blue-dark); margin-top: 40px; }
+.cx h3 { font-weight: 600; }
+.cx .meta, .cx .caption { color: var(--cx-muted); }
+
+/* Navy cards: rule rows, panels, tables, empty states */
+.cx .rule-row { background: var(--cx-navy); border: 1px solid var(--cx-navy); border-radius: 16px; padding: 16px 20px; color: var(--cx-light); transition: transform 0.25s ease, border-color 0.25s ease; }
+.cx .rule-row + .rule-row { margin-top: 10px; }
+.cx .rule-row:hover { transform: translateY(-2px); border-color: rgba(168, 220, 255, 0.4); }
+.cx .rule-row a, .cx .panel a, .cx .register a { color: var(--cx-blue); }
+.cx .rule-row .meta, .cx .panel .meta, .cx .panel .help, .cx .panel .caption { color: var(--cx-light-muted); }
+
+.cx .panel { background: var(--cx-navy); border: 1px solid var(--cx-navy); border-radius: 18px; padding: 24px; color: var(--cx-light); }
+.cx .panel h3, .cx .panel h2 { color: #fff; margin-top: 0; }
+.cx .panel h2 { color: var(--cx-blue); }
+.cx .panel .field > span, .cx .panel legend { color: var(--cx-light); }
+.cx .panel input, .cx .panel select, .cx .panel textarea {
+  background: #0a0f1a; border: 1px solid rgba(255, 255, 255, 0.14); color: #fff; border-radius: 12px;
+}
+.cx .panel input:focus-visible, .cx .panel select:focus-visible, .cx .panel textarea:focus-visible { outline: none; border-color: var(--cx-blue); box-shadow: 0 0 0 3px rgba(168, 220, 255, 0.2); }
+.cx .panel details summary { color: var(--cx-light); }
+
+.cx .register { background: var(--cx-navy); border: 0; border-radius: 18px; overflow: hidden; color: var(--cx-light); }
+.cx .register th { background: var(--cx-navy-2); color: var(--cx-light-muted); border-bottom: 1px solid var(--cx-line); }
+.cx .register td { border-bottom: 1px solid var(--cx-line); }
+.cx .register tr:last-child td { border-bottom: 0; }
+.cx .register .meta, .cx .register .small { color: var(--cx-light-muted); }
+.cx .empty { background: var(--cx-navy); border: 0; border-radius: 18px; color: var(--cx-light-muted); }
+
+/* Buttons: navy pill on the white page, white pill inside navy cards */
+.cx .btn { height: 42px; padding: 0 22px; border-radius: 999px; background: var(--cx-navy); border-color: var(--cx-navy); color: #fff; font-family: "Inter", sans-serif; font-weight: 600; font-size: 14px; }
+.cx .btn:hover { background: #1b2740; border-color: #1b2740; }
+.cx .btn.secondary { background: transparent; color: var(--cx-ink); border: 1px solid rgba(11, 18, 32, 0.25); }
+.cx .btn.quiet { background: none; border-color: transparent; color: var(--cx-blue-dark); padding: 0 8px; }
+.cx .btn.danger { background: #b42318; border-color: #b42318; }
+.cx .panel .btn, .cx .rule-row .btn, .cx .register .btn { background: #fff; color: #000; border-color: #fff; }
+.cx .panel .btn.secondary, .cx .rule-row .btn.secondary { background: transparent; color: #fff; border-color: rgba(255, 255, 255, 0.35); }
+.cx .panel .btn.quiet, .cx .rule-row .btn.quiet, .cx .register .btn.quiet { background: none; border-color: transparent; color: var(--cx-blue); }
+
+/* Banners */
+.cx .banner { border-radius: 14px; border-left-width: 0; border: 1px solid rgba(42, 106, 168, 0.3); background: rgba(168, 220, 255, 0.14); color: var(--cx-ink); }
+.cx .banner.warn { border-color: rgba(176, 120, 0, 0.35); background: #fff3d6; color: #7a4f00; }
+.cx .banner.ok { border-color: rgba(30, 122, 76, 0.35); background: #e7f4ec; color: #1e7a4c; }
+.cx .banner.error { border-color: rgba(180, 35, 24, 0.35); background: #fdecea; color: #b42318; }
+
+/* Confirmation dialogs */
+.cx dialog.panel { box-shadow: 0 24px 70px rgba(11, 18, 32, 0.45); }
+.cx dialog::backdrop { background: rgba(11, 18, 32, 0.55); backdrop-filter: blur(4px); }
+
+/* ---------- Firm workspace extras ---------- */
+/* Sidebar brand row (logo + mobile menu toggle) */
+.cx .brand { cursor: default; }
+.cx .cx-brand-row { display: flex; align-items: center; justify-content: space-between; width: 100%; }
+.cx .cx-menu { color: var(--cx-light); }
+.cx .cx-menu svg { width: 22px; height: 22px; }
+.cx .cx-pill { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Top bar icon button (notifications) */
+.cx .cx-icon { position: relative; display: inline-grid; place-items: center; width: 38px; height: 38px; border-radius: 50%; background: rgba(11, 18, 32, 0.04); border: 1px solid rgba(11, 18, 32, 0.12); color: var(--cx-ink); }
+.cx .cx-icon svg { width: 18px; height: 18px; }
+.cx .cx-icon:hover { background: rgba(11, 18, 32, 0.08); }
+.cx a.cx-user { text-decoration: none; }
+.cx a.cx-user:hover { color: var(--cx-ink); }
+
+/* Client navigation: rounded pills on the white page */
+.cx .client-nav h4 { color: var(--cx-muted); font-size: 12px; font-weight: 600; margin: 18px 0 6px 10px; }
+.cx .client-nav a { border-left: 0; border-radius: 10px; padding: 8px 10px; margin: 1px 0; color: #3d4757; font-size: 14.5px; transition: background 0.2s ease, color 0.2s ease; }
+.cx .client-nav a:hover { background: rgba(11, 18, 32, 0.05); color: var(--cx-ink); }
+.cx .client-nav a[aria-current="page"] { background: var(--cx-navy); color: var(--cx-blue); font-weight: 600; }
+.cx .client-nav a[aria-current="page"] .chip { background: rgba(168, 220, 255, 0.16); color: var(--cx-blue); }
+
+/* Row urgency shown as a coloured left edge (plus the text label each row already carries) */
+.cx .rule-row.urgent { border-left: 4px solid #ff7a6e; }
+.cx .rule-row.soon { border-left: 4px solid #f5b841; }
+.cx .rule-row.info { border-left: 4px solid var(--cx-blue); }
+
+/* Text that must stay readable on navy */
+.cx .panel .why, .cx .register .why, .cx .rule-row .why, .cx .panel .kv dt, .cx .panel .check, .cx .panel p { color: var(--cx-light-muted); }
+.cx .panel .kv dd, .cx .panel b, .cx .rule-row b { color: var(--cx-light); }
+.cx .register .deadline:not(.soon):not(.overdue), .cx .rule-row .deadline:not(.soon):not(.overdue), .cx .panel .deadline:not(.soon):not(.overdue) { color: var(--cx-light-muted); }
+.cx .deadline { border-radius: 8px; }
+.cx .empty p { color: var(--cx-light-muted); }
+.cx .register td:first-child a { color: #fff; }
+.cx .register td:first-child a:hover { color: var(--cx-blue); }
+.cx .bar { background: rgba(11, 18, 32, 0.1); }
+.cx .register .bar, .cx .panel .bar { background: rgba(255, 255, 255, 0.12); }
+.cx .bar > i { background: linear-gradient(90deg, var(--cx-blue-dark), var(--cx-blue)); }
+.cx .banner.breach { border-radius: 14px; border: 1px solid rgba(180, 35, 24, 0.35); background: #fdecea; color: #b42318; }
+
+/* Inputs on the white page: rounded, blue focus */
+.cx input:not([type=checkbox]):not([type=radio]), .cx select, .cx textarea { border-radius: 12px; }
+.cx input:focus-visible, .cx select:focus-visible, .cx textarea:focus-visible { outline: none; border-color: var(--cx-blue-dark); box-shadow: 0 0 0 3px rgba(42, 106, 168, 0.18); }
+
+/* Legal documents stay white serif sheets (design brief), now softly lifted */
+.cx .sheet { border-radius: 16px; border-color: rgba(11, 18, 32, 0.1); box-shadow: 0 10px 30px rgba(11, 18, 32, 0.08); }
+.cx .ai-block { border-radius: 16px; }
+.cx .seal { border-radius: 6px; }
+
+/* ---------- Client portal (phone-first single column) ---------- */
+.cx.cx-portal { display: block; min-height: 100vh; min-height: 100dvh; }
+.cx-portal .portal-top { background: #fff; border-bottom: 1px solid rgba(11, 18, 32, 0.08); }
+.cx-portal .portal-top .inner { gap: 12px; padding: 12px 16px; }
+.cx-portal .cx-portal-id { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.cx-portal .cx-portal-id b { display: block; font-size: 15px; color: var(--cx-ink); }
+.cx-portal .cx-portal-firm { font-size: 12.5px; color: var(--cx-muted); }
+.cx-portal .cx-logo-pill { flex: none; display: flex; align-items: center; height: 40px; padding: 0 12px; border-radius: 999px; background: var(--cx-navy); }
+.cx-portal .cx-logo-pill img { height: 20px; width: auto; }
+.cx-portal a.cx-logo-pill { transition: transform 0.2s ease, box-shadow 0.2s ease; }
+.cx-portal a.cx-logo-pill:hover { transform: translateY(-1px); box-shadow: 0 6px 16px rgba(11, 18, 32, 0.25); }
+.cx-portal .portal { padding: 20px 16px 40px; }
+.cx-portal h1 { font-size: clamp(22px, 5.5vw, 28px); }
+.cx-portal .btn { height: 48px; }
+.cx-portal .btn.emergency { background: #fff; color: #b42318; border: 2px solid #b42318; }
+.cx-portal .btn.emergency:hover { background: #fdecea; }
+.cx-portal .sticky-bar { background: rgba(255, 255, 255, 0.94); backdrop-filter: blur(8px); border-top-color: rgba(11, 18, 32, 0.08); }
+.cx .panel input[readonly] { background: rgba(255, 255, 255, 0.04); color: var(--cx-light-muted); }
+.cx-portal .panel + .panel { margin-top: 16px; }
+/* Readiness card */
+.cx-portal .cx-ready { background: var(--cx-navy); border-radius: 22px; padding: 24px; margin-bottom: 8px; color: var(--cx-light); position: relative; overflow: hidden; }
+.cx-portal .cx-ready::before { content: ""; position: absolute; inset: 0; pointer-events: none; background: radial-gradient(ellipse 80% 60% at 100% 0%, rgba(168, 220, 255, 0.16), transparent 70%); }
+.cx-portal .cx-ready > * { position: relative; }
+.cx-portal .cx-ready h1 { color: #fff; margin: 0 0 16px; font-size: clamp(18px, 4.6vw, 22px); line-height: 1.35; }
+.cx-portal .cx-ready-pct { display: block; font-size: clamp(44px, 12vw, 60px); line-height: 1.1; color: var(--cx-blue); }
+.cx-portal .cx-ready .bar { background: rgba(255, 255, 255, 0.12); height: 8px; }
+.cx-portal .cx-ready .num { color: var(--cx-light); }
+/* Quick links as pills */
+.cx .cx-links { display: flex; flex-wrap: wrap; gap: 8px; }
+.cx .cx-links a { display: inline-flex; align-items: center; min-height: 44px; padding: 0 18px; border-radius: 999px; background: rgba(11, 18, 32, 0.04); border: 1px solid rgba(11, 18, 32, 0.12); color: var(--cx-ink); text-decoration: none; font-weight: 500; font-size: 14.5px; transition: background 0.2s ease, transform 0.2s ease; }
+.cx .cx-links a:hover { background: rgba(11, 18, 32, 0.08); transform: translateY(-1px); }
+
+/* ---------- Motion ---------- */
+@keyframes cxRise { from { opacity: 0; transform: translateY(18px); filter: blur(6px); } to { opacity: 1; transform: none; filter: blur(0); } }
+@keyframes cxSlide { from { opacity: 0; transform: translateX(-14px); } to { opacity: 1; transform: none; } }
+@keyframes cxRow { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+@keyframes cxDraw { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+@keyframes cxGlow { 0%, 100% { box-shadow: 0 0 0 0 rgba(168, 220, 255, 0); } 50% { box-shadow: 0 0 0 4px rgba(168, 220, 255, 0.18); } }
+@keyframes cxDot { 0%, 100% { opacity: 0.35; } 50% { opacity: 1; } }
+
+/* Sidebar: logo, pill and links slide in once */
+.cx .brand img { animation: cxSlide 0.6s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.cx .cx-pill { animation: cxSlide 0.6s cubic-bezier(0.22, 1, 0.36, 1) both 0.1s; }
+.cx .cx-pill::before { content: ""; width: 6px; height: 6px; margin-right: 8px; align-self: center; border-radius: 50%; background: var(--cx-blue); animation: cxDot 2.4s ease-in-out infinite; }
+.cx .nav a { animation: cxSlide 0.5s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.cx .nav a:nth-child(1) { animation-delay: 0.15s; } .cx .nav a:nth-child(2) { animation-delay: 0.2s; } .cx .nav a:nth-child(3) { animation-delay: 0.25s; }
+.cx .nav a:nth-child(4) { animation-delay: 0.3s; } .cx .nav a:nth-child(5) { animation-delay: 0.35s; } .cx .nav a:nth-child(6) { animation-delay: 0.4s; } .cx .nav a:nth-child(7) { animation-delay: 0.45s; }
+.cx .nav a svg { transition: transform 0.25s ease; }
+.cx .nav a:hover svg { transform: translateX(2px) scale(1.08); }
+.cx .nav a[aria-current="page"] { animation-name: cxSlide, cxGlow; animation-duration: 0.5s, 2.8s; animation-iteration-count: 1, 2; }
+
+/* Page content: every block rises and un-blurs in sequence on each page */
+.cx .content > * { animation: cxRise 0.7s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.cx .content > *:nth-child(2) { animation-delay: 0.06s; } .cx .content > *:nth-child(3) { animation-delay: 0.12s; }
+.cx .content > *:nth-child(4) { animation-delay: 0.18s; } .cx .content > *:nth-child(5) { animation-delay: 0.24s; }
+.cx .content > *:nth-child(6) { animation-delay: 0.3s; } .cx .content > *:nth-child(7) { animation-delay: 0.36s; }
+.cx .content > *:nth-child(n+8) { animation-delay: 0.42s; }
+/* Inside client pages the section content also cascades in */
+.cx .client-layout > div:last-child > * { animation: cxRise 0.6s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.cx .client-layout > div:last-child > *:nth-child(2) { animation-delay: 0.06s; } .cx .client-layout > div:last-child > *:nth-child(3) { animation-delay: 0.12s; }
+.cx .client-layout > div:last-child > *:nth-child(4) { animation-delay: 0.18s; } .cx .client-layout > div:last-child > *:nth-child(n+5) { animation-delay: 0.24s; }
+
+/* Section titles: a blue underline draws in */
+.cx h2 { position: relative; padding-bottom: 10px; }
+.cx h2::after { content: ""; position: absolute; left: 0; bottom: 0; width: 56px; height: 2px; border-radius: 2px; background: linear-gradient(90deg, var(--cx-blue-dark), var(--cx-blue)); transform-origin: left; animation: cxDraw 0.8s cubic-bezier(0.22, 1, 0.36, 1) both 0.3s; }
+.cx .panel h2::after, .cx dialog h2::after { display: none; }
+
+/* Table rows and content-home rows cascade in */
+.cx .register tbody tr { animation: cxRow 0.45s ease both; transition: background 0.2s ease; }
+.cx .register tbody tr:nth-child(1) { animation-delay: 0.15s; } .cx .register tbody tr:nth-child(2) { animation-delay: 0.2s; }
+.cx .register tbody tr:nth-child(3) { animation-delay: 0.25s; } .cx .register tbody tr:nth-child(4) { animation-delay: 0.3s; }
+.cx .register tbody tr:nth-child(5) { animation-delay: 0.35s; } .cx .register tbody tr:nth-child(n+6) { animation-delay: 0.4s; }
+.cx .register tbody tr:hover { background: rgba(168, 220, 255, 0.06); }
+
+/* Rows: light sweep across on hover */
+.cx .rule-row { position: relative; overflow: hidden; }
+.cx .rule-row::after { content: ""; position: absolute; inset: 0; pointer-events: none; transform: translateX(-100%);
+  background: linear-gradient(100deg, transparent 30%, rgba(168, 220, 255, 0.12) 50%, transparent 70%); transition: transform 0.7s ease; }
+.cx .rule-row:hover::after { transform: translateX(100%); }
+.cx .rule-row > * { position: relative; }
+
+/* Panels lift slightly on hover; buttons press */
+.cx .panel { transition: transform 0.3s ease, box-shadow 0.3s ease; }
+.cx .panel:hover { transform: translateY(-2px); box-shadow: 0 18px 40px rgba(11, 18, 32, 0.18); }
+.cx dialog.panel:hover { transform: none; }
+.cx .btn, .cx .cx-signout { transition: transform 0.2s ease, background 0.2s ease, box-shadow 0.2s ease; }
+.cx .btn:hover, .cx .cx-signout:hover { transform: translateY(-1px); }
+.cx .btn:active, .cx .cx-signout:active { transform: scale(0.97); }
+
+/* Unpublished-changes notice pulses gently until published */
+.cx .banner.warn { animation: cxRise 0.7s cubic-bezier(0.22, 1, 0.36, 1) both, cxGlow 3s ease-in-out 1s infinite; }
+
+/* Progress bars fill from zero; status chips pop in; unread badge bounces once */
+@keyframes cxBar { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+@keyframes cxPop { 0% { opacity: 0; transform: scale(0.6); } 100% { opacity: 1; transform: scale(1); } }
+@keyframes cxBounce { 0%, 100% { transform: translateY(0); } 30% { transform: translateY(-5px); } 55% { transform: translateY(0); } 75% { transform: translateY(-2px); } }
+.cx .bar > i { transform-origin: left; animation: cxBar 1.1s cubic-bezier(0.22, 1, 0.36, 1) both 0.35s; }
+.cx .chip { animation: cxPop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) both 0.3s; }
+.cx .notif .count { animation: cxBounce 0.9s ease both 0.6s; }
+
+/* Rows cascade in wherever they appear (dashboard queue, gaps, calendar, portal to-do) */
+.cx .rule-row { animation: cxRow 0.5s ease both; }
+.cx .rule-row:nth-of-type(2) { animation-delay: 0.06s; } .cx .rule-row:nth-of-type(3) { animation-delay: 0.12s; }
+.cx .rule-row:nth-of-type(4) { animation-delay: 0.18s; } .cx .rule-row:nth-of-type(n+5) { animation-delay: 0.24s; }
+
+/* Primary buttons: a light sweep on hover */
+.cx .btn { position: relative; overflow: hidden; }
+.cx .btn::after { content: ""; position: absolute; inset: 0; pointer-events: none; transform: translateX(-110%);
+  background: linear-gradient(100deg, transparent 30%, rgba(255, 255, 255, 0.28) 50%, transparent 70%); transition: transform 0.6s ease; }
+.cx .btn:hover::after { transform: translateX(110%); }
+
+/* Portal: header drops in, then the page cascades */
+.cx-portal .portal-top { animation: cxDrop 0.6s cubic-bezier(0.22, 1, 0.36, 1) both; }
+@keyframes cxDrop { from { opacity: 0; transform: translateY(-14px); } to { opacity: 1; transform: none; } }
+.cx-portal .portal > * { animation: cxRise 0.65s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.cx-portal .portal > *:nth-child(2) { animation-delay: 0.07s; } .cx-portal .portal > *:nth-child(3) { animation-delay: 0.14s; }
+.cx-portal .portal > *:nth-child(4) { animation-delay: 0.21s; } .cx-portal .portal > *:nth-child(5) { animation-delay: 0.28s; }
+.cx-portal .portal > *:nth-child(n+6) { animation-delay: 0.35s; }
+.cx-portal .cx-ready-pct { animation: cxPop 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) both 0.25s; }
+
+@media (prefers-reduced-motion: reduce) {
+  .cx *, .cx *::before, .cx *::after { animation: none !important; transition: none !important; }
+  .cx .rule-row:hover, .cx .panel:hover, .cx .btn:hover { transform: none; }
+}
+
+/* Horizontal scroll area for wide tables inside dark panels: slim, rounded, panel-coloured scrollbar. */
+.cx .cx-hscroll { overflow-x: auto; padding-bottom: 6px; scrollbar-width: thin; scrollbar-color: rgba(255, 255, 255, 0.35) transparent; }
+.cx .cx-hscroll::-webkit-scrollbar { height: 8px; }
+.cx .cx-hscroll::-webkit-scrollbar-track { background: rgba(255, 255, 255, 0.06); border-radius: 999px; }
+.cx .cx-hscroll::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.35); border-radius: 999px; }
+.cx .cx-hscroll::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.55); }

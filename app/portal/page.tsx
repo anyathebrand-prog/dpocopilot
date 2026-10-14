@@ -3,15 +3,15 @@ import { ShieldAlert } from "lucide-react";
 import { requireContact } from "@/lib/auth";
 import { q, one } from "@/lib/db";
 import { reference } from "@/lib/breach";
-import { fmtDate, fmtWAT } from "@/lib/rules";
-import { Flash, Deadline, Chip, Banner } from "@/components/ui";
+import { fmtDate, fmtWAT, todayWAT, carReminderStage } from "@/lib/rules";
+import { Flash, Deadline, Chip, Banner, Bar } from "@/components/ui";
 
 export default async function PortalHome({ searchParams }: { searchParams: Promise<Record<string, string>> }) {
   const u = await requireContact();
   const sp = await searchParams;
   const id = u.client_id!;
-  const client = await one("select name, archived_at from clients where id = $1", [id]);
-  const score = await one<{ pct: number }>(`select coalesce(round(100.0 * count(*) filter (where status = 'complete') / nullif(count(*) filter (where status <> 'not_applicable'), 0)), 0)::int as pct from client_car_items where client_id = $1`, [id]);
+  const client = await one("select name, archived_at, car_filing_due_on from clients where id = $1", [id]);
+  const score = await one<{ pct: number }>(`select coalesce(round(100.0 * count(*) filter (where status = 'complete') / nullif(count(*) filter (where status <> 'not_applicable'), 0)), 0)::int as pct from client_car_items where client_id = $1 and audit_year = (select car_audit_year from clients where id = $1) and category_key <> 'data_processors'`, [id]);
   const qn = await one("select status from questionnaires where client_id = $1", [id]);
   const evidence = await q("select id, title, due_on, status from evidence_requests where client_id = $1 and status in ('open','rejected') order by due_on nulls last", [id]);
   const signoffs = await q(`select s.id, v.parent_type, v.parent_id, coalesce(d.title, dp.title) as title from signoff_requests s join content_versions v on v.id = s.version_id
@@ -26,8 +26,17 @@ export default async function PortalHome({ searchParams }: { searchParams: Promi
   return (
     <>
       <Flash sp={sp} />
-      <h1 style={{ fontSize: 24 }}>Your compliance file is <span className="num">{score!.pct}%</span> ready</h1>
+      <section className="cx-ready">
+        <h1>Your compliance file is <span className="cx-ready-pct num">{score!.pct}%</span> ready</h1>
+        <Bar pct={score!.pct} label={`Compliance file ${score!.pct}% ready`} />
+      </section>
       <p className="meta">Managed by {u.firm_name}</p>
+      {client!.car_filing_due_on && carReminderStage(client!.car_filing_due_on, todayWAT()) !== null && (
+        <Banner kind="warn">
+          <b>Compliance Audit Return</b> · {u.firm_name} files it with the NDPC for you.
+          <Deadline due={client!.car_filing_due_on} dateOnly prefix="Filing due" soonHours={7 * 24} />
+        </Banner>
+      )}
       <h2>To do</h2>
       {todo === 0 && <p>You&apos;re all caught up.</p>}
       {qn!.status !== "completed" && (
@@ -48,7 +57,7 @@ export default async function PortalHome({ searchParams }: { searchParams: Promi
         <Link className="btn secondary" style={{ width: "100%" }} href="/portal/log-request">Log a data subject request</Link>
       </div>
       <h2>More</h2>
-      <p><Link href="/portal/documents">Documents</Link> · <Link href="/portal/evidence">Evidence requests</Link> · <Link href="/portal/questionnaire">Onboarding answers</Link></p>
+      <div className="cx-links"><Link href="/portal/deadlines">Upcoming deadlines</Link><Link href="/portal/car">CAR checklist</Link><Link href="/portal/ropa">Data inventory</Link><Link href="/portal/documents">Documents</Link><Link href="/portal/evidence">Evidence requests</Link><Link href="/portal/invoices">Invoices</Link><Link href="/portal/questionnaire">Onboarding answers</Link></div>
       {reports.length > 0 && (
         <>
           <h2>What you&apos;ve reported</h2>

@@ -27,6 +27,16 @@ create table if not exists firms (
   created_at timestamptz not null default now()
 );
 
+-- Firm (DPCO) profile, used on audit reports (lib/car-report.ts).
+alter table firms add column if not exists address text;
+alter table firms add column if not exists website text;
+alter table firms add column if not exists email text;
+alter table firms add column if not exists phone text;
+alter table firms add column if not exists ndpc_licence_no text;
+alter table firms add column if not exists signatory_name text;
+alter table firms add column if not exists signatory_credentials text;
+alter table firms add column if not exists signatory_title text;
+
 create table if not exists memberships (
   id uuid primary key default gen_random_uuid(),
   firm_id uuid not null references firms,
@@ -148,6 +158,8 @@ create table if not exists ropa_entries (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+-- Department that owns the activity, from the client's onboarding list (org_departments).
+alter table ropa_entries add column if not exists department text;
 
 -- Approvable content: DPIAs, documents, breach notifications, DSAR responses share content_versions.
 create table if not exists dpias (
@@ -159,6 +171,11 @@ create table if not exists dpias (
   created_by uuid not null references users,
   created_at timestamptz not null default now()
 );
+
+-- DPIA assessment year (expand + backfill from the creation date in WAT; idempotent).
+alter table dpias add column if not exists assessment_year int check (assessment_year between 2019 and 2100);
+update dpias set assessment_year = extract(year from created_at at time zone 'Africa/Lagos')::int where assessment_year is null;
+alter table dpias alter column assessment_year set not null;
 
 create table if not exists dpia_ropa (
   dpia_id uuid not null references dpias on delete cascade,
@@ -322,6 +339,13 @@ create table if not exists car_template_items (
   retire_pending boolean not null default false
 );
 
+-- Schedule 2 template (lib/car-template.ts): a sixth part, question priority and Part 4 sub-sections.
+alter table car_template_items drop constraint if exists car_template_items_category_key_check;
+alter table car_template_items add constraint car_template_items_category_key_check
+  check (category_key in ('governance','principles','technology','accountability_risk','cross_border_transfer','data_processors'));
+alter table car_template_items add column if not exists priority text check (priority in ('high','medium','low'));
+alter table car_template_items add column if not exists section text;
+
 create table if not exists client_car_items (
   id uuid primary key default gen_random_uuid(),
   firm_id uuid not null references firms,
@@ -336,9 +360,27 @@ create table if not exists client_car_items (
   is_new boolean not null default false,
   link_state text check (link_state in ('confirmed','dismissed')),
   updated_by uuid references users,
-  unique (client_id, template_item_id),
   check (status <> 'not_applicable' or na_reason is not null)
 );
+
+-- CAR readiness extras: the audit year being prepared (per client) and the consultant's recommendation per item.
+alter table clients add column if not exists car_audit_year int check (car_audit_year between 2019 and 2100);
+alter table client_car_items add column if not exists recommendation text;
+-- Copied from the template item, plus the consultant's answer ("Yes / No / Facts") and evidence noted for the item.
+alter table client_car_items add column if not exists priority text check (priority in ('high','medium','low'));
+alter table client_car_items add column if not exists section text;
+alter table client_car_items add column if not exists answer text;
+alter table client_car_items add column if not exists evidence_notes text;
+
+-- One CAR checklist per client per audit year (expand + backfill; idempotent, runs on every start).
+-- clients.car_audit_year is the ACTIVE year: dashboard, portal, gaps and evidence read that year's checklist.
+-- Rollback while each client still has a single year: restore unique (client_id, template_item_id) and ignore audit_year.
+update clients set car_audit_year = extract(year from now())::int - 1 where car_audit_year is null;
+alter table client_car_items add column if not exists audit_year int;
+update client_car_items i set audit_year = c.car_audit_year from clients c where c.id = i.client_id and i.audit_year is null;
+alter table client_car_items alter column audit_year set not null;
+alter table client_car_items drop constraint if exists client_car_items_client_id_template_item_id_key;
+create unique index if not exists client_car_items_year on client_car_items (client_id, audit_year, template_item_id);
 
 create table if not exists evidence_requests (
   id uuid primary key default gen_random_uuid(),
@@ -411,11 +453,24 @@ create table if not exists notifications (
   id uuid primary key default gen_random_uuid(),
   firm_id uuid not null references firms,
   recipient_user_id uuid not null references users,
-  kind text not null check (kind in ('breach_reported','dsar_logged','evidence_submitted','signed_off','questionnaire_completed')),
+  kind text not null check (kind in ('breach_reported','dsar_logged','evidence_submitted','signed_off','questionnaire_completed','car_due')),
   message text not null,
   link text not null,
   read_at timestamptz,
   created_at timestamptz not null default now()
+);
+
+-- Existing databases: widen the kind check above (schema.sql re-runs on every start; no migrations yet).
+alter table notifications drop constraint if exists notifications_kind_check;
+alter table notifications add constraint notifications_kind_check check (kind in ('breach_reported','dsar_logged','evidence_submitted','signed_off','questionnaire_completed','car_due'));
+
+-- One row per CAR reminder stage sent (lib/reminders.ts). Keyed on the due date, so a new date starts a fresh cycle.
+create table if not exists car_reminders (
+  client_id uuid not null references clients on delete cascade,
+  due_on date not null,
+  days_before int not null,
+  sent_at timestamptz not null default now(),
+  primary key (client_id, due_on, days_before)
 );
 
 create table if not exists outbound_messages (
@@ -530,3 +585,317 @@ create table if not exists pilot_requests (
   message text,
   created_at timestamptz not null default now()
 );
+
+-- Public blog, written in the Secretary console (lib/blog.ts). Cover image kept in the row: small, public, no client data.
+create table if not exists blog_posts (
+  id uuid primary key default gen_random_uuid(),
+  slug text not null unique,
+  title text not null,
+  summary text not null default '',
+  body text not null default '',
+  cover bytea,
+  cover_mime text,
+  status text not null default 'draft' check (status in ('draft','published')),
+  published_at timestamptz,
+  created_by uuid not null references users,
+  updated_at timestamptz not null default now()
+);
+
+-- CAR readiness: other high-risk findings and observations outside the Schedule 2 questions, per client and audit year.
+create table if not exists car_findings (
+  id uuid primary key default gen_random_uuid(),
+  firm_id uuid not null references firms,
+  client_id uuid not null references clients,
+  audit_year int not null,
+  observation text not null,
+  risk text not null default 'high' check (risk in ('high','medium','low')),
+  recommendation text,
+  status text not null default 'open' check (status in ('open','resolved')),
+  created_by uuid not null references users,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+create index if not exists car_findings_client_year on car_findings (client_id, audit_year);
+
+-- CAR audit report details per client and audit year: the consultant's narrative and sign-off inputs.
+create table if not exists car_reports (
+  client_id uuid not null references clients,
+  audit_year int not null,
+  background text,
+  conclusion_notes text,
+  verified_on date,
+  maturity_override int check (maturity_override between 1 and 5),
+  updated_by uuid references users,
+  updated_at timestamptz not null default now(),
+  primary key (client_id, audit_year)
+);
+
+-- Remediation tracker (lib/remediation.ts): one action per open CAR item or open finding, per client and audit year.
+-- Built from the audit; owner, target date, status, evidence and date closed are then maintained here. "Overdue" is derived.
+create table if not exists remediation_actions (
+  id uuid primary key default gen_random_uuid(),
+  firm_id uuid not null references firms,
+  client_id uuid not null references clients,
+  audit_year int not null,
+  source text not null check (source in ('item','finding')),
+  source_key text not null,
+  audit_part text not null,
+  control_area text not null,
+  non_conformity text not null,
+  recommendation text not null,
+  priority text not null check (priority in ('high','medium','low')),
+  owner text,
+  target_date date,
+  status text not null default 'not_started' check (status in ('not_started','in_progress','completed')),
+  evidence text,
+  date_closed date,
+  position int not null,
+  updated_by uuid references users,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique (client_id, audit_year, source, source_key)
+);
+
+-- Legitimate interest assessments (LIA) and cross-border transfer risk assessments (TIA), linked to a RoPA activity.
+create table if not exists assessments (
+  id uuid primary key default gen_random_uuid(),
+  firm_id uuid not null references firms,
+  client_id uuid not null references clients,
+  kind text not null check (kind in ('lia','tia')),
+  title text not null,
+  assessment_year int not null,
+  ropa_entry_id uuid references ropa_entries,
+  answers jsonb not null default '{}',
+  likelihood int check (likelihood between 1 and 5),
+  impact int check (impact between 1 and 5),
+  outcome text,
+  status text not null default 'draft' check (status in ('draft','approved')),
+  created_by uuid not null references users,
+  approved_by uuid references users,
+  approved_at timestamptz,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+-- Files attached to an assessment (e.g. transfer evidence: contract clauses, certifications, adequacy decisions).
+alter table files add column if not exists assessment_id uuid references assessments;
+
+-- Client invoices: line items are chosen from the DPCO service scope (lib/invoice.ts) with amounts in naira.
+create table if not exists invoices (
+  id uuid primary key default gen_random_uuid(),
+  firm_id uuid not null references firms,
+  client_id uuid not null references clients,
+  number text not null,
+  issued_on date not null,
+  due_on date,
+  lines jsonb not null,
+  vat_rate numeric not null default 0,
+  notes text,
+  status text not null default 'unpaid' check (status in ('unpaid','paid','cancelled')),
+  paid_on date,
+  created_by uuid not null references users,
+  created_at timestamptz not null default now(),
+  unique (firm_id, number)
+);
+
+-- Firm logo for invoices (data URL, small PNG/JPEG) and invoice email tracking.
+alter table firms add column if not exists logo text;
+alter table firms add column if not exists logo_w int;
+alter table firms add column if not exists logo_h int;
+alter table invoices add column if not exists sent_at timestamptz;
+
+-- Receipt issued automatically when an invoice is marked paid (kept if the invoice is reopened and paid again).
+alter table invoices add column if not exists receipt_no text;
+
+-- Capacity building plan: scheduled training sessions per client, with evidence files (schedules, attendance, photos, videos).
+create table if not exists trainings (
+  id uuid primary key default gen_random_uuid(),
+  firm_id uuid not null references firms,
+  client_id uuid not null references clients,
+  kind text not null check (kind in ('management','dpo_certification','cpd','champion','general_staff','role_based')),
+  title text,
+  starts_on date not null,
+  ends_on date,
+  start_time text,
+  mode text,
+  venue text,
+  facilitator text,
+  audience text,
+  planned_participants int check (planned_participants >= 0),
+  actual_participants int check (actual_participants >= 0),
+  status text not null default 'scheduled' check (status in ('scheduled','completed','cancelled')),
+  completed_on date,
+  notes text,
+  created_by uuid not null references users,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+alter table files add column if not exists training_id uuid references trainings;
+alter table files add column if not exists evidence_kind text;
+-- Videos may be up to 100 MB (other files stay at 25 MB, enforced in lib/files.ts).
+alter table files drop constraint if exists files_size_bytes_check;
+alter table files add constraint files_size_bytes_check check (size_bytes > 0 and size_bytes <= 104857600);
+
+-- Tasks have a start date as well as a due date, and record when they were done (project plan).
+alter table tasks add column if not exists start_on date;
+alter table tasks add column if not exists done_on date;
+
+-- Proposals to prospective clients (not yet clients): scope, fees, terms, and the prospect's colours and logo.
+create table if not exists proposals (
+  id uuid primary key default gen_random_uuid(),
+  firm_id uuid not null references firms,
+  number text not null,
+  client_name text not null,
+  address text not null,
+  email text not null,
+  contact_name text,
+  contact_title text,
+  sector text,
+  primary_color text not null default '#0D1F4A' check (primary_color ~ '^#[0-9A-Fa-f]{6}$'),
+  secondary_color text not null default '#2A7DE1' check (secondary_color ~ '^#[0-9A-Fa-f]{6}$'),
+  logo text,
+  logo_w int,
+  logo_h int,
+  lines jsonb not null,
+  vat_rate numeric not null default 0,
+  payment_terms text,
+  validity_days int not null default 30 check (validity_days between 1 and 365),
+  start_on date,
+  duration_weeks int check (duration_weeks between 1 and 104),
+  notes text,
+  status text not null default 'draft' check (status in ('draft','sent','accepted','declined')),
+  created_by uuid not null references users,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique (firm_id, number)
+);
+
+-- Proposal in the programme format (blog/UNIBEN-Data-Protection-Compliance-Proposal.pdf): organisation profile and costed model.
+alter table proposals add column if not exists departments text;
+alter table proposals add column if not exists staff_count int;
+alter table proposals add column if not exists subjects_count int;
+alter table proposals add column if not exists tier text;
+alter table proposals add column if not exists accountable_title text;
+alter table proposals add column if not exists duration_months int;
+alter table proposals add column if not exists fin jsonb not null default '{}';
+
+-- Firm RC (CAC registration) number, printed on letterheads.
+alter table firms add column if not exists rc_number text;
+
+-- Subscription plan per firm (pricing page): Solo DPO has one seat and no spreadsheet import; DPCO Firm has everything.
+alter table firms add column if not exists plan text not null default 'firm';
+do $$ begin
+  if not exists (select 1 from pg_constraint where conname = 'firms_plan_check') then
+    alter table firms add constraint firms_plan_check check (plan in ('solo','firm'));
+  end if;
+end $$;
+
+-- Data processor / third-party risk assessments (TPRA) join LIAs and transfer assessments.
+alter table assessments drop constraint if exists assessments_kind_check;
+alter table assessments add constraint assessments_kind_check check (kind in ('lia','tia','tpra'));
+
+-- Login and MFA throttle, kept in the database so it survives restarts and is shared by every app instance.
+create table if not exists login_attempts (
+  key text primary key,
+  n int not null default 0,
+  since timestamptz not null default now()
+);
+
+-- Professional fee payable to the assignee for a task (visible to the assignee, Firm Admins and Lead Consultants).
+alter table tasks add column if not exists fee numeric check (fee >= 0);
+
+-- Auditor's observation per control of a department's CAR audit work plan (Section B), per audit year.
+create table if not exists workplan_observations (
+  client_id uuid not null references clients,
+  audit_year int not null,
+  dept text not null,
+  ref text not null,
+  observation text not null,
+  updated_by uuid not null references users,
+  updated_at timestamptz not null default now(),
+  primary key (client_id, audit_year, dept, ref)
+);
+
+-- Tasks: project name and sub-activity (title is the Activity).
+alter table tasks add column if not exists project_name text;
+alter table tasks add column if not exists sub_activity text;
+
+-- Data Protection Audit Readiness Letter, drafted automatically when an invoice is marked paid (one per invoice); editable.
+create table if not exists readiness_letters (
+  id uuid primary key default gen_random_uuid(),
+  firm_id uuid not null references firms,
+  client_id uuid not null references clients,
+  invoice_id uuid unique references invoices,
+  our_ref text not null,
+  your_ref text,
+  letter_date date not null default current_date,
+  audit_year int not null,
+  commencement_on date,
+  addressee text not null,
+  salutation text not null,
+  copy_to text,
+  created_by uuid not null references users,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+-- Compliance Audit Notification Letter per client and audit year, with the engagement invoice attached; visible in the portal once sent.
+create table if not exists audit_notices (
+  id uuid primary key default gen_random_uuid(),
+  firm_id uuid not null references firms,
+  client_id uuid not null references clients,
+  audit_year int not null,
+  invoice_id uuid references invoices,
+  our_ref text not null,
+  letter_date date not null default current_date,
+  sent_at timestamptz,
+  created_by uuid not null references users,
+  created_at timestamptz not null default now(),
+  unique (client_id, audit_year)
+);
+
+-- DSAR identity verification and the executing department, recorded by the client in the portal.
+alter table dsars add column if not exists id_method text;
+alter table dsars add column if not exists id_notes text;
+alter table dsars add column if not exists id_checked_by uuid references users;
+alter table dsars add column if not exists id_checked_at timestamptz;
+alter table dsars add column if not exists department text;
+
+-- Outbound email body and attached files (data subject request emails carry their text and evidence).
+alter table outbound_messages add column if not exists body text;
+alter table outbound_messages add column if not exists attachments jsonb;
+-- DSAR: executing department's email, when it was notified, and the response evidence files.
+alter table dsars add column if not exists department_email text;
+alter table dsars add column if not exists department_notified_at timestamptz;
+alter table dsars add column if not exists requester_email text;
+alter table files add column if not exists dsar_id uuid references dsars;
+
+-- DSAR response period: 72 hours (3 days from the date received), applied once to existing installs; the Secretary can still change it.
+do $$ begin
+  if not exists (select 1 from platform_settings where key = 'migr_dsar_72h') then
+    update platform_settings set published_value = '3', draft_value = null where key = 'dsar_response_days';
+    insert into platform_settings (key, published_value) values ('migr_dsar_72h', 'done');
+  end if;
+end $$;
+
+-- Client's Data Privacy Incident Register (blog/Data_Privacy_Incident_Register.xlsx): one row per incident, fields in data.
+create table if not exists incidents (
+  id uuid primary key default gen_random_uuid(),
+  firm_id uuid not null references firms,
+  client_id uuid not null references clients,
+  number text not null,
+  data jsonb not null,
+  created_by uuid not null references users,
+  updated_by uuid not null references users,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique (client_id, number)
+);
+
+-- DSAR response period back to 30 days (reverses migr_dsar_72h), applied once; the Secretary can still change it.
+do $$ begin
+  if not exists (select 1 from platform_settings where key = 'migr_dsar_30d') then
+    update platform_settings set published_value = '30', draft_value = null where key = 'dsar_response_days';
+    insert into platform_settings (key, published_value) values ('migr_dsar_30d', 'done');
+  end if;
+end $$;

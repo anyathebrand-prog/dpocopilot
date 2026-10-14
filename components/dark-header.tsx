@@ -4,24 +4,15 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState, type CSSProperties } from "react";
 import "./dark-header.css";
 
-const NAV: [string, string][] = [["/", "Home"], ["/#product", "Product"], ["/pricing", "Pricing"], ["/pilot", "Contact"]];
-
-/** Circular brand mark: a stamp seal (the product's "ink" motif). Swap for public/logo.webp when a logo exists. */
-function Mark() {
-  return (
-    <svg viewBox="0 0 48 48" aria-hidden="true">
-      <circle cx="24" cy="24" r="21" fill="none" stroke="#2a3f9d" strokeWidth="3" />
-      <circle cx="24" cy="24" r="15" fill="none" stroke="#2a3f9d" strokeWidth="1.5" strokeDasharray="2 3" />
-      <path d="M16.5 24.5l5 5 10-11" fill="none" stroke="#2a3f9d" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
+const NAV: [string, string][] = [["/", "Home"], ["/#product", "Product"], ["/pricing", "Pricing"], ["/blog", "Blog"], ["/pilot", "Contact"]];
 
 /** Dark-site header shared by the home and pricing pages: logo, white nav pill, Sign in, and the mobile sheet menu. */
-export function DarkHeader() {
+/** `dashboard`: signed-in user's home; swaps the Sign in button for a Dashboard link.
+ *  `brand`: a DPCO's own install (lib/install.ts headerBrand): their logo only, no marketing nav. */
+export function DarkHeader({ dashboard, brand }: { dashboard?: string; brand?: { name: string; logo: string } }) {
   const [open, setOpen] = useState(false);
   const path = usePathname();
-  const current = (href: string) => (href === path ? "page" : undefined);
+  const current = (href: string) => (href === path || (href === "/blog" && path.startsWith("/blog/")) ? "page" : undefined);
 
   useEffect(() => {
     document.body.classList.toggle("menu-open", open);
@@ -33,6 +24,15 @@ export function DarkHeader() {
     return () => { removeEventListener("keydown", onKey); removeEventListener("resize", onResize); document.body.classList.remove("menu-open"); };
   }, [open]);
 
+  if (brand) return (
+    <header className="vh-header">
+      <Link href="/sign-in" className="vh-logo" aria-label={`${brand.name} sign in`}>
+        {/* eslint-disable-next-line @next/next/no-img-element -- per-install logo, any size */}
+        <img src={brand.logo} alt={brand.name} />
+      </Link>
+    </header>
+  );
+
   return (
     <>
       {/* Inter (UI) and BubbledotICG-FinePos (dot-matrix). React hoists these into <head>. */}
@@ -42,11 +42,14 @@ export function DarkHeader() {
       <link rel="stylesheet" href="https://db.onlinewebfonts.com/c/8cb707a9b8a73f8a7403336b861c3074?family=BubbledotICG-FinePos" precedence="default" />
 
       <header className="vh-header">
-        <Link href="/" className="vh-logo" aria-label="DPO Copilot home"><Mark /></Link>
+        <Link href="/" className="vh-logo" aria-label="DPO Copilot home">
+          {/* eslint-disable-next-line @next/next/no-img-element -- small static PNG, no optimisation needed */}
+          <img src="/logo.png" alt="" width={601} height={162} />
+        </Link>
         <nav className="vh-nav" aria-label="Site">
           {NAV.map(([href, label]) => <Link key={label} href={href} aria-current={current(href)}>{label}</Link>)}
         </nav>
-        <Link href="/sign-in" className="vh-signin">Sign in</Link>
+        <Link href={dashboard ?? "/sign-in"} className="vh-signin">{dashboard ? "Dashboard" : "Sign in"}</Link>
         <button type="button" className={`vh-burger ${open ? "is-open" : ""}`} aria-expanded={open} aria-controls="vh-menu" aria-label={open ? "Close menu" : "Open menu"} onClick={() => setOpen(!open)}>
           <span /><span /><span />
         </button>
@@ -57,7 +60,7 @@ export function DarkHeader() {
         {NAV.map(([href, label], i) => (
           <Link key={label} href={href} style={{ "--i": i } as CSSProperties} aria-current={current(href)} onClick={() => setOpen(false)}>{label}</Link>
         ))}
-        <Link href="/sign-in" className="vh-menu-signin" style={{ "--i": NAV.length } as CSSProperties} onClick={() => setOpen(false)}>Sign in</Link>
+        <Link href={dashboard ?? "/sign-in"} className="vh-menu-signin" style={{ "--i": NAV.length } as CSSProperties} onClick={() => setOpen(false)}>{dashboard ? "Dashboard" : "Sign in"}</Link>
       </nav>
     </>
   );

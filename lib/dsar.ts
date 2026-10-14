@@ -1,11 +1,15 @@
 import { q, tx } from "./db";
-import { audit, notifyTeam, type User } from "./auth";
+import { audit, notifyTeam, send, type User } from "./auth";
 import { setting } from "./data";
 import { dsarDeadline } from "./rules";
 
 export type DsarInput = { request_type: string; received_on: string; requester_name: string; requester_contact: string | null; details: string | null; id_status?: string; ropa?: string[] };
 
 /** FR16.1–16.3: deadline = date received + the published DSAR period (default 30 days), snapshotted on the record. */
+export const DSAR_ACK = "Thank you for your request, consistent with the requirement of the NDP Act and our internal policy, your request will be treated with dispatch.";
+/** The email address in "email or phone", if there is one. */
+export const requesterEmail = (contact?: string | null) => contact?.match(/[^\s@,;]+@[^\s@,;]+\.[^\s@,;]+/)?.[0]?.toLowerCase() ?? null;
+
 export async function createDsar(u: User, client: { id: string; firm_id: string; name: string }, d: DsarInput, via: "firm" | "portal") {
   const days = Number(await setting("dsar_response_days")) || 30;
   const ropa = d.ropa?.length ? (await q("select id from ropa_entries where client_id = $1 and id = any($2::uuid[])", [client.id, d.ropa])).map((r) => r.id) : [];
@@ -18,5 +22,11 @@ export async function createDsar(u: User, client: { id: string; firm_id: string;
     return r.rows[0].id;
   });
   if (via === "portal") await notifyTeam(client.firm_id, client.id, "dsar_logged", `${client.name} logged a data subject request`, `/app/clients/${client.id}/dsars/${id}`);
+  // Acknowledge the data subject straight away when we have an email for them.
+  const email = requesterEmail(d.requester_contact);
+  if (email) {
+    await q("update dsars set requester_email = $2 where id = $1", [id, email]);
+    await send("email", email, "dsar_acknowledgement", DSAR_ACK, { body: DSAR_ACK });
+  }
   return id;
 }

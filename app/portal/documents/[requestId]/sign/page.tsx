@@ -9,6 +9,7 @@ import { riskLevel, fmtWAT } from "@/lib/rules";
 import { str, flash } from "@/lib/form";
 import { Flash, Field, Hidden, Doc, Banner } from "@/components/ui";
 import { Submit } from "@/components/client";
+import { INSTALL } from "@/lib/install";
 
 // FR14.3 default (TRD §6.1, pending PRD Q-1): typed name + one-time code by email + hash of the exact version.
 // ponytail: SMS channel and certificate-based e-signature not wired; add behind sendCode if the founder chooses them.
@@ -33,7 +34,7 @@ async function sendCode(fd: FormData) {
   if (recent!.n >= 5) redirect(flash(self, "Too many codes requested. Wait 15 minutes and try again.", "error"));
   const code = newOtp();
   await q("insert into otp_challenges (user_id, request_id, code_hash, expires_at) values ($1,$2,$3, now() + interval '10 minutes')", [u.id, s.id, sha256(`${s.id}:${code}`)]);
-  await send("email", u.email, "otp", `Your DPO Copilot signing code is ${code}. It expires in 10 minutes.`);
+  await send("email", u.email, "otp", `Your ${INSTALL.name} signing code is ${code}. It expires in 10 minutes.`);
   redirect(flash(self, `We sent a 6-digit code to ${u.email}. It expires in 10 minutes.`));
 }
 

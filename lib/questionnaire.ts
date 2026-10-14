@@ -5,20 +5,45 @@ export type Question = {
   key: string;
   label: string;
   help?: string;
-  type: "text" | "textarea" | "number" | "yesno" | "multi" | "list" | "select";
+  type: "text" | "textarea" | "number" | "yesno" | "multi" | "list" | "select" | "email" | "tel" | "url" | "date" | "file";
   options?: { value: string; label: string; sensitive?: boolean }[];
   required?: boolean;
+  /** file questions: accepted extensions (default PDF only). Files with more than PDF keep their text for the framework. */
+  formats?: ("pdf" | "docx" | "png" | "jpg" | "jpeg")[];
 };
 export type Section = { key: string; title: string; questions: Question[] };
 
 const opts = (...xs: string[]) => xs.map((x) => ({ value: x, label: x }));
 
+/** Which answers a certificate PDF fills, by the detail read from it (lib/certificate.ts). */
+export const CERT_FILLS: Record<string, Record<"body" | "number" | "issued" | "expires", string>> = {
+  dpo_cdpo_file: { body: "dpo_cdpo_body", number: "dpo_cdpo_number", issued: "dpo_cdpo_issued", expires: "dpo_cdpo_expires" },
+};
+
 export const SECTIONS: Section[] = [
   { key: "organisation", title: "Organisation details", questions: [
     { key: "org_legal_name", label: "Registered name of the organisation", type: "text", required: true },
     { key: "org_address", label: "Head office address", type: "text" },
+    { key: "org_phone", label: "Phone", type: "tel" },
+    { key: "org_email", label: "Email", type: "email" },
+    { key: "org_website", label: "Website", help: "For example: www.example.ng", type: "url" },
+    { key: "org_branch", label: "Branch name", type: "text" },
     { key: "org_sector", label: "Sector", type: "select", required: true, options: opts("Financial services", "Health", "Education", "Telecoms", "Government or public sector", "Retail or e-commerce", "Technology", "Other") },
     { key: "org_staff_count", label: "Number of staff", type: "number" },
+    { key: "org_department_count", label: "Number of departments", type: "number" },
+    { key: "org_departments", label: "List of departments. One per line", help: "For example: Human Resources, Finance, Customer Service, IT.", type: "list" },
+  ]},
+  { key: "documents_dpo", title: "Company documents and DPO", questions: [
+    { key: "org_profile_file", label: "Company profile (PDF or Word)", help: "Attach the company profile. The Data Protection Framework quotes its overview, vision and mission.", type: "file", formats: ["pdf", "docx"] },
+    { key: "org_structure_file", label: "Company structure / organogram (PDF, Word or image)", help: "Attach the organisation chart. The Data Protection Framework includes it and refers to it for roles and reporting lines.", type: "file", formats: ["pdf", "docx", "png", "jpg", "jpeg"] },
+    { key: "dpo_name", label: "Name of Data Protection Officer", type: "text" },
+    { key: "dpo_phone", label: "Phone number of Data Protection Officer", type: "tel" },
+    { key: "dpo_email", label: "Email of Data Protection Officer", type: "email" },
+    { key: "dpo_cdpo_file", label: "CDPO certificate (PDF)", help: "Attach the certificate. The certifying body, certificate number and dates below are filled in from it automatically; check them.", type: "file" },
+    { key: "dpo_cdpo_body", label: "Certifying body", type: "text" },
+    { key: "dpo_cdpo_number", label: "Certificate number", type: "text" },
+    { key: "dpo_cdpo_issued", label: "Issue date", type: "date" },
+    { key: "dpo_cdpo_expires", label: "Expiry date", type: "date" },
   ]},
   { key: "subjects", title: "People whose data you hold", questions: [
     { key: "subjects", label: "Whose personal data do you collect?", type: "multi", required: true, options: opts("Employees", "Job applicants", "Customers", "Prospective customers", "Patients", "Students", "Website visitors", "Suppliers' staff", "Children") },
@@ -62,7 +87,8 @@ export const ALL_QUESTIONS = SECTIONS.flatMap((s) => s.questions);
 
 export type Answers = Record<string, unknown>;
 
-const list = (v: unknown): string[] =>
+/** A "list" answer: saved as newline-separated text; older answers may be arrays. */
+export const list = (v: unknown): string[] =>
   Array.isArray(v) ? v.map(String) : typeof v === "string" ? v.split("\n").map((s) => s.trim()).filter(Boolean) : [];
 
 export function missingRequired(a: Answers) {
@@ -74,7 +100,7 @@ export function progress(a: Answers) {
   return Math.round((answered / ALL_QUESTIONS.length) * 100);
 }
 
-const SENSITIVE = new Set(SECTIONS[2].questions[0].options!.filter((o) => o.sensitive).map((o) => o.value));
+const SENSITIVE = new Set(SECTIONS.flatMap((s) => s.questions).find((q) => q.key === "categories")!.options!.filter((o) => o.sensitive).map((o) => o.value));
 
 /** FR3.4 + FR4.1: completed answers → inventory items and one proposed RoPA entry per purpose. */
 export function buildInventory(a: Answers) {

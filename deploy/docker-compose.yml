@@ -1,0 +1,51 @@
+# One DPCO install: app + Postgres 16 + Caddy (HTTPS on the DPCO's domain) + ClamAV + daily reminders.
+# Run from this folder: docker compose up -d   (settings come from .env, see README.md)
+services:
+  app:
+    build: ..
+    image: dpocopilot:${APP_VERSION:-latest}
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATABASE_URL: postgres://dpo:${POSTGRES_PASSWORD}@db:5432/dpo
+      SINGLE_FIRM: "1"
+      COUNTRY: "${COUNTRY:-NG}"
+      APP_URL: https://${DOMAIN}
+      CLAMD_HOST: clamav
+      # First start only: creates the Secretary account (password 14+ characters). Remove both afterwards.
+      SECRETARY_EMAIL: "${SECRETARY_EMAIL:-}"
+      SECRETARY_PASSWORD: "${SECRETARY_PASSWORD:-}"
+    volumes: [files:/app/data/files]
+    depends_on:
+      db: { condition: service_healthy }
+
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment: { POSTGRES_USER: dpo, POSTGRES_PASSWORD: "${POSTGRES_PASSWORD}", POSTGRES_DB: dpo }
+    volumes: [pg:/var/lib/postgresql/data]
+    healthcheck: { test: ["CMD-SHELL", "pg_isready -U dpo"], interval: 5s, retries: 20 }
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports: ["80:80", "443:443"]
+    environment: { DOMAIN: "${DOMAIN}" }
+    volumes: [./Caddyfile:/etc/caddy/Caddyfile:ro, ./brand:/srv/brand:ro, caddy:/data]
+    depends_on: [app]
+
+  # Uploads are refused in production until this scanner answers (lib/files.ts). Needs ~1.5 GB RAM.
+  clamav:
+    image: clamav/clamav:stable
+    restart: unless-stopped
+
+  # CAR reminders daily at 08:00 WAT (07:00 UTC).
+  cron:
+    image: alpine:3
+    restart: unless-stopped
+    environment: { CRON_SECRET: "${CRON_SECRET}" }
+    command: >
+      sh -c 'echo "0 7 * * * wget -qO- --header \"Authorization: Bearer $$CRON_SECRET\" http://app:3000/api/cron/car-reminders" | crontab - && crond -f'
+    depends_on: [app]
+
+volumes: { pg: {}, files: {}, caddy: {} }

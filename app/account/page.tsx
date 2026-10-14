@@ -8,6 +8,9 @@ import { cookies } from "next/headers";
 import { str, flash } from "@/lib/form";
 import { Flash, Field } from "@/components/ui";
 import { Submit } from "@/components/client";
+import { ArrowLeft } from "lucide-react";
+import "@/components/console.css";
+import { INSTALL } from "@/lib/install";
 
 async function saveName(fd: FormData) {
   "use server";
@@ -48,8 +51,22 @@ export default async function Account({ searchParams }: { searchParams: Promise<
   if (mfaRequired(u)) redirect("/setup/mfa");
   const sp = await searchParams;
   return (
-    <main id="main" className="portal" style={{ paddingTop: 32 }}>
-      <p><Link href={home(u)}>Back to your home</Link></p>
+    <div className="cx cx-portal">
+      {/* Inter, as on the public site. React hoists this into <head>. */}
+      <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" precedence="default" />
+      <header className="portal-top">
+        <div className="inner">
+          <div className="cx-portal-id">
+            <Link href="/" className="cx-logo-pill" aria-label={`${INSTALL.name} home`}>
+              {/* eslint-disable-next-line @next/next/no-img-element -- small static PNG */}
+              <img src={INSTALL.logo} alt={INSTALL.name} />
+            </Link>
+            <div><b>{u.name}</b><div className="cx-portal-firm">{u.email}</div></div>
+          </div>
+          <Link href={home(u)} className="cx-signout"><ArrowLeft aria-hidden />Back to your home</Link>
+        </div>
+      </header>
+    <main id="main" className="portal">
       <h1>Account</h1>
       <Flash sp={sp} />
       <form action={saveName} className="panel">
@@ -71,5 +88,6 @@ export default async function Account({ searchParams }: { searchParams: Promise<
       </section>
       <form action={signOut} style={{ marginTop: 16 }}><Submit className="btn secondary">Sign out</Submit></form>
     </main>
+    </div>
   );
 }

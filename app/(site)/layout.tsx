@@ -1,9 +1,26 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { redirect } from "next/navigation";
+import { INSTALL } from "@/lib/install";
+import { getUser, home } from "@/lib/auth";
+import { SITE_URL } from "@/lib/site-url";
 
-export default function SiteLayout({ children }: { children: ReactNode }) {
+// schema.org description of the product for search engines and AI assistants.
+const LD = JSON.stringify({ "@context": "https://schema.org", "@graph": [
+  { "@type": "Organization", name: "DPO Copilot", url: SITE_URL, logo: `${SITE_URL}/logo.png` },
+  { "@type": "SoftwareApplication", name: "DPO Copilot", url: SITE_URL, applicationCategory: "BusinessApplication", operatingSystem: "Web", areaServed: "NG",
+    description: "Compliance workspace for Nigerian Data Protection Compliance Organisations (DPCOs): NDPA 2023 and GAID 2025 DPIAs, DSARs, breach register, CAR readiness, policies and client portal.",
+    offers: { "@type": "Offer", url: `${SITE_URL}/pricing`, priceCurrency: "NGN" } },
+] }).replace(/</g, "\u003c");
+
+export default async function SiteLayout({ children }: { children: ReactNode }) {
+  // A DPCO's own install has no marketing site: everything starts at sign-in.
+  if (INSTALL.singleFirm) { const u = await getUser(); redirect(u ? home(u) : "/sign-in"); }
   return (
     <div className="site">
+      {/* Splash on first load only: the layout persists across in-site navigation. CSS-only fade, so it can never get stuck. */}
+      <div className="splash" aria-hidden>{/* eslint-disable-next-line @next/next/no-img-element -- static splash */}<img src="/logo.png" alt="" width={240} height={65} /><span className="splash-ring" /></div>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: LD }} />
       <main id="main">{children}</main>
       <footer className="site-footer">
         <div className="site-inner spread">

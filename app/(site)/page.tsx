@@ -1,13 +1,13 @@
 import Link from "next/link";
-import { redirect } from "next/navigation";
 import {
   ClipboardList, ListTree, FileSearch, FileText, ShieldAlert, UserSearch, FolderCheck, CalendarClock,
   LayoutDashboard, Users, Smartphone, Copy, AlarmClock, MessageSquareWarning, Pencil, UserCheck, Stamp, Signature, ArrowRight,
 } from "lucide-react";
 import { getUser, home } from "@/lib/auth";
-import { BeamHero } from "@/components/beam-hero";
+import { VideoHero } from "@/components/video-hero";
 import { Reveal } from "@/components/reveal";
 import { HomeFX, SplitHeading, Flicker, CountUp } from "@/components/home-motion";
+import "@/components/site-base.css";
 import "@/components/homepage.css";
 
 export const metadata = { title: "DPO Copilot · NDPA compliance workspace for DPCOs" };
@@ -66,11 +66,10 @@ function Head({ kicker, line1, line2, sub }: { kicker: string; line1: string; li
 
 export default async function Home() {
   const u = await getUser();
-  if (u) redirect(home(u));
   return (
-    <div className="bh">
+    <div className="bh bh-home">
       <HomeFX />
-      <BeamHero />
+      <VideoHero dashboard={u ? home(u) : undefined} />
 
       <section className="hp-card hp-bare">
         <div className="hp-inner">
@@ -119,7 +118,7 @@ export default async function Home() {
         </div>
       </section>
 
-      <section className="hp-card">
+      <section className="hp-card hp-bare">
         <div className="hp-inner">
           <Head kicker="Built for DPCOs" line1="Made for how" line2="DPCOs actually work" />
           <div className="hp-cols">

@@ -4,5 +4,7 @@ data/
 next-env.d.ts
 *.tsbuildinfo
 .env*
+!.env.example
 dev.log
 
+data-backup-*/

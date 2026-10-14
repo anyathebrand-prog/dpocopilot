@@ -12,6 +12,7 @@ import { str, opt, flash } from "@/lib/form";
 import { Flash, Field, Hidden, Chip, Doc, Banner, Seal } from "@/components/ui";
 import { Submit, Countdown, Confirm } from "@/components/client";
 import { ReviewBar } from "@/components/workflow";
+import { INSTALL } from "@/lib/install";
 
 async function ctx(fd: FormData) {
   const b = await one("select * from breaches where id = $1", [str(fd, "breach_id")]);
@@ -101,7 +102,7 @@ export default async function BreachDetail({ params, searchParams }: { params: P
             {+b.deadline_at < Date.now() && <p className="why" style={{ color: "var(--red-700)" }}>The 72-hour deadline has passed. Notify as soon as possible and record why it was late.</p>}
           </>
         )}
-        <p className="caption">Aware since {fmtWAT(b.aware_at)}. DPO Copilot never submits to the NDPC; record what you send.</p>
+        <p className="caption">Aware since {fmtWAT(b.aware_at)}. {INSTALL.name} never submits to the NDPC; record what you send.</p>
       </section>
 
       <div className="with-rail">

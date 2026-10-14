@@ -4,10 +4,13 @@ import { q, one, type Tx } from "./db";
 import { newToken, sha256 } from "./crypto";
 
 export type Role = "firm_admin" | "lead_consultant" | "associate";
+export type Plan = "solo" | "firm";
+export const PLAN_LABEL: Record<Plan, string> = { solo: "Solo DPO", firm: "DPCO Firm" };
+
 export type User = {
   id: string; name: string; email: string; mfa_enabled: boolean;
   kind: "firm" | "contact" | "secretary";
-  firm_id: string; firm_name: string;
+  firm_id: string; firm_name: string; plan?: Plan;
   membership_id?: string; role?: Role;
   client_id?: string; contact_id?: string;
 };
@@ -36,8 +39,8 @@ export async function getUser(): Promise<User | null> {
     where s.token_hash = $1 and s.expires_at > now() and s.mfa_ok and u.status = 'active'`, [sha256(t)]);
   if (!u) return null;
   if (u.platform_role === "secretary") return { ...base(u), kind: "secretary", firm_id: "", firm_name: "" };
-  const m = await one("select m.id, m.firm_id, m.role, f.name as firm_name from memberships m join firms f on f.id = m.firm_id where m.user_id = $1 and m.status = 'active'", [u.id]);
-  if (m) return { ...base(u), kind: "firm", firm_id: m.firm_id, firm_name: m.firm_name, membership_id: m.id, role: m.role };
+  const m = await one("select m.id, m.firm_id, m.role, f.name as firm_name, f.plan from memberships m join firms f on f.id = m.firm_id where m.user_id = $1 and m.status = 'active'", [u.id]);
+  if (m) return { ...base(u), kind: "firm", firm_id: m.firm_id, firm_name: m.firm_name, plan: m.plan, membership_id: m.id, role: m.role };
   const c = await one("select cc.id, cc.client_id, cc.firm_id, f.name as firm_name from client_contacts cc join firms f on f.id = cc.firm_id join clients cl on cl.id = cc.client_id where cc.user_id = $1 and cc.status = 'active'", [u.id]);
   if (c) return { ...base(u), kind: "contact", firm_id: c.firm_id, firm_name: c.firm_name, client_id: c.client_id, contact_id: c.id };
   return null;
@@ -75,6 +78,13 @@ export const requireSecretary = () => need("secretary");
 export const canApprove = (u: User) => u.role === "firm_admin" || u.role === "lead_consultant";
 export const isAdmin = (u: User) => u.role === "firm_admin";
 
+/** Features left out of the Solo DPO plan: team seats and spreadsheet import. Sends the user home with a note. */
+export async function requireFirmPlan(feature: string) {
+  const u = await requireFirm();
+  if (u.plan === "solo") redirect(`/app?error=${encodeURIComponent(`${feature} is part of the DPCO Firm plan. Your practice is on the Solo DPO plan.`)}`);
+  return u;
+}
+
 export async function requireFirmRole(...roles: Role[]) {
   const u = await requireFirm();
   if (!roles.includes(u.role!)) redirect("/forbidden");
@@ -110,9 +120,11 @@ export async function audit(u: Pick<User, "id" | "firm_id" | "role" | "kind"> | 
  * Email/SMS carry no compliance content — only "log in to view" (TRD §9.1).
  * ponytail: no SMTP/SMS provider wired yet; messages are recorded and printed to the server log. Add a relay behind this function.
  */
-export async function send(channel: "email" | "sms", recipient: string, template: string, devText: string) {
-  await q("insert into outbound_messages (channel, recipient, template_key) values ($1,$2,$3)", [channel, recipient, template]);
-  console.log(`[outbound ${channel} → ${recipient}] ${template}: ${devText}`);
+export async function send(channel: "email" | "sms", recipient: string, template: string, devText: string, opts: { body?: string; attachments?: string[] } = {}) {
+  // body/attachments: kept only for messages that must carry content (e.g. a data subject's response and its evidence files).
+  await q("insert into outbound_messages (channel, recipient, template_key, body, attachments) values ($1,$2,$3,$4,$5)",
+    [channel, recipient, template, opts.body ?? null, opts.attachments?.length ? JSON.stringify(opts.attachments) : null]);
+  console.log(`[outbound ${channel} → ${recipient}] ${template}: ${devText}${opts.attachments?.length ? ` (+${opts.attachments.length} attachment${opts.attachments.length === 1 ? "" : "s"})` : ""}`);
 }
 
 /** In-app alerts. Breach recipients: assigned team + every Lead Consultant and Firm Admin (FLAG-8 default). */

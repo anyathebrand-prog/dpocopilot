@@ -23,6 +23,7 @@ export default async function Ropa({ params, searchParams }: { params: Promise<{
         <div className="row">
           <a className="btn secondary" href={`/export?kind=ropa&client=${clientId}&format=pdf`} target="_blank">Export PDF</a>
           <a className="btn secondary" href={`/export?kind=ropa&client=${clientId}&format=doc`}>Export Word</a>
+          <a className="btn secondary" href={`/export?kind=ropa&client=${clientId}&format=pdf` + "&cover=only"} target="_blank">Cover letter (PDF)</a><a className="btn secondary" href={`/export?kind=ropa&client=${clientId}&format=doc` + "&cover=only"}>Cover letter (Word)</a>
           {!client.archived_at && <Link className="btn" href={`${b}/new`}>Add entry</Link>}
         </div>
       </div>
@@ -34,7 +35,7 @@ export default async function Ropa({ params, searchParams }: { params: Promise<{
         <Empty><p>{tab === "proposed" ? "No proposed entries. Complete onboarding to get proposed entries, or add one manually." : tab === "active" ? "No active entries yet. Accept proposed entries or add one." : "Nothing archived."}</p></Empty>
       ) : (
         <table className="register">
-          <thead><tr><th>Purpose</th><th>Lawful basis</th><th>Data categories</th><th>Retention</th><th>Transfer</th></tr></thead>
+          <thead><tr><th>Purpose</th><th>Department</th><th>Lawful basis</th><th>Data categories</th><th>Retention</th><th>Transfer</th></tr></thead>
           <tbody>{rows.map((r) => {
             const missing = REQUIRED_ROPA.filter((k) => !r[k]).length;
             return (
@@ -42,6 +43,7 @@ export default async function Ropa({ params, searchParams }: { params: Promise<{
                 <td><Link href={`${b}/${r.id}`}>{r.purpose}</Link>
                   {missing > 0 && <div><span className="chip progress"><TriangleAlert aria-hidden />{missing} field{missing > 1 ? "s" : ""} missing</span></div>}
                   {r.involves_sensitive && <div className="meta" style={{ fontWeight: 400 }}>Sensitive data</div>}</td>
+                <td data-label="Department">{r.department ?? <span className="meta">Not set</span>}</td>
                 <td data-label="Lawful basis">{r.lawful_basis ? LAWFUL_BASIS[r.lawful_basis] : <span className="meta">Not set</span>}</td>
                 <td data-label="Data categories" className="small">{r.data_categories ?? "—"}</td>
                 <td data-label="Retention">{r.retention_period ?? <span className="meta">Not set</span>}</td>

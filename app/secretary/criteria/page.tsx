@@ -32,7 +32,7 @@ export default async function Criteria({ searchParams }: { searchParams: Promise
         <Field label="Questionnaire answer it checks"><select name="question_key">{questions.map((x) => <option key={x.key} value={x.key}>{x.label}</option>)}</select></Field>
         <Field label="Rule"><select name="op">{Object.entries(OPS).map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select></Field>
         <Field label="Value" help="A number for 'at least', or an option for 'includes'. Leave empty for Yes."><input name="value" /></Field>
-        <Field label="Source (required)" help="Cite the library document and section, e.g. NDPC GAID 2025, Art. 8."><input name="source_ref" required /></Field>
+        <Field label="Source" required help="Cite the library document and section, e.g. NDPC GAID 2025, Art. 8."><input name="source_ref" required /></Field>
         <Submit>Save as draft</Submit>
       </form>
     </>

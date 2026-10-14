@@ -7,7 +7,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "test": "node --test lib/rules.test.ts",
+    "test": "node --test lib/rules.test.ts lib/audit-workplan.test.ts lib/incidents.test.ts lib/country.test.ts",
     "smoke": "node scripts/smoke.mjs",
     "typecheck": "tsc --noEmit"
   },
@@ -19,18 +19,27 @@
     "@electric-sql/pglite": "^0.5.8",
     "@fontsource/atkinson-hyperlegible-next": "^5.3.0",
     "@fontsource/source-serif-4": "^5.3.0",
+    "docx": "^9.9.0",
+    "exceljs": "^4.4.0",
     "framer-motion": "^13.4.4",
+    "jszip": "^3.10.2",
     "lucide-react": "^1.48.0",
-    "next": "^16.3.6",
+    "next": "^16.3.8",
+    "pg": "^8.23.1",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
-    "three": "^0.186.1"
+    "three": "^0.186.1",
+    "unpdf": "^1.8.1"
   },
   "devDependencies": {
     "@types/node": "^22",
+    "@types/pg": "^8.23.1",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@types/three": "^0.186.0",
     "typescript": "^5"
+  },
+  "overrides": {
+    "uuid": "^11.1.1"
   }
 }

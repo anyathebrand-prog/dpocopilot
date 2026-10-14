@@ -4,6 +4,7 @@ import { requireFirm, clientScope, scopeArgs } from "@/lib/auth";
 import { q } from "@/lib/db";
 import { fmtDate, todayWAT, endOfDayWAT } from "@/lib/rules";
 import { Empty, Deadline, PageHead } from "@/components/ui";
+import { COUNTRY } from "@/lib/country";
 
 const TYPES: Record<string, [string, typeof ShieldAlert]> = {
   breach: ["Breach: notify NDPC", ShieldAlert], dsar: ["DSAR response due", UserSearch], dpia: ["DPIA review", FileSearch],
@@ -17,7 +18,7 @@ export default async function Calendar({ searchParams }: { searchParams: Promise
   const clients = await q(`select c.id, c.name from clients c where ${clientScope(u)} and c.archived_at is null order by c.name`, scopeArgs(u));
   const members = await q("select m.id, u.name from memberships m join users u on u.id = m.user_id where m.firm_id = $1 and m.status = 'active' order by u.name", [u.firm_id]);
   const rows = await q(`with items as (
-      select 'breach' as type, b.client_id, (b.deadline_at at time zone 'Africa/Lagos')::date as day, b.deadline_at as due, 'Breach BR-' || upper(left(b.id::text, 8)) as title, 'breaches/' || b.id as path, null::uuid as assignee
+      select 'breach' as type, b.client_id, (b.deadline_at at time zone '${COUNTRY.timeZone}')::date as day, b.deadline_at as due, 'Breach BR-' || upper(left(b.id::text, 8)) as title, 'breaches/' || b.id as path, null::uuid as assignee
         from breaches b where b.status = 'open' and b.notification_required <> 'no' and not exists (select 1 from breach_notifications n where n.breach_id = b.id and n.audience = 'regulator' and n.sent_at is not null)
       union all select 'dsar', client_id, deadline_on, null, requester_name, 'dsars/' || id, null from dsars where status = 'open'
       union all select 'dpia', client_id, review_date, null, title, 'dpias/' || id, null from dpias where review_date is not null

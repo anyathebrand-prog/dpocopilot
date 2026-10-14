@@ -2,27 +2,34 @@
 import { redirect } from "next/navigation";
 import { q, one, tx } from "./db";
 import { hashPassword, verifyPassword, sha256, verifyTotp } from "./crypto";
-import { createSession, destroySession, getUser, pendingMfaUser, markMfaPassed, audit, clientIp } from "./auth";
+import { createSession, destroySession, getUser, pendingMfaUser, markMfaPassed, audit, clientIp, home } from "./auth";
 import { str, flash } from "./form";
+import { signUpOpen } from "./install";
 
-// ponytail: in-memory login throttle (one app instance). Move to the rate_limits table (schema §2) when running 2+ instances.
-const attempts = new Map<string, { n: number; since: number }>();
-function throttled(key: string) {
-  const a = attempts.get(key);
-  if (a && Date.now() - a.since > 15 * 60_000) attempts.delete(key);
-  return (attempts.get(key)?.n ?? 0) >= 8;
+// Login/MFA throttle: 8 failures per key in a 15-minute window (login_attempts table, shared across restarts and instances).
+async function throttled(key: string) {
+  await q("delete from login_attempts where key = $1 and since < now() - interval '15 minutes'", [key]);
+  return ((await one<{ n: number }>("select n from login_attempts where key = $1", [key]))?.n ?? 0) >= 8;
 }
-const fail = (key: string) => { const a = attempts.get(key) ?? { n: 0, since: Date.now() }; a.n++; attempts.set(key, a); };
+const fail = (key: string) => q("insert into login_attempts (key, n) values ($1, 1) on conflict (key) do update set n = login_attempts.n + 1", [key]);
+const clearAttempts = (key: string) => q("delete from login_attempts where key = $1", [key]);
 
 const validPassword = (p: string) => p.length >= 10;
+
+
+/** After sign-in: straight to the user's own home (the public homepage no longer redirects signed-in users). */
+async function toHome(): Promise<never> {
+  const u = await getUser();
+  redirect(u ? home(u) : "/sign-in");
+}
 
 export async function signIn(fd: FormData) {
   const email = str(fd, "email").toLowerCase(), password = String(fd.get("password") ?? "");
   const key = `${email}|${await clientIp()}`;
-  if (throttled(key)) redirect(flash("/sign-in", "Too many attempts. Try again in 15 minutes.", "error"));
+  if (await throttled(key)) redirect(flash("/sign-in", "Too many attempts. Try again in 15 minutes.", "error"));
   const u = await one("select * from users where lower(email) = $1", [email]);
   if (!u || !verifyPassword(password, u.password_hash)) {
-    fail(key);
+    await fail(key);
     await audit(null, "login_failed", "user", u?.id ?? null, { firm_id: null, details: {} });
     redirect(flash("/sign-in", "Email or password is incorrect.", "error"));
   }
@@ -30,19 +37,22 @@ export async function signIn(fd: FormData) {
   const c = await one("select firm_id, client_id, status from client_contacts where user_id = $1", [u.id]);
   if (u.status !== "active" || m?.status === "deactivated" || (!m && !c && u.platform_role !== "secretary") || (c && c.status !== "active"))
     redirect(flash("/sign-in", "Your access has been removed. Contact your firm administrator.", "error"));
-  attempts.delete(key);
-  await createSession(u.id, !u.mfa_enabled, u.platform_role === "secretary" ? 2 : 12);
+  await clearAttempts(key);
+  // DEV_SKIP_MFA=1 (never in production) also skips the code step for accounts that already enrolled.
+  const askCode = u.mfa_enabled && !(process.env.DEV_SKIP_MFA === "1" && process.env.NODE_ENV !== "production");
+  await createSession(u.id, !askCode, u.platform_role === "secretary" ? 2 : 12);
   await audit({ id: u.id, firm_id: m?.firm_id ?? c?.firm_id ?? "", role: m?.role, kind: m ? "firm" : c ? "contact" : "secretary" }, "login", "user", u.id, { firm_id: m?.firm_id ?? c?.firm_id ?? null });
-  redirect(u.mfa_enabled ? "/sign-in/verify" : "/");
+  if (askCode) redirect("/sign-in/verify");
+  await toHome();
 }
 
 export async function verifyMfa(fd: FormData) {
   const p = await pendingMfaUser();
   if (!p) redirect("/sign-in");
-  if (throttled(`mfa|${p.id}`)) { await destroySession(); redirect(flash("/sign-in", "Too many wrong codes. Sign in again later.", "error")); }
-  if (!verifyTotp(p.mfa_secret, str(fd, "code"))) { fail(`mfa|${p.id}`); redirect(flash("/sign-in/verify", "That code didn't work. Check your authenticator app and try again.", "error")); }
+  if (await throttled(`mfa|${p.id}`)) { await destroySession(); redirect(flash("/sign-in", "Too many wrong codes. Sign in again later.", "error")); }
+  if (!verifyTotp(p.mfa_secret, str(fd, "code"))) { await fail(`mfa|${p.id}`); redirect(flash("/sign-in/verify", "That code didn't work. Check your authenticator app and try again.", "error")); }
   await markMfaPassed();
-  redirect("/");
+  await toHome();
 }
 
 export async function setupMfa(fd: FormData) {
@@ -57,10 +67,12 @@ export async function setupMfa(fd: FormData) {
 }
 
 export async function signUp(fd: FormData) {
+  const token = str(fd, "token"), back = token ? `/sign-up?token=${encodeURIComponent(token)}` : "/sign-up";
+  if (!(await signUpOpen(token))) redirect(flash("/sign-in", "This workspace is already set up. Sign in, or ask your firm administrator for an invitation.", "error"));
   const name = str(fd, "name"), email = str(fd, "email").toLowerCase(), password = String(fd.get("password") ?? ""), firm = str(fd, "firm");
-  if (!name || !firm || !/^\S+@\S+\.\S+$/.test(email)) redirect(flash("/sign-up", "Enter your name, a valid email and your firm's name.", "error"));
-  if (!validPassword(password)) redirect(flash("/sign-up", "Use a password of at least 10 characters.", "error"));
-  if (await one("select 1 from users where lower(email) = $1", [email])) redirect(flash("/sign-up", "An account with this email exists. Sign in instead.", "error"));
+  if (!name || !firm || !/^\S+@\S+\.\S+$/.test(email)) redirect(flash(back, "Enter your name, a valid email and your firm's name.", "error"));
+  if (!validPassword(password)) redirect(flash(back, "Use a password of at least 10 characters.", "error"));
+  if (await one("select 1 from users where lower(email) = $1", [email])) redirect(flash(back, "An account with this email exists. Sign in instead.", "error"));
   const ids = await tx(async (t) => {
     const u = await t.query<{ id: string }>("insert into users (name, email, password_hash) values ($1,$2,$3) returning id", [name, email, hashPassword(password)]);
     const f = await t.query<{ id: string }>("insert into firms (name, created_by) values ($1,$2) returning id", [firm, u.rows[0].id]);
@@ -90,7 +102,7 @@ export async function acceptInvite(fd: FormData) {
     return id;
   });
   await createSession(userId, true);
-  redirect("/");
+  await toHome();
 }
 
 export async function signOut() {

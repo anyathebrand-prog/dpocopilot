@@ -1,7 +1,7 @@
 // Run: npm test  (Node 22.18+ strips TypeScript types natively)
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { parseWATLocal, breachDeadline, dsarDeadline, deadlineState, countdown, readiness, findGaps, evaluateMI, parseCSV, todayWAT } from "./rules.ts";
+import { parseWATLocal, breachDeadline, dsarDeadline, deadlineState, countdown, readiness, findGaps, evaluateMI, parseCSV, todayWAT, carReminderStage, carItemRisk, carRisk, assurance, maturityLevel, remediationDue, trackerStatus, riskLevel } from "./rules.ts";
 import { buildInventory, missingRequired } from "./questionnaire.ts";
 
 test("breach deadline is 72h after awareness, entered in WAT", () => {
@@ -37,7 +37,7 @@ test("readiness excludes Not applicable from the score", () => {
   ]);
   assert.deepEqual(r.overall, { complete: 2, applicable: 3, pct: 67 });
   assert.equal(r.byCategory.governance.pct, 50);
-  assert.equal(r.byCategory.data_processors.pct, 0);
+  assert.equal("data_processors" in r.byCategory, false);
 });
 
 test("seeded client returns every V1 gap type (PRD F12 acceptance)", () => {
@@ -114,4 +114,69 @@ test("library ingestion splits pasted text into citable sections", async () => {
   assert.deepEqual(s.map((x) => x.section_ref), ["Full text", "Section 40", "Section 41(1)"]);
   assert.equal(s[1].heading, "Personal data breaches");
   assert.equal(s[1].body, "Notify within 72 hours.\nMore.");
+});
+
+test("CAR reminder stages: 30/14/7/1/0 days, missed runs catch up, nothing outside the window", () => {
+  assert.equal(carReminderStage("2027-03-31", "2027-02-28"), null); // 31 days out
+  assert.equal(carReminderStage("2027-03-31", "2027-03-01"), 30);
+  assert.equal(carReminderStage("2027-03-31", "2027-03-21"), 14); // 10 days left: catch-up
+  assert.equal(carReminderStage("2027-03-31", "2027-03-24"), 7);
+  assert.equal(carReminderStage("2027-03-31", "2027-03-30"), 1);
+  assert.equal(carReminderStage("2027-03-31", "2027-03-31"), 0);
+  assert.equal(carReminderStage("2027-03-31", "2027-04-01"), null); // past
+});
+
+test("CAR risk: item risk follows status; score over applicable items, N/A ignored", () => {
+  assert.equal(carItemRisk("missing"), "high"); assert.equal(carItemRisk("in_progress"), "medium");
+  assert.equal(carItemRisk("complete"), "low"); assert.equal(carItemRisk("not_applicable"), null);
+  const it = (...s: string[]) => s.map((status) => ({ category_key: "governance", status }));
+  assert.deepEqual(carRisk(it("missing", "missing")), { score: 100, rating: "high" });
+  assert.deepEqual(carRisk(it("missing", "complete", "not_applicable")), { score: 50, rating: "high" });
+  assert.deepEqual(carRisk(it("in_progress", "complete", "complete")), { score: 17, rating: "low" });
+  assert.deepEqual(carRisk(it("in_progress", "complete")), { score: 25, rating: "medium" });
+  assert.equal(carRisk(it("not_applicable")), null);
+});
+
+test("CAR risk with Schedule 2 priority: Medium priority drops a level; High-priority items weigh double", () => {
+  assert.equal(carItemRisk("missing", "high"), "high"); assert.equal(carItemRisk("missing", "medium"), "medium");
+  assert.equal(carItemRisk("in_progress", "high"), "medium"); assert.equal(carItemRisk("in_progress", "medium"), "low");
+  assert.equal(carItemRisk("complete", "medium"), "low"); assert.equal(carItemRisk("missing", null), "high");
+  const it = (...x: [string, string][]) => x.map(([status, priority]) => ({ category_key: "governance", status, priority }));
+  assert.deepEqual(carRisk(it(["missing", "high"], ["complete", "medium"])), { score: 67, rating: "high" });
+  assert.deepEqual(carRisk(it(["complete", "high"], ["missing", "medium"])), { score: 33, rating: "medium" });
+});
+
+test("CDPO certificate: labelled details, date formats, fallbacks", async () => {
+  const { parseCertificate, findDates } = await import("./certificate.ts");
+  assert.deepEqual(parseCertificate(`Institute of Data Protection Professionals of Nigeria
+This is to certify that Chinwe Okeke has been awarded the Certified Data Protection Officer (CDPO) credential
+Certificate No: CDPO/2025/118
+Date of Issue: 12th March 2025
+Valid until: 11 March 2027`), { body: "Institute of Data Protection Professionals of Nigeria", number: "CDPO/2025/118", issued: "2025-03-12", expires: "2027-03-11" });
+  // Known body anywhere; numeric dates day-first; unlabelled dates -> earliest issued, latest expiry.
+  assert.deepEqual(parseCertificate("PECB Certified Data Protection Officer\nCredential ID: 4821-77\n05/06/2024   04/06/2027"),
+    { body: "PECB", number: "4821-77", issued: "2024-06-05", expires: "2027-06-04" });
+  assert.deepEqual(findDates("March 3, 2025 and 2026-01-31 and 31/02/2025"), [{ at: 0, date: "2025-03-03" }, { at: 18, date: "2026-01-31" }]);
+  assert.deepEqual(parseCertificate("Certified Data Protection Officer"), { body: null, number: null, issued: null, expires: null });
+});
+
+test("CAR report: assurance bands, maturity levels, remediation target dates", () => {
+  assert.deepEqual([0, 19, 20, 49, 50, 79, 80, 100].map(assurance), ["Substantial", "Substantial", "Reasonable", "Reasonable", "Limited", "Limited", "No assurance", "No assurance"]);
+  assert.equal(assurance(null), "Not assessed");
+  assert.deepEqual([0, 19, 20, 39, 40, 59, 60, 79, 80, 100].map(maturityLevel), [1, 1, 2, 2, 3, 3, 4, 4, 5, 5]);
+  assert.equal(remediationDue("2026-10-07", "high"), "2026-11-06");
+  assert.equal(remediationDue("2026-10-07", "medium"), "2027-01-05");
+  assert.equal(remediationDue("2026-10-07", "low"), "2027-04-05");
+});
+
+test("Remediation tracker status: Completed wins; past target date is Overdue; otherwise stored status", () => {
+  const T = "2026-10-07";
+  assert.equal(trackerStatus({ status: "completed", target_date: "2026-01-01" }, T), "Completed");
+  assert.equal(trackerStatus({ status: "in_progress", target_date: "2026-10-06" }, T), "Overdue");
+  assert.equal(trackerStatus({ status: "not_started", target_date: "2026-10-07" }, T), "Not Started"); // due today is not overdue
+  assert.equal(trackerStatus({ status: "in_progress", target_date: null }, T), "In Progress");
+});
+
+test("DPIA risk rating: Low 1-4, Medium 5-9, High 10-15, Critical 16-25", () => {
+  assert.deepEqual([1, 4, 5, 9, 10, 15, 16, 25].map(riskLevel), ["Low", "Low", "Medium", "Medium", "High", "High", "Critical", "Critical"]);
 });

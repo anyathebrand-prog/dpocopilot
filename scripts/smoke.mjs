@@ -108,7 +108,7 @@ console.log("Client portal: invitation, signing, breach, DSAR, evidence");
 const invite = lastMatch(new RegExp(`tunde-${run}@clinic.ng\\] invitation: .*?/invite/([A-Za-z0-9_-]+)`));
 const contact = new S();
 r = await contact.submit(`/invite/${invite[1]}`, ">Join<", { name: "Tunde Bello", password: "portal-pass-99" });
-p = await contact.get("/"); assert.equal(p.path, "/portal"); ok("contact accepts invite and lands on the portal");
+assert.match(r.loc ?? "", /^\/portal/); ok("contact accepts invite and lands on the portal");
 r = await admin.submit(docPath, "Send for client sign-off"); assert.match(r.loc, /Sent for client sign-off/);
 p = await contact.get("/portal"); const signPath = p.html.match(/\/portal\/documents\/([0-9a-f-]{36})\/sign/)[0]; ok("sign-off request appears in portal To do");
 r = await contact.submit(signPath, "Send code"); assert.match(r.loc, /sent a 6-digit code/);
@@ -167,7 +167,7 @@ assert.match(p.html, /doesn&#x27;t cover this question|doesn't cover this questi
 
 const sec = new S();
 r = await sec.submit("/sign-in", "Sign in", { email: "secretary@dpocopilot.local", password: "secretary-dev-only" });
-p = await sec.get("/"); assert.equal(p.path, "/secretary"); ok("Secretary signs in to the console");
+assert.match(r.loc ?? "", /^\/secretary/); p = await sec.get("/"); assert.match(p.html, /href="\/secretary"[^>]*>Dashboard/); ok("Secretary signs in to the console");
 p = await sec.get(C); assert.equal(p.path, "/forbidden"); ok("Secretary cannot see firm data");
 r = await sec.submit("/secretary/car-template", "Add an item", { category_key: "governance", text: "Data protection audit filed with NDPC" });
 r = await sec.submit("/secretary/publish", "This goes live for all firms immediately.");
@@ -178,14 +178,14 @@ p = await admin.get("/app/settings/activity");
 for (const a of ["approve", "sign", "export", "ai generate", "classify"]) assert.ok(p.html.includes(`>${a}<`), a);
 ok("activity log records approve, sign, export, AI generation, classify");
 console.log("DPIA, breach and DSAR approval paths, tasks, calendar, import");
-r = await admin.submit(`${C}/dpias/new`, "Create DPIA", { title: "Patient records DPIA" });
+r = await admin.submit(`${C}/dpias/new`, "Create DPIA", { title: "Patient records DPIA", assessment_year: "2026" });
 assert.match(r.loc, /Select at least one processing activity/); ok("DPIA needs a linked RoPA entry");
-r = await admin.submit(`${C}/dpias/new?ropa=${ropaIds[0]}`, "Create DPIA", { title: "Patient records DPIA", ropa: ropaIds[0] });
+r = await admin.submit(`${C}/dpias/new?ropa=${ropaIds[0]}`, "Create DPIA", { title: "Patient records DPIA", assessment_year: "2026", ropa: ropaIds[0] });
 const dpiaPath = r.loc.split("?")[0];
-r = await admin.submit(`${dpiaPath}?step=description`, "Draft this step with AI"); assert.match(r.loc, /AI draft ready/);
-r = await admin.submit(`${dpiaPath}?step=description`, ">Accept<"); p = await admin.get(`${dpiaPath}?step=description`); assert.match(p.html, /People: Patients/); ok("AI drafts a DPIA step from the linked RoPA entry");
+r = await admin.submit(`${dpiaPath}?step=stakeholders`, "Draft this step with AI"); assert.match(r.loc, /AI draft ready/);
+r = await admin.submit(`${dpiaPath}?step=stakeholders`, ">Accept<"); p = await admin.get(`${dpiaPath}?step=stakeholders`); assert.match(p.html, /Nigeria Data Protection Commission/); assert.match(p.html, /Patients/); ok("AI drafts a DPIA step from the linked RoPA entry");
 r = await admin.submit(`${dpiaPath}?step=scoring`, "Scoring guide", { r0_description: "Unauthorised access", r0_l: "4", r0_i: "5", r1_description: "" });
-p = await admin.get(`${dpiaPath}?step=scoring`); assert.match(p.html, /20 · Very high/); ok("risk scoring saves likelihood × impact with level text");
+p = await admin.get(`${dpiaPath}?step=scoring`); assert.match(p.html, /20 · Critical/); ok("risk scoring saves likelihood × impact with level text");
 r = await admin.submit(dpiaPath, "Send for review"); r = await admin.submit(dpiaPath, ">Approve<"); assert.match(r.loc, /Approved/);
 r = await admin.submit(dpiaPath, "Edit (creates a new version)"); p = await admin.get(dpiaPath); assert.match(p.html, /Version 2/); assert.match(p.html, /Versions/); ok("editing an approved DPIA creates version 2; version 1 kept");
 
@@ -220,7 +220,7 @@ for (const path of ["/app/ask", "/app/settings/activity", "/app/settings/team", 
   p = await admin.get(path); assert.equal(p.status, 200, path);
 }
 ok("remaining firm pages render");
-for (const path of ["/portal", "/portal/documents", "/portal/evidence", "/portal/questionnaire", "/account"]) { p = await contact.get(path); assert.equal(p.status, 200, path); }
+for (const path of ["/portal", "/portal/documents", "/portal/evidence", "/portal/questionnaire", "/portal/car", "/portal/ropa", "/portal/deadlines", "/account"]) { p = await contact.get(path); assert.equal(p.status, 200, path); }
 ok("portal pages render");
 for (const path of ["/secretary", "/secretary/library", "/secretary/criteria", "/secretary/settings", "/secretary/publish"]) { p = await sec.get(path); assert.equal(p.status, 200, path); }
 ok("secretary pages render");

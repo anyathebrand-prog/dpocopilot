@@ -4,17 +4,18 @@ import { getUser } from "@/lib/auth";
 import { newTotpSecret } from "@/lib/crypto";
 import { Flash, Field } from "@/components/ui";
 import { Submit } from "@/components/client";
+import { INSTALL } from "@/lib/install";
 
 export default async function SetupMfa({ searchParams }: { searchParams: Promise<Record<string, string>> }) {
   const u = await getUser();
   if (!u) redirect("/sign-in");
   const sp = await searchParams;
   const secret = /^[A-Z2-7]{32}$/.test(sp.s ?? "") ? sp.s : newTotpSecret();
-  const uri = `otpauth://totp/DPO%20Copilot:${encodeURIComponent(u.email)}?secret=${secret}&issuer=DPO%20Copilot`;
+  const uri = `otpauth://totp/${encodeURIComponent(INSTALL.name)}:${encodeURIComponent(u.email)}?secret=${secret}&issuer=${encodeURIComponent(INSTALL.name)}`;
   return (
     <main id="main" className="auth" style={{ maxWidth: 480 }}>
       <h1>Set up two-step sign-in</h1>
-      <p>Your role needs a second step when you sign in. Add DPO Copilot to an authenticator app such as Google Authenticator or Microsoft Authenticator.</p>
+      <p>Your role needs a second step when you sign in. Add {INSTALL.name} to an authenticator app such as Google Authenticator or Microsoft Authenticator.</p>
       <Flash sp={sp} />
       <form action={setupMfa} className="panel">
         <input type="hidden" name="secret" value={secret} />

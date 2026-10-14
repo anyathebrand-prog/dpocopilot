@@ -2,6 +2,7 @@ import { requireFirmRole } from "@/lib/auth";
 import { q } from "@/lib/db";
 import { fmtWAT } from "@/lib/rules";
 import { PageHead, Empty } from "@/components/ui";
+import { COUNTRY } from "@/lib/country";
 
 const ACTIONS = ["create", "update", "archive", "submit_for_review", "approve", "sign", "export", "import", "login", "login_failed", "logout", "ai_generate", "classify", "role_change", "deactivate", "invite"];
 
@@ -13,7 +14,7 @@ export default async function Activity({ searchParams }: { searchParams: Promise
   const clients = await q("select id, name from clients where firm_id = $1 order by name", [u.firm_id]);
   const rows = await q(`select a.*, us.name as user_name, c.name as client_name from audit_events a left join users us on us.id = a.actor_user_id left join clients c on c.id = a.client_id
     where a.firm_id = $1 and ($2 = '' or a.actor_user_id::text = $2) and ($3 = '' or a.client_id::text = $3) and ($4 = '' or a.action = $4)
-      and ($5 = '' or a.occurred_at >= ($5 || 'T00:00:00+01:00')::timestamptz) and ($6 = '' or a.occurred_at <= ($6 || 'T23:59:59+01:00')::timestamptz)
+      and ($5 = '' or a.occurred_at >= ($5 || 'T00:00:00${COUNTRY.utcOffset}')::timestamptz) and ($6 = '' or a.occurred_at <= ($6 || 'T23:59:59${COUNTRY.utcOffset}')::timestamptz)
     order by a.occurred_at desc limit 500`, [u.firm_id, sp.user ?? "", sp.client ?? "", sp.action ?? "", sp.from ?? "", sp.to ?? ""]);
   return (
     <>

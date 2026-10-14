@@ -34,6 +34,7 @@ const ITEM_CHIPS: Record<string, [string, string, typeof Pencil]> = {
   proposed: ["draft", "Proposed", Pencil], active: ["approved", "Active", Stamp], archived: ["na", "Archived", CircleSlash],
   onboarding: ["progress", "Onboarding", CircleDashed], closed: ["na", "Closed", CircleSlash], done: ["complete", "Done", CircleCheck],
   high: ["overdue", "High", TriangleAlert], medium: ["progress", "Medium", CircleAlert], low: ["neutral", "Low", Info],
+  risk_high: ["overdue", "High risk", TriangleAlert], risk_medium: ["progress", "Medium risk", CircleAlert], risk_low: ["complete", "Low risk", CircleCheck],
   resolved: ["complete", "Resolved", CircleCheck],
 };
 
@@ -80,7 +81,7 @@ export function Doc({ body, className = "" }: { body: string; className?: string
   let list: string[] = [];
   const mark = (s: string, k: number) => s.split(TODO).flatMap((part, i) => (i ? [<span key={`${k}-${i}`} className="todo">{TODO}</span>, part] : [part]));
   const flush = (k: number) => { if (list.length) { blocks.push(<ul key={`ul${k}`}>{list.map((l, i) => <li key={i}>{mark(l, i)}</li>)}</ul>); list = []; } };
-  body.split("\n").forEach((line, i) => {
+  body.split(/\r?\n/).forEach((line, i) => {
     if (line.startsWith("- ")) { list.push(line.slice(2)); return; }
     flush(i);
     if (line.startsWith("# ")) blocks.push(<h1 key={i}>{mark(line.slice(2), i)}</h1>);
@@ -116,7 +117,7 @@ export function PageHead({ title, sub, children }: { title: string; sub?: ReactN
 export function Field({ label, help, required, children }: { label: string; help?: string; required?: boolean; children: ReactNode }) {
   return (
     <label className="field">
-      <span>{label}{required && " (required)"}</span>
+      <span>{label}{required && <><span className="req" aria-hidden="true"> *</span><span className="sr-only"> (required)</span></>}</span>
       {help && <span className="help">{help}</span>}
       {children}
     </label>

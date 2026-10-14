@@ -26,7 +26,7 @@ async function log(fd: FormData) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(received) || received > todayWAT()) redirect(flash("/portal/log-request", "Enter the date you received it (not in the future).", "error"));
   if (!name) redirect(flash("/portal/log-request", "Enter the person's name.", "error"));
   await createDsar(u, client as any, { request_type: type, received_on: received, requester_name: name, requester_contact: opt(fd, "requester_contact"), details: opt(fd, "details") }, "portal");
-  redirect(flash("/portal", "Request logged. Your DPCO will help you respond on time."));
+  redirect(flash("/portal/requests", "Request logged. Now verify the person's identity and choose the department to carry it out."));
 }
 
 export default async function LogRequest({ searchParams }: { searchParams: Promise<Record<string, string>> }) {
@@ -40,7 +40,7 @@ export default async function LogRequest({ searchParams }: { searchParams: Promi
       <Flash sp={sp} />
       <form action={log}>
         <fieldset>
-          <legend>What are they asking for? (required)</legend>
+          <legend>What are they asking for?<span className="req" aria-hidden="true"> *</span><span className="sr-only"> (required)</span></legend>
           {TYPES.map(([k, l, help]) => <label key={k} className="check"><input type="radio" name="request_type" value={k} required /><span><b>{l}</b><br /><span className="meta">{help}</span></span></label>)}
         </fieldset>
         <Field label="Date you received it" required><input type="date" name="received_on" max={todayWAT()} defaultValue={todayWAT()} required /></Field>

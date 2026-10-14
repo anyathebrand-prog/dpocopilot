@@ -1,0 +1,26 @@
+/* Public-site base, shared by home, pricing, pilot and sign-in: the .bh page wrapper, page theme variables, fonts and the main button. */
+/* Rocpar: exfont.com, "Free for Personal Use". Buy a commercial licence before launch. */
+@font-face { font-family: "Rocpar"; src: url("/fonts/Rocpar.otf") format("opentype"); font-weight: 400; font-display: swap; }
+
+.bh {
+  --bg: #0a0a0f; --surface: #111118; --text: #f0f0f5; --text-muted: #8888a8; --accent: #a8dcff; --accent-blue: #3b8fd9; --border: rgba(255, 255, 255, 0.08);
+  /* Page theme (white). Everything that sits directly on the page reads these. */
+  --page-bg: #ffffff; --page-ink: #0b1220; --page-muted: #4b5567; --page-line: rgba(11, 18, 32, 0.07); --page-line-strong: rgba(11, 18, 32, 0.16);
+  --page-pill-bg: rgba(11, 18, 32, 0.04); --page-pill-border: rgba(11, 18, 32, 0.12); --page-pill-ink: #4b5567; --page-grad-a: #0b1220; --page-grad-b: #2a6aa8;
+  display: flex; flex-direction: column; align-items: center; padding: 14px; background: var(--page-bg); color: var(--text);
+  font-family: "Inter", sans-serif; -webkit-font-smoothing: antialiased;
+}
+.bh-top { width: 100%; max-width: 1600px; display: flex; justify-content: center; padding: 8px 0 22px; }
+/* Navy page (add class "bh-navy" to the wrapper), and the same light-on-dark values inside every dark card */
+.bh.bh-navy, .bh .hp-card:not(.hp-bare), .bh .sp-card, .bh .hp-prob, .bh .hp-mod, .bh .hp-stat {
+  --page-bg: #0b1220; --page-ink: #f0f0f5; --page-muted: rgba(255, 255, 255, 0.5); --page-line: rgba(255, 255, 255, 0.06); --page-line-strong: rgba(255, 255, 255, 0.15);
+  --page-pill-bg: rgba(255, 255, 255, 0.06); --page-pill-border: rgba(255, 255, 255, 0.08); --page-pill-ink: #8888a8; --page-grad-a: #ffffff; --page-grad-b: #9ccbee;
+}
+/* Keep the white logo and nav pill visible on a white page */
+.bh .vh-logo, .bh .vh-nav { border: 1px solid var(--page-pill-border); }
+
+.bh .btn-cta { display: inline-block; background: #fff; color: #000; padding: 12px 32px; border-radius: 999px; font-weight: 600; font-size: 0.9rem; text-decoration: none; transition: opacity 0.2s ease, transform 0.2s ease; }
+.bh .btn-cta:hover { opacity: 0.9; transform: translateY(-1px); }
+.bh .btn-cta:focus-visible { outline: 2px solid var(--page-ink); outline-offset: 3px; }
+
+@media (prefers-reduced-motion: reduce) { .bh .btn-cta { transition: none; } }

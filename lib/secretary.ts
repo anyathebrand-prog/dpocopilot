@@ -58,10 +58,10 @@ export async function saveDsarDays(fd: FormData) {
 
 export async function addCarItem(fd: FormData) {
   await requireSecretary();
-  const cat = str(fd, "category_key"), text = str(fd, "text");
-  if (!CAR_CATEGORIES[cat] || !text) redirect(flash("/secretary/car-template", "Choose a category and enter the item.", "error"));
+  const cat = str(fd, "category_key"), text = str(fd, "text"), priority = str(fd, "priority") || "high";
+  if (!CAR_CATEGORIES[cat] || !text || !["high", "medium", "low"].includes(priority)) redirect(flash("/secretary/car-template", "Choose a part and a priority, and enter the question.", "error"));
   const pos = (await one<{ n: number }>("select coalesce(max(position), 0)::int + 1 as n from car_template_items"))!.n;
-  const r = await one("insert into car_template_items (category_key, text, position) values ($1,$2,$3) returning id", [cat, text, pos]);
+  const r = await one("insert into car_template_items (category_key, section, text, priority, position) values ($1,$2,$3,$4,$5) returning id", [cat, opt(fd, "section"), text, priority, pos]);
   await log("create", "car_template_item", r!.id);
   redirect(flash("/secretary/car-template", "Draft item added"));
 }
@@ -80,9 +80,10 @@ export async function publishAll(fd: FormData) {
     await t.query("update mi_criteria set status = 'published' where status = 'draft'");
     await t.query("update platform_settings set published_value = draft_value, draft_value = null where draft_value is not null");
     if (newItems.rows.length)
-      await t.query(`insert into client_car_items (firm_id, client_id, template_item_id, category_key, item_text, position, auto_link_rule, is_new)
-        select c.firm_id, c.id, i.id, i.category_key, i.text, i.position, i.auto_link_rule, true from clients c cross join car_template_items i
-        where i.id = any($1::uuid[]) and c.archived_at is null on conflict do nothing`, [newItems.rows.map((r) => r.id)]);
+      // New template items join each client's active-year checklist; past years stay as they were filed.
+      await t.query(`insert into client_car_items (firm_id, client_id, audit_year, template_item_id, category_key, section, item_text, priority, position, auto_link_rule, is_new)
+        select c.firm_id, c.id, c.car_audit_year, i.id, i.category_key, i.section, i.text, i.priority, i.position, i.auto_link_rule, true from clients c cross join car_template_items i
+        where i.id = any($1::uuid[]) and c.archived_at is null and i.category_key <> 'data_processors' on conflict do nothing`, [newItems.rows.map((r) => r.id)]);
     await t.query("insert into publish_events (summary, published_by) values ($1,$2)", [summary.join("; "), u.id]);
     await audit(u, "publish", "platform_content", null, { firm_id: null, details: { changes: summary.length } }, t);
   });

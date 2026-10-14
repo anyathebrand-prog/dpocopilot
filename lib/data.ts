@@ -1,6 +1,7 @@
 import { q, one } from "./db";
 import type { Ctx, Ropa } from "./templates";
-import type { Answers } from "./questionnaire";
+import { list, type Answers } from "./questionnaire";
+import { COUNTRY } from "./country";
 
 export async function answersOf(clientId: string): Promise<Answers> {
   const rows = await q<{ question_key: string; answer: unknown }>("select question_key, answer from answers where client_id = $1", [clientId]);
@@ -13,7 +14,12 @@ export async function loadCtx(clientId: string, ropaIds?: string[]): Promise<Ctx
   const ropa = ropaIds
     ? await q<Ropa>("select * from ropa_entries where id = any($1::uuid[]) and client_id = $2 order by created_at", [ropaIds, clientId])
     : await q<Ropa>("select * from ropa_entries where client_id = $1 and state = 'active' order by created_at", [clientId]);
-  return { orgName: String(a.org_legal_name || c?.name || ""), address: a.org_address ? String(a.org_address) : undefined, ropa };
+  const text = (k: string) => (typeof a[k] === "string" && (a[k] as string).trim() ? (a[k] as string).trim() : undefined);
+  return {
+    orgName: String(a.org_legal_name || c?.name || ""), address: text("org_address"), ropa,
+    sector: text("org_sector"), dpoName: text("dpo_name"), departments: list(a.org_departments), transferCountries: list(a.transfer_countries),
+    subjects6mo: a.subjects_6mo !== undefined && a.subjects_6mo !== "" ? String(a.subjects_6mo) : undefined,
+  };
 }
 
 export type Version = {
@@ -46,7 +52,7 @@ export async function setting(key: string) {
 export async function reviewQueue(scope: string, args: unknown[]) {
   return q(`select v.id, v.parent_type, v.parent_id, v.submitted_at, c.id as client_id, c.name as client_name, us.name as submitted_by,
       coalesce(d.title, doc.title, case when bn.audience = 'regulator' then 'Breach notification to NDPC' else 'Breach notice to data subjects' end, 'DSAR response: ' || ds.requester_name) as title,
-      coalesce(b.deadline_at, (ds.deadline_on::text || 'T23:59:59+01:00')::timestamptz) as due_at,
+      coalesce(b.deadline_at, (ds.deadline_on::text || 'T23:59:59${COUNTRY.utcOffset}')::timestamptz) as due_at,
       case v.parent_type when 'breach_notification' then 0 when 'dsar' then 1 else 2 end as prio,
       case v.parent_type when 'dpia' then 'dpias/' || v.parent_id when 'document' then 'documents/' || v.parent_id
         when 'breach_notification' then 'breaches/' || bn.breach_id else 'dsars/' || v.parent_id end as path

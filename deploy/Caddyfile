@@ -1,0 +1,16 @@
+# HTTPS certificates for the DPCO's domain are issued and renewed automatically.
+{$DOMAIN} {
+	encode zstd gzip
+	# Largest legitimate upload is a 100 MB training video; refuse anything bigger before it reaches the app.
+	request_body {
+		max_size 110MB
+	}
+	# The DPCO's logo (BRAND_LOGO=/brand/logo.png), dropped into deploy/brand/.
+	handle /brand/* {
+		root * /srv
+		file_server
+	}
+	handle {
+		reverse_proxy app:3000
+	}
+}

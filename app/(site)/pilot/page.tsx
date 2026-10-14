@@ -3,10 +3,11 @@ import { q } from "@/lib/db";
 import { str, opt, flash } from "@/lib/form";
 import { PilotView } from "@/components/pilot-view";
 import { DarkHeader } from "@/components/dark-header";
-import { HomeFX } from "@/components/home-motion";
-import "@/components/home.css";
-import "@/components/pricing-dark.css";
-import "@/components/pilot-dark.css";
+import { HomeFX, SplitHeading } from "@/components/home-motion";
+import { Reveal } from "@/components/reveal";
+import "@/components/site-base.css";
+import "@/components/homepage.css";
+import "@/components/site-pages.css";
 
 export const metadata = { title: "Request pilot access · DPO Copilot" };
 
@@ -23,11 +24,18 @@ async function request(fd: FormData) {
 export default async function Pilot({ searchParams }: { searchParams: Promise<Record<string, string>> }) {
   const sp = await searchParams;
   return (
-    <div className="hm pd">
+    <div className="bh">
       <HomeFX />
-      <div className="pd-top"><DarkHeader /></div>
-      <section className="hm-sec">
-        <PilotView action={request} ok={sp.ok} error={sp.error} />
+      <div className="bh-top"><DarkHeader /></div>
+      <section className="hp-card hp-bare hp-grid-bg">
+        <div className="hp-inner">
+          <div className="hp-head">
+            <Reveal><span className="hp-kicker">Pilot</span></Reveal>
+            <SplitHeading as="h1" className="hp-h2 big" line1="Join" line2="the pilot" />
+            <Reveal delay={0.3}><p className="hp-sub">We&apos;re onboarding a small group of DPCO firms and setting each one up personally.</p></Reveal>
+          </div>
+          <PilotView action={request} ok={sp.ok} error={sp.error} />
+        </div>
       </section>
     </div>
   );

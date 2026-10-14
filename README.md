@@ -10,7 +10,7 @@ DEV_SKIP_MFA=1 npm run dev      # http://localhost:3000
 ```
 
 - **Firm:** open `/sign-up` to create a firm. You become its Firm Admin.
-- **Secretary (dev only):** `secretary@dpocopilot.local` / `secretary-dev-only`.
+- **Secretary (dev only):** `secretary@dpocopilot.local` / `secretary-dev-only`. Never created in production: set `SECRETARY_EMAIL` and `SECRETARY_PASSWORD` (14+ characters) for the first start, then remove them.
 - **Emails and SMS aren't sent yet.** Invitation links and signing codes print to the server log as `[outbound email → …]`.
 - **Database:** embedded Postgres (PGlite) in `./data`. Delete `./data` to start fresh.
 - **MFA:** `DEV_SKIP_MFA=1` skips the mandatory two-step setup for Firm Admins and the Secretary. It is ignored in production.
@@ -31,6 +31,7 @@ npm run smoke -- dev.log                   # end-to-end: onboarding → approval
 | `AI_BASE_URL`, `AI_MODEL`, `AI_API_KEY` | Any OpenAI-compatible endpoint (e.g. vLLM hosted in Nigeria, per NFR5). If unset, AI drafting uses the standard templates and Q&A shows the matching library passages without a written answer. |
 | `CLAMD_HOST`, `CLAMD_PORT` | ClamAV scanner. Uploads are refused in production until this is set. |
 | `APP_URL` | Base URL used in invitation links. |
+| `CRON_SECRET` | Protects `GET /api/cron/car-reminders`; call it daily with `Authorization: Bearer $CRON_SECRET`. It emails client contacts 30, 14, 7 and 1 day(s) before their CAR filing date and on the day. Without it, the route only runs outside production. |
 
 ## What's built
 

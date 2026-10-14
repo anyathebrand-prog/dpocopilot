@@ -71,9 +71,6 @@ export default async function Overview({ params, searchParams }: { params: Promi
           <h3>Evidence outstanding</h3>
           {evidence.length ? evidence.map((e) => <div key={e.id} className="rule-row info"><Link href={`${b}/evidence/${e.id}`}>{e.title}</Link><Chip status={e.status} /></div>)
             : <p className="meta">None outstanding.</p>}
-          <h3>Open data subject requests</h3>
-          {dsars.length ? dsars.map((d) => <div key={d.id} className="rule-row info"><Link href={`${b}/dsars/${d.id}`}>{d.requester_name}</Link><Deadline due={d.deadline_on} dateOnly /></div>)
-            : <p className="meta">None open.</p>}
           <h3>Onboarding</h3>
           <p className="meta">Questionnaire: {qn!.status.replace("_", " ")}, {pct}% answered.</p>
         </section>

@@ -29,7 +29,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
       (select count(*)::int from breaches b where b.client_id = c.id and b.status = 'open') as breaches,
       (select count(*)::int from dsars d where d.client_id = c.id and d.status = 'open') as dsars,
       (select coalesce(round(100.0 * count(*) filter (where status = 'complete') / nullif(count(*) filter (where status <> 'not_applicable'), 0)), 0)::int
-        from client_car_items i where i.client_id = c.id) as readiness
+        from client_car_items i where i.client_id = c.id and i.audit_year = c.car_audit_year and i.category_key <> 'data_processors') as readiness
     from clients c where ${scope} and (c.archived_at is not null) = $4 order by c.name`, [...args, today, archived]);
 
   return (
@@ -64,6 +64,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
 
       <PageHead title={archived ? "Archived clients" : "Clients"}>
         <Link className="btn quiet" href={archived ? "/app" : "/app?archived=1"}>{archived ? "Show active clients" : "Show archived"}</Link>
+        {u.role !== "associate" && !archived && <Link className="btn secondary" href="/app/audit-notices">Generate Compliance Audit Notification Letter</Link>}
         {u.role !== "associate" && !archived && <Link className="btn" href="/app/clients/new">Add client</Link>}
       </PageHead>
 
@@ -74,13 +75,13 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
           <p>Add your first client to start their compliance file.</p>
           <div className="row" style={{ justifyContent: "center" }}>
             <Link className="btn" href="/app/clients/new">Add client</Link>
-            {isAdmin(u) && <Link className="btn secondary" href="/app/import">Import existing clients</Link>}
+            {isAdmin(u) && u.plan !== "solo" && <Link className="btn secondary" href="/app/import">Import existing clients</Link>}
           </div>
         </Empty>
       ) : (
         <div className="scroll">
           <table className="register">
-            <thead><tr><th>Client</th><th>Status</th><th className="num">Open gaps</th><th className="num">Overdue</th><th className="num">Breaches</th><th className="num">DSARs</th><th style={{ minWidth: 160 }}>CAR readiness</th></tr></thead>
+            <thead><tr><th>Client</th><th>Status</th><th className="num">Open gaps</th><th className="num">Overdue</th><th className="num">Breaches</th><th style={{ minWidth: 160 }}>CAR readiness</th></tr></thead>
             <tbody>
               {clients.map((c) => (
                 <tr key={c.id}>
@@ -89,7 +90,6 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
                   <td data-label="Open gaps" className="num">{c.gaps}</td>
                   <td data-label="Overdue" className="num">{c.overdue > 0 ? <span className="chip overdue">{c.overdue} overdue</span> : 0}</td>
                   <td data-label="Breaches" className="num">{c.breaches > 0 ? <b style={{ color: "var(--red-700)" }}>{c.breaches} active</b> : 0}</td>
-                  <td data-label="DSARs" className="num">{c.dsars}</td>
                   <td data-label="CAR readiness"><Bar pct={c.readiness} /></td>
                 </tr>
               ))}
