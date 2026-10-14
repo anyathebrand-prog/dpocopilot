@@ -213,7 +213,16 @@ details.group > div { padding: 0 16px 16px; }
 .notif { position: relative; }
 .notif .count { position: absolute; top: -6px; right: -8px; background: var(--red-700); color: #fff; font-size: 12px; border-radius: 10px; padding: 0 6px; line-height: 18px; }
 
+.splash { position: fixed; inset: 0; z-index: 1000; display: grid; place-content: center; justify-items: center; gap: 28px;
+  background: var(--stamp-800); animation: splash-out .45s ease 1.1s forwards; pointer-events: none; }
+.splash img { width: 240px; height: auto; animation: splash-in .6s ease both; }
+.splash-ring { width: 34px; height: 34px; border-radius: 50%; border: 3px solid rgba(255,255,255,.25); border-top-color: #fff; animation: splash-spin .8s linear infinite; }
+@keyframes splash-in { from { opacity: 0; transform: translateY(8px); } }
+@keyframes splash-spin { to { transform: rotate(360deg); } }
+@keyframes splash-out { to { opacity: 0; visibility: hidden; } }
+
 @media (prefers-reduced-motion: reduce) {
+  .splash { display: none; } /* animations are off below, so the fade-out would never run */
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }
 @media print {

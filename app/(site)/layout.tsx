@@ -18,6 +18,8 @@ export default async function SiteLayout({ children }: { children: ReactNode }) 
   if (INSTALL.singleFirm) { const u = await getUser(); redirect(u ? home(u) : "/sign-in"); }
   return (
     <div className="site">
+      {/* Splash on first load only: the layout persists across in-site navigation. CSS-only fade, so it can never get stuck. */}
+      <div className="splash" aria-hidden>{/* eslint-disable-next-line @next/next/no-img-element -- static splash */}<img src="/logo.png" alt="" width={240} height={65} /><span className="splash-ring" /></div>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: LD }} />
       <main id="main">{children}</main>
       <footer className="site-footer">
