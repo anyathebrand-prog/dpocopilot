@@ -9,6 +9,10 @@ const SUBJECTS: Record<string, string> = {
   dsar_acknowledgement: "We have received your data request",
 };
 
+// Our logo travels inside the email as an inline attachment (cid:), so it shows even before the site is public.
+const LOGO_CID = "dpocopilot-logo";
+const inlineLogo = async () => ({ filename: "logo.png", content: (await import("node:fs")).readFileSync(`${process.cwd()}/public/logo.png`).toString("base64"), content_id: LOGO_CID });
+
 export const emailOn = () => !!(process.env.RESEND_API_KEY && process.env.EMAIL_FROM);
 
 export async function resendPayload(to: string, template: string, text: string, subject: string | null, fileIds: string[], html?: string) {
@@ -19,6 +23,7 @@ export async function resendPayload(to: string, template: string, text: string, 
     for (const f of await q<{ original_name: string; storage_path: string }>("select original_name, storage_path from files where id = any($1)", [fileIds]))
       attachments.push({ filename: f.original_name, content: (await readStored(f.storage_path)).toString("base64") });
   }
+  if (html?.includes(`cid:${LOGO_CID}`)) attachments.push(await inlineLogo());
   return { from: process.env.EMAIL_FROM, to: [to], subject: subject ?? SUBJECTS[template] ?? "Notification", text, ...(html ? { html } : {}), ...(attachments.length ? { attachments } : {}) };
 }
 
