@@ -9,7 +9,7 @@ export default function Privacy() {
       <Banner kind="warn">Draft for legal review. Bracketed details are still to be confirmed.</Banner>
       <article className="sheet" style={{ border: 0, padding: 0, background: "none" }}>
         <h1>Privacy notice</h1>
-        <p>This notice explains how [Company legal name] (&quot;DPO Copilot&quot;, &quot;we&quot;) handles personal data under the Nigeria Data Protection Act 2023 (NDPA).</p>
+        <p>This notice explains how Business Intelligence Technologies Limited (&quot;DPO Copilot&quot;, &quot;we&quot;) handles personal data under the Nigeria Data Protection Act 2023 (NDPA).</p>
 
         <h2>Two roles</h2>
         <p><b>As a data controller</b>, we process data about people who visit our website, request pilot access, or hold an account with us.</p>
@@ -30,10 +30,23 @@ export default function Privacy() {
         </ul>
 
         <h2>Where your data is kept</h2>
-        <p>We host the service with [hosting provider] in Nigeria. Client data is never used to train AI models. Our sub-processors are listed at [link to sub-processor list].</p>
+        <p>We host the service with CloudVantage in Lagos, Nigeria: the application, its database and backups run on their servers, and uploaded documents such as PDFs and images are kept in CloudVantage object storage in a private bucket that is not publicly reachable. Client data is never used to train AI models.</p>
 
         <h2>Who we share it with</h2>
-        <p>Only our sub-processors (such as hosting and email delivery providers), under contract, and authorities where the law requires it. We don&apos;t sell personal data.</p>
+        <p>We share personal data only with the sub-processors below, under contract, and with authorities where the law requires it. We don&apos;t sell personal data.</p>
+        <table className="register">
+          <thead><tr><th>Sub-processor</th><th>Purpose</th><th>Location</th></tr></thead>
+          <tbody>
+            <tr><td>CloudVantage</td><td data-label="Purpose">Hosting: application servers, database, backups and storage of uploaded documents</td><td data-label="Location">Lagos, Nigeria</td></tr>
+            <tr><td>Resend, Inc.</td><td data-label="Purpose">Sending service emails (invitations, sign-in codes, notices and data request responses)</td><td data-label="Location">United States</td></tr>
+          </tbody>
+        </table>
+
+        <h2>Transfers outside Nigeria</h2>
+        <p>Most emails we send contain no compliance content, only a prompt to sign in. Some carry personal data: the email address of the recipient, and, when a firm&apos;s client completes a data subject request, the response letter and evidence sent to the person who made it. These emails pass through Resend in the United States. We rely on Resend&apos;s contractual safeguards for this transfer, as permitted by sections 41 to 43 of the NDPA. [Confirm the transfer basis with counsel.]</p>
+
+        <h2>Cookies</h2>
+        <p>We use only the cookies needed to keep you signed in and to protect sign-in. We don&apos;t use advertising or tracking cookies.</p>
 
         <h2>How long we keep it</h2>
         <ul>
@@ -49,8 +62,8 @@ export default function Privacy() {
         <p>If a breach affects data we process for a firm, we notify that firm without undue delay so it can meet its own obligations under NDPA s.40.</p>
 
         <h2>Contact</h2>
-        <p>Data Protection Officer: [name], [email], [address].</p>
-        <p className="meta">Last updated: [date].</p>
+        <p>Data Protection Officer: Anya Victor, <a href="mailto:dpo@copilot.ng">dpo@copilot.ng</a>[, postal address].</p>
+        <p className="meta">Last updated: 15 October 2026.</p>
       </article>
     </section>
   );
