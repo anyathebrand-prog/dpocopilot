@@ -2,6 +2,7 @@ import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { q, one, type Tx } from "./db";
 import { newToken, sha256 } from "./crypto";
+import { emailOn, deliver } from "./email";
 
 export type Role = "firm_admin" | "lead_consultant" | "associate";
 export type Plan = "solo" | "firm";
@@ -118,12 +119,17 @@ export async function audit(u: Pick<User, "id" | "firm_id" | "role" | "kind"> | 
 
 /**
  * Email/SMS carry no compliance content — only "log in to view" (TRD §9.1).
- * ponytail: no SMTP/SMS provider wired yet; messages are recorded and printed to the server log. Add a relay behind this function.
+ * Email goes out through Resend when configured (lib/email.ts); SMS has no provider yet. Every message is recorded in outbound_messages.
  */
 export async function send(channel: "email" | "sms", recipient: string, template: string, devText: string, opts: { body?: string; attachments?: string[] } = {}) {
   // body/attachments: kept only for messages that must carry content (e.g. a data subject's response and its evidence files).
-  await q("insert into outbound_messages (channel, recipient, template_key, body, attachments) values ($1,$2,$3,$4,$5)",
+  const m = await one<{ id: string }>("insert into outbound_messages (channel, recipient, template_key, body, attachments) values ($1,$2,$3,$4,$5) returning id",
     [channel, recipient, template, opts.body ?? null, opts.attachments?.length ? JSON.stringify(opts.attachments) : null]);
+  if (channel === "email" && emailOn()) {
+    // Messages with a body use devText as their subject line; short notices are the text itself.
+    const ok = await deliver(recipient, template, opts.body ?? devText, opts.body ? devText : null, opts.attachments ?? []);
+    await q("update outbound_messages set status = $2 where id = $1", [m!.id, ok ? "sent" : "failed"]);
+  }
   console.log(`[outbound ${channel} → ${recipient}] ${template}: ${devText}${opts.attachments?.length ? ` (+${opts.attachments.length} attachment${opts.attachments.length === 1 ? "" : "s"})` : ""}`);
 }
 
