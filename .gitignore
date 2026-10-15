@@ -11,3 +11,11 @@ data-backup-*/
 
 # Claude Code runtime lock
 .claude/scheduled_tasks.lock
+
+# Client documents used as format references: never publish (public repo)
+blog/AE_FUNAI_Data_Protection_Framework.docx
+blog/IAUE_NDPA_Remediation_Tracker.xlsx
+blog/UNIBEN-Data-Protection-Compliance-Proposal.pdf
+blog/Prosal_Delivery_Letter01.docx
+blog/Report.pdf
+blog/2025_Data_Protection_Audit_Readiness_Letter_GAID02.pdf
