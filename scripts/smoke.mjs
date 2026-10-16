@@ -107,7 +107,7 @@ assert.equal(exp.status, 200); assert.match(exp.html, /Version 1, approved by Ad
 console.log("Client portal: invitation, signing, breach, DSAR, evidence");
 const invite = lastMatch(new RegExp(`tunde-${run}@clinic.ng\\] invitation: .*?/invite/([A-Za-z0-9_-]+)`));
 const contact = new S();
-r = await contact.submit(`/invite/${invite[1]}`, ">Join<", { name: "Tunde Bello", password: "portal-pass-99" });
+r = await contact.submit(`/invite/${invite[1]}`, "Create a password", { name: "Tunde Bello", password: "portal-pass-99" });
 assert.match(r.loc ?? "", /^\/portal/); ok("contact accepts invite and lands on the portal");
 r = await admin.submit(docPath, "Send for client sign-off"); assert.match(r.loc, /Sent for client sign-off/);
 p = await contact.get("/portal"); const signPath = p.html.match(/\/portal\/documents\/([0-9a-f-]{36})\/sign/)[0]; ok("sign-off request appears in portal To do");
@@ -155,7 +155,7 @@ p = await contact.get("/app/ask?q=breach"); assert.equal(p.path, "/forbidden"); 
 r = await admin.submit("/app/settings/team", "Send invitation", { email: `assoc-${run}@firm.ng`, role: "associate" });
 const aInv = lastMatch(new RegExp(`assoc-${run}@firm.ng\\] invitation: .*?/invite/([A-Za-z0-9_-]+)`));
 const assoc = new S();
-await assoc.submit(`/invite/${aInv[1]}`, ">Join<", { name: "Kemi Associate", password: "assoc-pass-123" });
+await assoc.submit(`/invite/${aInv[1]}`, "Create a password", { name: "Kemi Associate", password: "assoc-pass-123" });
 p = await assoc.get(C); assert.equal(p.path, "/forbidden"); ok("unassigned Associate is denied");
 p = await assoc.get("/app"); assert.match(p.html, /haven&#x27;t been assigned|haven't been assigned/); assert.doesNotMatch(p.html, /Waiting for my review/); ok("Associate sees no clients and no review queue");
 

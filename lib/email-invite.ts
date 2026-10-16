@@ -8,7 +8,7 @@ export const inviteHtml = (v: InviteVars) => TEMPLATE.replace(/\{\{(\w+)\}\}/g, 
 export const inviteText = (v: InviteVars) =>
   `You've been invited to join ${v.firm_name} on DPO Copilot.
 
-${v.inviter_name} added you as ${v.role}. Accept the invitation (expires in ${v.expires_in}):
+Your ${v.firm_name} has been set up on the Copilot for the internal management of your data protection compliance programme. Kindly complete the onboarding process by following the link below (${v.inviter_name} added you as ${v.role}; the invitation expires in ${v.expires_in}):
 ${v.invite_url}
 
 This invite is for ${v.email} only. If you weren't expecting it, ignore this email and no account will be created.`;
@@ -71,7 +71,7 @@ const TEMPLATE = `<!DOCTYPE html>
                 You've been invited to join {{firm_name}} on DPO Copilot
               </h1>
               <p style="margin:14px 0 0; font-family:'Segoe UI',Helvetica,Arial,sans-serif; font-size:16px; line-height:25px; color:#C3D1EA;">
-                {{inviter_name}} wants you on the team. Your workspace is set up and waiting.
+                Your {{firm_name}} has been set up on the Copilot for the internal management of your data protection compliance programme. Kindly complete the onboarding process by following the prompt below.
               </p>
             </td>
           </tr>

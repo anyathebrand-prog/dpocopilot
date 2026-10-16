@@ -11,7 +11,10 @@ test("sends through Resend with the key, sender, subject and text", async () => 
   assert.equal(await deliver("a@b.ng", "invoice_issued", "Log in to view", null, []), true);
   assert.equal(sent!.url, "https://api.resend.com/emails");
   assert.equal((sent!.init.headers as Record<string, string>).Authorization, "Bearer re_test");
-  assert.deepEqual(JSON.parse(sent!.init.body as string), { from: "DPO Copilot <no-reply@example.ng>", to: ["a@b.ng"], subject: "New invoice", text: "Log in to view" });
+  const body = JSON.parse(sent!.init.body as string);
+  const { html: _h, attachments: _a, ...rest } = body;
+  assert.deepEqual(rest, { from: "DPO Copilot <no-reply@example.ng>", to: ["a@b.ng"], subject: "New invoice", text: "Log in to view" });
+  assert.match(body.html, /<h1[^>]*>New invoice<\/h1>/); // wrapped in the shared layout
 });
 
 test("a given subject wins; a Resend error returns false instead of throwing", async () => {

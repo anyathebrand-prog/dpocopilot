@@ -135,7 +135,7 @@ export async function sendForSignoff(fd: FormData) {
     await t.query("update content_versions set status = 'awaiting_client_signoff' where id = $1 and status = 'approved'", [v.id]);
     await audit(user, "update", v.parent_type, v.parent_id, { client_id: v.client_id, details: { sent_for_signoff: v.version_no } }, t);
   });
-  for (const c of contacts) await send("email", c.email, "signoff_request", "A document is waiting for your sign-off. Log in to view.");
+  for (const c of contacts) await send("email", c.email, "signoff_request", `A document is waiting for your sign-off. Log in to view: ${process.env.APP_URL ?? "http://localhost:3000"}/portal/documents`);
   done(back, "Sent for client sign-off");
 }
 
