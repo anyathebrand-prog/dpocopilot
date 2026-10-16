@@ -1,6 +1,7 @@
 // Compliance Audit Notification Letter: tells each client to prepare for the coming year's data protection compliance audit
 // and Compliance Audit Return (GAID Art. 10), with the engagement invoice enclosed.
 import { one } from "./db";
+import { moneyIn } from "./country";
 import { answersOf } from "./data";
 import { fmtDate, todayWAT } from "./rules";
 import { CSS } from "./car-report";
@@ -54,7 +55,7 @@ export function auditNoticeHtml({ n, firm, client, inv, ans }: NonNullable<Await
 </ul>
 <p>Once the engagement is confirmed, we will send a detailed Audit Readiness Letter listing the documents and evidence to be made available.</p>
 <h3>3. Engagement and Fees</h3>
-<p>${inv ? `Our invoice <b>${esc(inv.number)}</b> for ${naira(total)} covering the ${year} engagement is enclosed. Settlement confirms the engagement and allows us to schedule the audit.` : `Our invoice for the ${year} engagement will follow under separate cover.`} Statutory fees payable to the NDPC are billed at cost where applicable.</p>
+<p>${inv ? `Our invoice <b>${esc(inv.number)}</b> for ${moneyIn(inv.currency, total)} covering the ${year} engagement is enclosed. Settlement confirms the engagement and allows us to schedule the audit.` : `Our invoice for the ${year} engagement will follow under separate cover.`} Statutory fees payable to the NDPC are billed at cost where applicable.</p>
 <p>We value our relationship with ${esc(org)} and look forward to supporting another year of demonstrable compliance. Please contact us with any questions.</p>
 <p>Yours faithfully,</p>
 <p><b>For: ${esc(firm.name).toUpperCase()}</b></p>

@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { requireFirm, clientScope, scopeArgs } from "@/lib/auth";
 import { q } from "@/lib/db";
-import { totals, naira, type Line } from "@/lib/invoice";
+import { totals, sumMoney, type Line } from "@/lib/invoice";
+import { moneyIn } from "@/lib/country";
 import { fmtDate, todayWAT } from "@/lib/rules";
 import { PageHead, Empty } from "@/components/ui";
 
@@ -15,7 +16,7 @@ export default async function FirmBilling({ searchParams }: { searchParams: Prom
   const all = await q(`select i.*, c.name as client from invoices i join clients c on c.id = i.client_id where ${clientScope(u)} order by i.issued_on desc, i.created_at desc`, scopeArgs(u));
   const total = (r: any) => totals(r.lines, Number(r.vat_rate)).total;
   const overdue = (r: any) => r.status === "unpaid" && r.due_on && r.due_on < today;
-  const sum = (rs: any[]) => naira(rs.reduce((s, r) => s + total(r), 0));
+  const sum = sumMoney;
   const rows = all.filter((r) => status === "all" || (status === "overdue" ? overdue(r) : r.status === status));
   return (
     <>
@@ -37,7 +38,7 @@ export default async function FirmBilling({ searchParams }: { searchParams: Prom
               <td data-label="Client"><Link href={`/app/clients/${r.client_id}/billing`}>{r.client}</Link></td>
               <td data-label="Date" className="small">{fmtDate(r.issued_on)}{r.due_on && <span className="meta"><br />Due {fmtDate(r.due_on)}</span>}</td>
               <td data-label="Services" className="small">{(r.lines as Line[]).map((l) => l.service).join(", ")}</td>
-              <td data-label="Total" className="num">{naira(total(r))}</td>
+              <td data-label="Total" className="num">{moneyIn(r.currency, total(r))}</td>
               <td data-label="Status" className="small">{overdue(r) ? <b>overdue</b> : r.status}{r.status === "paid" && r.receipt_no && <><br /><a href={`/export?kind=receipt&id=${r.id}&format=pdf`} target="_blank">{r.receipt_no}</a></>}</td>
             </tr>
           ))}</tbody>

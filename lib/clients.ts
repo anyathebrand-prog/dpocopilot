@@ -1,4 +1,5 @@
 import type { Tx } from "./db";
+import { countryOf } from "./country";
 
 /** A CAR filed in a year covers the previous calendar year, so new clients start on last year's audit. */
 export const defaultAuditYear = () => new Date().getFullYear() - 1;
@@ -10,10 +11,10 @@ export async function startCarYear(t: Tx, firmId: string, clientId: string, year
 }
 
 /** New client = record + questionnaire + CAR checklist copied from the published template (schema §8 op 3). */
-export async function insertClient(t: Tx, firmId: string, userId: string, f: { name: string; sector?: string | null; size?: string | null; car_filing_due_on?: string | null }) {
+export async function insertClient(t: Tx, firmId: string, userId: string, f: { name: string; sector?: string | null; size?: string | null; car_filing_due_on?: string | null; country?: string | null }) {
   const year = defaultAuditYear();
-  const c = await t.query<{ id: string }>("insert into clients (firm_id, name, sector, size, car_filing_due_on, car_audit_year, created_by) values ($1,$2,$3,$4,$5,$6,$7) returning id",
-    [firmId, f.name, f.sector ?? null, f.size ?? null, f.car_filing_due_on ?? null, year, userId]);
+  const c = await t.query<{ id: string }>("insert into clients (firm_id, name, sector, size, car_filing_due_on, car_audit_year, created_by, country) values ($1,$2,$3,$4,$5,$6,$7,$8) returning id",
+    [firmId, f.name, f.sector ?? null, f.size ?? null, f.car_filing_due_on ?? null, year, userId, countryOf(f.country).code]);
   const id = c.rows[0].id;
   await t.query("insert into questionnaires (client_id, firm_id) values ($1,$2)", [id, firmId]);
   await startCarYear(t, firmId, id, year);

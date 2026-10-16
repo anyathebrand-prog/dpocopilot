@@ -7,6 +7,7 @@ import { insertClient } from "@/lib/clients";
 import { str, opt, all } from "@/lib/form";
 import { Field, PageHead } from "@/components/ui";
 import { Submit } from "@/components/client";
+import { COUNTRIES, COUNTRY } from "@/lib/country";
 
 async function createClient(fd: FormData) {
   "use server";
@@ -17,7 +18,7 @@ async function createClient(fd: FormData) {
   const team = all(fd, "team");
   const contactEmail = str(fd, "contact_email").toLowerCase();
   const { clientId, contactId } = await tx(async (t) => {
-    const id = await insertClient(t, u.firm_id, u.id, { name, sector: opt(fd, "sector"), size: opt(fd, "size"), car_filing_due_on: opt(fd, "car_filing_due_on") });
+    const id = await insertClient(t, u.firm_id, u.id, { name, sector: opt(fd, "sector"), size: opt(fd, "size"), car_filing_due_on: opt(fd, "car_filing_due_on"), country: opt(fd, "country") });
     for (const m of team) await t.query("insert into client_assignments (client_id, membership_id) select $1, id from memberships where id = $2 and firm_id = $3", [id, m, u.firm_id]);
     let contactId: string | undefined;
     if (contactEmail) {
@@ -41,10 +42,13 @@ export default async function NewClient({ searchParams }: { searchParams: Promis
       {sp.error && <div className="banner error" role="alert">{sp.error}</div>}
       <form action={createClient} style={{ maxWidth: 640 }}>
         <Field label="Client name" required><input name="name" required /></Field>
+        <Field label="Country" help="Sets the law and regulator, invoice currency and VAT, and whether the NDPC CAR applies." required>
+          <select name="country" defaultValue={COUNTRY.code} required>{Object.values(COUNTRIES).map((c) => <option key={c.code} value={c.code}>{c.name} ({c.law.short}, {c.currency.code})</option>)}</select>
+        </Field>
         <Field label="Sector"><input name="sector" list="sectors" /></Field>
         <datalist id="sectors">{["Financial services", "Health", "Education", "Telecoms", "Government", "Retail or e-commerce", "Technology"].map((s) => <option key={s} value={s} />)}</datalist>
         <Field label="Size" help="For example: 50 staff, or SME."><input name="size" /></Field>
-        <Field label="CAR filing due date" help="Appears on the calendar."><input type="date" name="car_filing_due_on" /></Field>
+        <Field label="CAR filing due date" help="Nigerian clients only. Appears on the calendar."><input type="date" name="car_filing_due_on" /></Field>
         <fieldset>
           <legend>Primary client contact</legend>
           <p className="meta">Optional. They get an invitation to the client portal.</p>

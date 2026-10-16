@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { COUNTRY, countryOf } from "@/lib/country";
 import { redirect } from "next/navigation";
 import { requireClient } from "@/lib/auth";
 import { createBreach } from "@/lib/breach";
@@ -29,14 +30,15 @@ async function log(fd: FormData) {
 export default async function NewBreach({ params, searchParams }: { params: Promise<{ clientId: string }>; searchParams: Promise<Record<string, string>> }) {
   const { clientId } = await params;
   const sp = await searchParams;
-  await requireClient(clientId, { write: true });
+  const { client } = await requireClient(clientId, { write: true });
+  const cc = countryOf(client.country);
   return (
     <>
       <h2 style={{ marginTop: 0 }}>Log breach</h2>
       <Flash sp={sp} />
       <form action={log} style={{ maxWidth: 640 }}>
         <Hidden values={{ client_id: clientId }} />
-        <Field label="When did the organisation become aware? (WAT)" help="The 72-hour NDPC deadline runs from this time." required>
+        <Field label={`When did the organisation become aware? (${COUNTRY.tzLabel})`} help={`${cc.breachRule} The 72-hour clock runs from this time.`} required>
           <input type="datetime-local" name="aware_at" max={nowWATLocal()} required />
         </Field>
         <Field label="What happened" required><textarea name="description" required /></Field>

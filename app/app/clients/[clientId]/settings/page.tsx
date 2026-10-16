@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { COUNTRIES, countryOf } from "@/lib/country";
 import { requireClient, audit, ROLE_LABEL } from "@/lib/auth";
 import { q, one, tx } from "@/lib/db";
 import { invite } from "@/lib/invites";
@@ -17,7 +18,7 @@ async function manager(fd: FormData) {
 async function saveDetails(fd: FormData) {
   "use server";
   const { user, client } = await manager(fd);
-  await q("update clients set name = $2, sector = $3, size = $4, car_filing_due_on = $5 where id = $1", [client.id, str(fd, "name") || client.name, opt(fd, "sector"), opt(fd, "size"), opt(fd, "car_filing_due_on")]);
+  await q("update clients set name = $2, sector = $3, size = $4, car_filing_due_on = $5, country = $6 where id = $1", [client.id, str(fd, "name") || client.name, opt(fd, "sector"), opt(fd, "size"), opt(fd, "car_filing_due_on"), countryOf(opt(fd, "country") ?? client.country).code]);
   await audit(user, "update", "client", client.id, { client_id: client.id });
   redirect(flash(path(client.id), "Details saved"));
 }
@@ -92,6 +93,9 @@ export default async function Settings({ params, searchParams }: { params: Promi
         <form action={saveDetails}>{h}
           <h3>Details</h3>
           <Field label="Client name" required><input name="name" defaultValue={client.name} required /></Field>
+          <Field label="Country" help="Changing it affects new invoices only; existing invoices keep their currency." required>
+            <select name="country" defaultValue={client.country} required>{Object.values(COUNTRIES).map((c) => <option key={c.code} value={c.code}>{c.name} ({c.law.short}, {c.currency.code})</option>)}</select>
+          </Field>
           <Field label="Sector"><input name="sector" defaultValue={client.sector ?? ""} /></Field>
           <Field label="Size"><input name="size" defaultValue={client.size ?? ""} /></Field>
           <Field label="CAR filing due date"><input type="date" name="car_filing_due_on" defaultValue={client.car_filing_due_on ?? ""} /></Field>

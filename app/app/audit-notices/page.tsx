@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { moneyIn, CAR_COUNTRIES } from "@/lib/country";
 import { redirect } from "next/navigation";
 import { requireFirm, requireClient, clientScope, scopeArgs, audit, send } from "@/lib/auth";
 import { q, one } from "@/lib/db";
@@ -60,8 +61,9 @@ export default async function AuditNotices({ searchParams }: { searchParams: Pro
   const u = await requireFirm();
   const sp = await searchParams;
   const year = validYear(sp.year ?? "") ?? Number(todayWAT().slice(0, 4));
-  const clients = await q(`select c.id, c.name from clients c where ${clientScope(u)} and c.archived_at is null order by c.name`, scopeArgs(u));
-  const invoices = await q(`select i.id, i.client_id, i.number, i.status, i.lines, i.vat_rate from invoices i join clients c on c.id = i.client_id where ${clientScope(u)} and i.status <> 'cancelled' order by i.issued_on desc`, scopeArgs(u));
+  // CAR notices go only to clients whose country has the NDPC CAR.
+  const clients = await q(`select c.id, c.name from clients c where ${clientScope(u)} and c.archived_at is null and c.country = any($${scopeArgs(u).length + 1}) order by c.name`, [...scopeArgs(u), CAR_COUNTRIES]);
+  const invoices = await q(`select i.id, i.client_id, i.number, i.status, i.lines, i.vat_rate, i.currency from invoices i join clients c on c.id = i.client_id where ${clientScope(u)} and i.status <> 'cancelled' order by i.issued_on desc`, scopeArgs(u));
   const notices = await q(`select n.*, c.name as client, i.number as invoice_number from audit_notices n join clients c on c.id = n.client_id left join invoices i on i.id = n.invoice_id
     where ${clientScope(u)} and n.audit_year = $3 order by c.name`, [...scopeArgs(u), year]);
   const byClient = Object.fromEntries(notices.map((n) => [n.client_id, n]));
@@ -113,7 +115,7 @@ export default async function AuditNotices({ searchParams }: { searchParams: Pro
                   <td>{mine.length === 0 ? <span className="meta">No invoices yet — <Link href={`/app/clients/${c.id}/billing`}>create one</Link></span> : (
                     <select name={`inv_${c.id}`} defaultValue={current} style={{ width: "auto" }}>
                       <option value="">No invoice</option>
-                      {mine.map((i) => <option key={i.id} value={i.id}>{i.number} · {naira(totals(i.lines as Line[], Number(i.vat_rate)).total)} · {i.status}</option>)}
+                      {mine.map((i) => <option key={i.id} value={i.id}>{i.number} · {moneyIn(i.currency, totals(i.lines as Line[], Number(i.vat_rate)).total)} · {i.status}</option>)}
                     </select>
                   )}</td>
                 </tr>
