@@ -899,3 +899,8 @@ do $$ begin
     insert into platform_settings (key, published_value) values ('migr_dsar_30d', 'done');
   end if;
 end $$;
+
+-- Per-client country (law, regulator, currency, VAT, breach rule). Existing clients keep the install's default (NG).
+alter table clients add column if not exists country text not null default 'NG';
+-- Invoice currency fixed at creation (ISO code); null = install currency (invoices before per-client country).
+alter table invoices add column if not exists currency text;

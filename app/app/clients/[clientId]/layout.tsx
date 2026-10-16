@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { countryOf } from "@/lib/country";
 import type { ReactNode } from "react";
 import { requireClient } from "@/lib/auth";
 import { one } from "@/lib/db";
@@ -17,11 +18,11 @@ export default async function ClientLayout({ children, params }: { children: Rea
       (select count(*)::int from evidence_requests where client_id = $1 and status = 'submitted') as evidence_waiting,
       (select count(*)::int from trainings where client_id = $1 and status = 'scheduled' and starts_on < $2) as training_due,
       (select count(*)::int from remediation_actions where client_id = $1 and status <> 'completed' and audit_year = (select car_audit_year from clients where id = $1)) as remediation_open`, [clientId, todayWAT()]);
-  const b = `/app/clients/${clientId}`;
+  const b = `/app/clients/${clientId}`, cc = countryOf(client.country), car = cc.car;
   const groups: [string | null, [string, string, number?][]][] = [
     [null, [["", "Overview"]]],
     ["Set up", [["/onboarding", "Onboarding"], ["/data-inventory", "Data inventory"], ["/ropa", "RoPA"]]],
-    ["Assess", [["/dpias", "DPIAs"], ["/assessments/lia", "LIAs"], ["/assessments/tia", "Transfer risk"], ["/assessments/tpra", "Third-party risk"], ["/gaps", "Gaps", s!.gaps], ["/car-readiness", "CAR readiness"], ["/remediation", "Remediation", s!.remediation_open]]],
+    ["Assess", [["/dpias", "DPIAs"], ["/assessments/lia", "LIAs"], ["/assessments/tia", "Transfer risk"], ["/assessments/tpra", "Third-party risk"], ["/gaps", "Gaps", s!.gaps], ...(car ? [["/car-readiness", "CAR readiness"] as [string, string]] : []), ["/remediation", "Remediation", s!.remediation_open]]],
     ["Documents and evidence", [["/documents", "Documents"], ["/evidence", "Evidence", s!.evidence_waiting]]],
     ["Respond", [["/breaches", "Breaches", s!.breaches]]],
     [null, [["/settings", "Settings"]]],
@@ -39,9 +40,11 @@ export default async function ClientLayout({ children, params }: { children: Rea
             <span className="meta">{client.mi_class === "major_importance" ? "Major importance" : client.mi_class === "not_major_importance" ? "Not of major importance" : "Major importance: not yet classified"}</span>
           </div>
         </div>
-        <div className="meta">CAR readiness <b className="num" style={{ fontSize: 22, color: "var(--ink-900)" }}>{s!.readiness}%</b></div>
+        {car ? <div className="meta">CAR readiness <b className="num" style={{ fontSize: 22, color: "var(--ink-900)" }}>{s!.readiness}%</b></div> : <div className="meta">{cc.name} · {cc.law.short} · {cc.regulator.short}</div>}
       </div>
       {client.archived_at && <Banner kind="warn">This client is archived. Everything is read-only.</Banner>}
+      {/* shortcut: templates, checklists and reports still cite the NDPA; Ghana versions are step 2 */}
+      {!car && <Banner kind="warn">{cc.name} client ({cc.law.name}; regulator: {cc.regulator.name}). Invoices use {cc.currency.code} and {cc.name} VAT, and the NDPC CAR is switched off. Templates, reports and checklists still cite Nigerian law, so review every document before sending it.</Banner>}
       <div className="client-layout">
         <nav className="client-nav" aria-label="Client sections">
           <div className="links">

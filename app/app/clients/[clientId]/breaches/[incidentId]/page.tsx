@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { countryOf } from "@/lib/country";
 import { redirect } from "next/navigation";
 import { requireClient, audit } from "@/lib/auth";
 import { q, one, tx } from "@/lib/db";
@@ -78,6 +79,7 @@ export default async function BreachDetail({ params, searchParams }: { params: P
   const { clientId, incidentId } = await params;
   const sp = await searchParams;
   const { user, client } = await requireClient(clientId);
+  const R = countryOf(client.country).regulator.short, ghRule = countryOf(client.country).car ? null : countryOf(client.country).breachRule;
   const b = await breachFor(incidentId, clientId);
   if (!b) redirect("/forbidden");
   const reporter = await one("select name from users where id = $1", [b.reported_by]);
@@ -95,14 +97,15 @@ export default async function BreachDetail({ params, searchParams }: { params: P
       {b.reported_via === "portal" && <Banner kind="breach">Reported by {reporter?.name} via the client portal at {fmtWAT(b.created_at)}{b.reporter_phone && `. Contact number: ${b.reporter_phone}`}.</Banner>}
 
       <section className="panel" style={{ marginBottom: 24 }}>
-        {ndpcSent ? <p><b>NDPC notified</b> {fmtWAT(ndpcSent)}</p> : b.notification_required === "no" ? <p><b>Notification not required.</b> {b.not_required_reason}</p> : (
+        {ndpcSent ? <p><b>{R} notified</b> {fmtWAT(ndpcSent)}</p> : b.notification_required === "no" ? <p><b>Notification not required.</b> {b.not_required_reason}</p> : (
           <>
             <Countdown due={b.deadline_at.toISOString()} />
-            <p style={{ margin: 0 }}>Notify NDPC by <b>{fmtWAT(b.deadline_at)}</b></p>
-            {+b.deadline_at < Date.now() && <p className="why" style={{ color: "var(--red-700)" }}>The 72-hour deadline has passed. Notify as soon as possible and record why it was late.</p>}
+            <p style={{ margin: 0 }}>Notify {R} by <b>{fmtWAT(b.deadline_at)}</b></p>
+            {+b.deadline_at < Date.now() && <p className="why" style={{ color: "var(--red-700)" }}>{ghRule ? "The 72-hour internal target has passed." : "The 72-hour deadline has passed."} Notify as soon as possible and record why it was late.</p>}
+            {ghRule && <p className="caption">{ghRule}</p>}
           </>
         )}
-        <p className="caption">Aware since {fmtWAT(b.aware_at)}. {INSTALL.name} never submits to the NDPC; record what you send.</p>
+        <p className="caption">Aware since {fmtWAT(b.aware_at)}. {INSTALL.name} never submits to the {R}; record what you send.</p>
       </section>
 
       <div className="with-rail">
@@ -110,14 +113,14 @@ export default async function BreachDetail({ params, searchParams }: { params: P
           <h3>Notifications</h3>
           {notes.length === 0 ? (
             !ro && b.notification_required !== "no" ? (
-              <form action={generate}>{h}<p>Draft a notification to the NDPC and one to affected people from the incident details.</p><Submit>Generate notification drafts</Submit></form>
+              <form action={generate}>{h}<p>Draft a notification to the {R} and one to affected people from the incident details.</p><Submit>Generate notification drafts</Submit></form>
             ) : <p className="meta">No notifications drafted.</p>
           ) : notes.map((n) => {
             const v = versions[n.id];
             const approved = ["approved", "awaiting_client_signoff", "client_signed_off"].includes(v.status);
             return (
               <section key={n.id} style={{ marginBottom: 32 }}>
-                <h4 style={{ fontSize: 18, margin: "16px 0 8px" }}>{n.audience === "regulator" ? "To the NDPC" : "To affected people"} <Chip status={v.status} ai={v.ai_generated} /></h4>
+                <h4 style={{ fontSize: 18, margin: "16px 0 8px" }}>{n.audience === "regulator" ? `To the ${R}` : "To affected people"} <Chip status={v.status} ai={v.ai_generated} /></h4>
                 <Seal v={v} />
                 {v.status === "draft" && !ro ? (
                   <form action={saveBody}><Hidden values={{ id: v.id, back }} />
@@ -154,7 +157,7 @@ export default async function BreachDetail({ params, searchParams }: { params: P
               <Field label="Containment"><textarea name="containment" defaultValue={b.containment ?? ""} /></Field>
               <Field label="Remediation actions"><textarea name="remediation" defaultValue={b.remediation ?? ""} /></Field>
               <Field label="Severity"><select name="severity" defaultValue={b.severity ?? ""}><option value="">Not yet assessed</option><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option></select></Field>
-              <Field label="NDPC notification required?"><select name="notification_required" defaultValue={b.notification_required}><option value="unknown">Not yet known</option><option value="yes">Yes</option><option value="no">No</option></select></Field>
+              <Field label={`${R} notification required?`}><select name="notification_required" defaultValue={b.notification_required}><option value="unknown">Not yet known</option><option value="yes">Yes</option><option value="no">No</option></select></Field>
               <Field label="If not required, why?"><textarea name="not_required_reason" defaultValue={b.not_required_reason ?? ""} /></Field>
               <Submit className="btn secondary">Save incident</Submit>
             </fieldset>

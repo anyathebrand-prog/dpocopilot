@@ -47,7 +47,7 @@ async function openPostgres(url: string): Promise<Db> {
 
 async function openPGlite(): Promise<Db> {
   const { PGlite, types } = await import("@electric-sql/pglite");
-  const dir = path.join(process.cwd(), "data", "pg");
+  const dir = process.env.PGLITE_DIR ?? path.join(process.cwd(), "data", "pg"); // PGLITE_DIR: throwaway database for checks
   mkdirSync(dir, { recursive: true });
   const db = await PGlite.create(dir, { parsers: { [types.DATE]: (v: string) => v } });
   // PGlite's files can be left unreadable if the process dies mid-write, so close it cleanly on Ctrl+C / stop.

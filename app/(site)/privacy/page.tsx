@@ -38,12 +38,12 @@ export default function Privacy() {
           <thead><tr><th>Sub-processor</th><th>Purpose</th><th>Location</th></tr></thead>
           <tbody>
             <tr><td>CloudVantage</td><td data-label="Purpose">Hosting: application servers, database, backups and storage of uploaded documents</td><td data-label="Location">Lagos, Nigeria</td></tr>
-            <tr><td>Resend, Inc.</td><td data-label="Purpose">Sending service emails (invitations, sign-in codes, notices and data request responses)</td><td data-label="Location">United States</td></tr>
+            <tr><td>Resend, Inc.</td><td data-label="Purpose">Sending service emails (invitations, sign-in codes, notices and data request responses)</td><td data-label="Location">Ireland (European Union)</td></tr>
           </tbody>
         </table>
 
         <h2>Transfers outside Nigeria</h2>
-        <p>Most emails we send contain no compliance content, only a prompt to sign in. Some carry personal data: the email address of the recipient, and, when a firm&apos;s client completes a data subject request, the response letter and evidence sent to the person who made it. These emails pass through Resend in the United States. We rely on Resend&apos;s contractual safeguards for this transfer, as permitted by sections 41 to 43 of the NDPA. [Confirm the transfer basis with counsel.]</p>
+        <p>Most emails we send contain no compliance content, only a prompt to sign in. Some carry personal data: the email address of the recipient, and, when a firm&apos;s client completes a data subject request, the response letter and evidence sent to the person who made it. These emails pass through Resend&apos;s servers in Ireland, in the European Union, where the General Data Protection Regulation gives protection comparable to the NDPA. We also rely on Resend&apos;s contractual safeguards, as permitted by sections 41 to 43 of the NDPA. [Confirm the transfer basis with counsel.]</p>
 
         <h2>Cookies</h2>
         <p>We use only the cookies needed to keep you signed in and to protect sign-in. We don&apos;t use advertising or tracking cookies.</p>
