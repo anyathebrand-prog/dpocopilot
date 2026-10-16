@@ -21,7 +21,7 @@ async function createRequest(fd: FormData) {
     [client.firm_id, client.id, title, opt(fd, "description"), opt(fd, "due_on"), item, user.id]);
   await audit(user, "create", "evidence_request", r!.id, { client_id: client.id });
   for (const c of await q("select email from client_contacts where client_id = $1 and status = 'active'", [client.id]))
-    await send("email", c.email, "evidence_request", "Your DPCO has asked for a document. Log in to the portal to upload it.");
+    await send("email", c.email, "evidence_request", `Your DPCO has asked for a document. Log in to the portal to upload it: ${process.env.APP_URL ?? "http://localhost:3000"}/portal/evidence`);
   redirect(flash(b, "Evidence requested. The client sees it in their portal."));
 }
 

@@ -40,7 +40,7 @@ async function save(fd: FormData) {
   let note = "Saved";
   if (dept && (dept !== d.department || deptEmail !== d.department_email)) {
     const text = `Dear ${dept} team,\n\nA data subject request has been assigned to your department. Please attend to it promptly so that ${d.client_name} responds within the period required by the Nigeria Data Protection Act, 2023.\n\nRequest: ${TYPE[d.request_type] ?? d.request_type}\nRequester: ${d.requester_name}\nReceived: ${fmtDate(d.received_on)}\nResponse due by: ${fmtDate(d.deadline_on)}\nIdentity check: ${STATUS.find(([k]) => k === status)![1]}${d.details ? `\nDetails: ${d.details}` : ""}\n\nPlease reply to the Data Protection Officer when the request has been carried out.`;
-    await send("email", deptEmail!, "dsar_department_assignment", `Data subject request assigned to ${dept} (due ${fmtDate(d.deadline_on)})`, { body: text });
+    await send("email", deptEmail!, "dsar_department_assignment", `Data subject request assigned to ${dept} (due ${fmtDate(d.deadline_on)})`, { body: text, brand: d.client_name });
     await q("update dsars set department_notified_at = now() where id = $1", [d.id]);
     note = `Saved. ${dept} has been emailed to attend to the request promptly.`;
   }
@@ -66,7 +66,7 @@ async function complete(fd: FormData) {
   }
   const message = opt(fd, "message");
   const text = `Dear ${d.requester_name},\n\nFurther to your ${(TYPE[d.request_type] ?? d.request_type).toLowerCase()} request received on ${fmtDate(d.received_on)}, we write to confirm that your request has been completed, consistent with the requirements of the Nigeria Data Protection Act, 2023 and our internal policy.${message ? `\n\n${message}` : ""}\n\nEvidence of the action taken is attached (${files.map((f) => f.name).join(", ")}).\n\nIf you have any concerns about how your request was handled, you may contact our Data Protection Officer, and you also have the right to complain to the Nigeria Data Protection Commission.\n\nYours faithfully,\n${d.client_name}`;
-  await send("email", to, "dsar_completed", `Your data subject request has been completed (${files.length} attachment${files.length === 1 ? "" : "s"})`, { body: text, attachments: ids });
+  await send("email", to, "dsar_completed", `Your data subject request has been completed (${files.length} attachment${files.length === 1 ? "" : "s"})`, { body: text, attachments: ids, brand: d.client_name });
   await q("update dsars set requester_email = $2, status = 'closed', closed_at = now(), response_sent_at = now(), response_sent_method = 'email' where id = $1", [d.id, to]);
   await audit(u, "update", "dsar", d.id, { client_id: d.client_id, details: { completed: true, evidence: ids.length } });
   redirect(flash(back, `Response sent to ${to} with ${files.length} attachment${files.length === 1 ? "" : "s"}. The request is completed.`));

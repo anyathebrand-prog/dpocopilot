@@ -26,7 +26,7 @@ export async function createDsar(u: User, client: { id: string; firm_id: string;
   const email = requesterEmail(d.requester_contact);
   if (email) {
     await q("update dsars set requester_email = $2 where id = $1", [id, email]);
-    await send("email", email, "dsar_acknowledgement", DSAR_ACK, { body: DSAR_ACK });
+    await send("email", email, "dsar_acknowledgement", DSAR_ACK, { body: DSAR_ACK, brand: client.name });
   }
   return id;
 }

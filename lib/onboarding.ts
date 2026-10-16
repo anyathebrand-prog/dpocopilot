@@ -108,7 +108,7 @@ export async function sendQuestionnaire(fd: FormData) {
   const base = `/app/clients/${client.id}/onboarding`;
   if (!c) redirect(flash(base, "Choose a client contact.", "error"));
   await q("update questionnaires set assigned_contact_id = $2, sent_at = now(), status = case when status = 'not_sent' then 'sent' else status end where client_id = $1", [client.id, c.id]);
-  await send("email", c.email, "questionnaire", "Your data protection questionnaire is ready. Log in to the portal to answer it.");
+  await send("email", c.email, "questionnaire", `Your data protection questionnaire is ready. Log in to the portal to answer it: ${process.env.APP_URL ?? "http://localhost:3000"}/portal/questionnaire`);
   await audit(user, "update", "questionnaire", client.id, { client_id: client.id, details: { sent_to_contact: c.id } });
   redirect(flash(base, str(fd, "reminder") ? "Reminder sent" : "Questionnaire sent"));
 }
