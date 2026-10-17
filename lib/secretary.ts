@@ -1,5 +1,6 @@
 "use server";
 import { redirect } from "next/navigation";
+import { SIZES } from "./checkout";
 import { q, one, tx } from "./db";
 import { requireSecretary, audit } from "./auth";
 import { splitSections, CAR_CATEGORIES } from "./rules";
@@ -54,6 +55,16 @@ export async function saveDsarDays(fd: FormData) {
   await q("update platform_settings set draft_value = $1 where key = 'dsar_response_days'", [String(n)]);
   await log("update", "platform_setting", "dsar_response_days", { draft: n });
   redirect(flash("/secretary/settings", "Draft saved. It takes effect when you publish."));
+}
+
+/** Client onboarding fees per size band (naira). Take effect immediately for clients added from now on. */
+export async function saveClientFees(fd: FormData) {
+  await requireSecretary();
+  const fees: [string, number][] = SIZES.map(([k]) => [k, Number(str(fd, k).replace(/,/g, "") || 0)]);
+  if (fees.some(([, n]) => !Number.isFinite(n) || n < 0 || n > 100_000_000)) redirect(flash("/secretary/settings", "Enter each fee as an amount in naira (0 for no fee).", "error"));
+  for (const [k, n] of fees) await q("update platform_settings set published_value = $2 where key = $1", [`client_fee_${k}`, String(Math.round(n * 100) / 100)]);
+  await log("update", "platform_setting", "client_fees", Object.fromEntries(fees));
+  redirect(flash("/secretary/settings", "Client fees saved. They apply to clients added from now on."));
 }
 
 export async function addCarItem(fd: FormData) {

@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { invitesHeld, SIZES } from "@/lib/checkout";
 import { COUNTRIES, countryOf } from "@/lib/country";
 import { requireClient, audit, ROLE_LABEL } from "@/lib/auth";
 import { q, one, tx } from "@/lib/db";
@@ -18,7 +19,7 @@ async function manager(fd: FormData) {
 async function saveDetails(fd: FormData) {
   "use server";
   const { user, client } = await manager(fd);
-  await q("update clients set name = $2, sector = $3, size = $4, car_filing_due_on = $5, country = $6 where id = $1", [client.id, str(fd, "name") || client.name, opt(fd, "sector"), opt(fd, "size"), opt(fd, "car_filing_due_on"), countryOf(opt(fd, "country") ?? client.country).code]);
+  await q("update clients set name = $2, sector = $3, size = $4, car_filing_due_on = $5, country = $6 where id = $1", [client.id, str(fd, "name") || client.name, opt(fd, "sector"), SIZES.some(([k]) => k === str(fd, "size")) ? str(fd, "size") : client.size, opt(fd, "car_filing_due_on"), countryOf(opt(fd, "country") ?? client.country).code]);
   await audit(user, "update", "client", client.id, { client_id: client.id });
   redirect(flash(path(client.id), "Details saved"));
 }
@@ -31,8 +32,9 @@ async function inviteContact(fd: FormData) {
   if (await one("select 1 from users where lower(email) = $1", [email])) redirect(flash(path(client.id), "This email already has an account. Use a different email for the portal.", "error"));
   const c = await one<{ id: string }>(`insert into client_contacts (firm_id, client_id, name, email, phone) values ($1,$2,$3,$4,$5)
     on conflict (client_id, email) do update set status = 'invited', name = excluded.name returning id`, [client.firm_id, client.id, str(fd, "name") || email, email, opt(fd, "phone")]);
-  await invite({ firm_id: client.firm_id, client_id: client.id, contact_id: c!.id, email, role: "client_contact", invited_by: user.id });
   await audit(user, "invite", "client_contact", c!.id, { client_id: client.id });
+  if (await invitesHeld(client.id)) redirect(flash(`/app/clients/${client.id}/checkout`, "Contact saved. Their invitation is sent after checkout."));
+  await invite({ firm_id: client.firm_id, client_id: client.id, contact_id: c!.id, email, role: "client_contact", invited_by: user.id });
   redirect(flash(path(client.id), "Invitation sent"));
 }
 
@@ -43,6 +45,7 @@ async function contactAction(fd: FormData) {
   if (!c) redirect("/forbidden");
   if (str(fd, "op") === "resend") {
     await q("update client_contacts set status = 'invited' where id = $1", [c.id]);
+    if (await invitesHeld(client.id)) redirect(flash(`/app/clients/${client.id}/checkout`, "The invitation is sent after checkout."));
     await invite({ firm_id: client.firm_id, client_id: client.id, contact_id: c.id, email: c.email, role: "client_contact", invited_by: user.id });
     redirect(flash(path(client.id), "Invitation sent again"));
   }
@@ -97,7 +100,9 @@ export default async function Settings({ params, searchParams }: { params: Promi
             <select name="country" defaultValue={client.country} required>{Object.values(COUNTRIES).map((c) => <option key={c.code} value={c.code}>{c.name} ({c.law.short}, {c.currency.code})</option>)}</select>
           </Field>
           <Field label="Sector"><input name="sector" defaultValue={client.sector ?? ""} /></Field>
-          <Field label="Size"><input name="size" defaultValue={client.size ?? ""} /></Field>
+          <Field label="Size" help="Changing it doesn't change the fee already set for this client.">
+            <select name="size" defaultValue={SIZES.some(([k]) => k === client.size) ? client.size : ""}><option value="" disabled>{client.size || "Choose…"}</option>{SIZES.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select>
+          </Field>
           <Field label="CAR filing due date"><input type="date" name="car_filing_due_on" defaultValue={client.car_filing_due_on ?? ""} /></Field>
           <Submit className="btn secondary">Save details</Submit>
         </form>

@@ -904,3 +904,20 @@ end $$;
 alter table clients add column if not exists country text not null default 'NG';
 -- Invoice currency fixed at creation (ISO code); null = install currency (invoices before per-client country).
 alter table invoices add column if not exists currency text;
+
+-- Checkout per client (Kora): the fee is fixed on the client when it is added; its portal invitations wait until paid.
+-- checkout_amount null = no checkout needed (clients added before checkout existed, or no fee set for its size).
+alter table clients add column if not exists checkout_amount numeric(14,2);
+create table if not exists client_payments (
+  id uuid primary key default gen_random_uuid(),
+  firm_id uuid not null references firms,
+  client_id uuid not null references clients on delete cascade,
+  reference text not null unique,
+  amount numeric(14,2) not null,
+  currency text not null default 'NGN',
+  status text not null default 'pending' check (status in ('pending','paid','failed')),
+  paid_at timestamptz,
+  created_by uuid references users,
+  created_at timestamptz not null default now()
+);
+insert into platform_settings (key, published_value) values ('client_fee_small','0'), ('client_fee_medium','0'), ('client_fee_large','0') on conflict do nothing;
