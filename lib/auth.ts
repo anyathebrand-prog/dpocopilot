@@ -100,11 +100,14 @@ export const clientScope = (u: User, alias = "c") =>
 export const scopeArgs = (u: User) => [u.firm_id, u.membership_id];
 
 /** FR1.4: every client page and action goes through here. Unassigned or foreign → 403, including by direct URL. */
-export async function requireClient(clientId: string, opts: { write?: boolean } = {}) {
+/** A firm user's client, in scope. Until a client's checkout is paid every client page sends the firm to checkout (opts.unpaid allows the checkout itself). */
+export async function requireClient(clientId: string, opts: { write?: boolean; unpaid?: boolean } = {}) {
   const u = await requireFirm();
   if (!/^[0-9a-f-]{36}$/i.test(clientId)) redirect("/forbidden");
-  const client = await one(`select c.* from clients c where c.id = $3 and ${clientScope(u)}`, [...scopeArgs(u), clientId]);
+  const client = await one(`select c.*, (c.checkout_amount is not null and not exists (select 1 from client_payments p where p.client_id = c.id and p.status = 'paid')) as unpaid
+    from clients c where c.id = $3 and ${clientScope(u)}`, [...scopeArgs(u), clientId]);
   if (!client) redirect("/forbidden");
+  if (client.unpaid && !opts.unpaid) redirect(`/app/clients/${client.id}/checkout`);
   if (opts.write && client.archived_at) throw new Error("This client is archived and read-only.");
   return { user: u, client };
 }
