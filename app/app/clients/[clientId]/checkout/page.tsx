@@ -14,12 +14,12 @@ async function pay(fd: FormData) {
   if (client.checkout_amount == null) redirect(back);
   let url: string;
   try { url = await startCheckout(client as any, { id: user.id, email: user.email, name: user.name }); }
-  catch (e) { console.error("[kora]", e); redirect(flash(back, "Payment could not be started. Try again shortly.", "error")); }
+  catch (e) { console.error("[paystack]", e); redirect(flash(back, "Payment could not be started. Try again shortly.", "error")); }
   await audit(user, "create", "client_payment", client.id, { client_id: client.id });
   redirect(url);
 }
 
-/** Checkout for a newly added client. Kora sends the payer back here with ?reference=…, which is confirmed with Kora server-side. */
+/** Checkout for a newly added client. Paystack sends the payer back here with ?reference=…, which is verified with Paystack server-side. */
 export default async function Checkout({ params, searchParams }: { params: Promise<{ clientId: string }>; searchParams: Promise<Record<string, string>> }) {
   const { clientId } = await params;
   const sp = await searchParams;
@@ -38,7 +38,7 @@ export default async function Checkout({ params, searchParams }: { params: Promi
       ) : (
         <>
           {result === "failed" && <Banner kind="error">The payment failed. You can try again.</Banner>}
-          {result === "pending" && <Banner kind="warn">Kora hasn&apos;t confirmed the payment yet. Refresh this page in a minute; the invitation is sent as soon as it&apos;s confirmed.</Banner>}
+          {result === "pending" && <Banner kind="warn">Paystack hasn&apos;t confirmed the payment yet. Refresh this page in a minute; the invitation is sent as soon as it&apos;s confirmed.</Banner>}
           <div className="panel" style={{ maxWidth: 560 }}>
             <table className="register">
               <tbody>
@@ -50,7 +50,7 @@ export default async function Checkout({ params, searchParams }: { params: Promi
             <p className="meta" style={{ marginTop: 12 }}>
               {contacts.length ? <>The portal invitation to <b>{contacts.map((c) => c.email).join(", ")}</b> is sent once payment is confirmed.</> : "Portal invitations for this client are sent once payment is confirmed."}
             </p>
-            <form action={pay}><Hidden values={{ client_id: clientId }} /><Submit>Pay {money(Number(client.checkout_amount))} with Kora</Submit></form>
+            <form action={pay}><Hidden values={{ client_id: clientId }} /><Submit>Pay {money(Number(client.checkout_amount))} with Paystack</Submit></form>
           </div>
         </>
       )}

@@ -905,7 +905,7 @@ alter table clients add column if not exists country text not null default 'NG';
 -- Invoice currency fixed at creation (ISO code); null = install currency (invoices before per-client country).
 alter table invoices add column if not exists currency text;
 
--- Checkout per client (Kora): the fee is fixed on the client when it is added; its portal invitations wait until paid.
+-- Checkout per client (Paystack): the fee is fixed on the client when it is added; its portal invitations wait until paid.
 -- checkout_amount null = no checkout needed (clients added before checkout existed, or no fee set for its size).
 alter table clients add column if not exists checkout_amount numeric(14,2);
 create table if not exists client_payments (

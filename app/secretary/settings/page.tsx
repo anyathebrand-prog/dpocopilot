@@ -1,7 +1,7 @@
 import { one } from "@/lib/db";
 import { saveDsarDays, saveClientFees } from "@/lib/secretary";
 import { q } from "@/lib/db";
-import { SIZES, koraOn } from "@/lib/checkout";
+import { SIZES, paymentsOn } from "@/lib/checkout";
 import { Flash, Field, PageHead } from "@/components/ui";
 import { Submit } from "@/components/client";
 
@@ -23,8 +23,8 @@ export default async function PlatformSettings({ searchParams }: { searchParams:
       </form>
       <form action={saveClientFees} className="panel" style={{ maxWidth: 640, marginTop: 16 }}>
         <h3>Client onboarding fees</h3>
-        <p className="meta">What a DPCO pays (in naira, through Kora) when it adds a client. The client&apos;s portal invitation is sent after payment. 0 means no checkout for that size.
-          {!koraOn() && <> <b>Kora is not configured (KORA_SECRET_KEY), so checkout is off.</b></>}</p>
+        <p className="meta">What a DPCO pays (in naira, through Paystack) when it adds a client. The client&apos;s portal invitation is sent after payment. 0 means no checkout for that size.
+          {!paymentsOn() && <> <b>Paystack is not configured (PAYSTACK_SECRET_KEY), so checkout is off.</b></>}</p>
         {SIZES.map(([k, l]) => (
           <Field key={k} label={l}><input name={k} inputMode="decimal" defaultValue={fees[`client_fee_${k}`] ?? "0"} style={{ width: 180 }} /></Field>
         ))}
