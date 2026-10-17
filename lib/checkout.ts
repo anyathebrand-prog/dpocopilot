@@ -9,9 +9,8 @@ const PAYSTACK = process.env.PAYSTACK_BASE_URL ?? "https://api.paystack.co"; // 
 const KEY = () => process.env.PAYSTACK_SECRET_KEY;
 const BASE = () => process.env.APP_URL ?? "http://localhost:3000";
 
-/** Client size bands; each has a fee set by the Secretary (Platform settings). */
-export const SIZES: [string, string][] = [["small", "Small (up to 50 staff)"], ["medium", "Medium (51 to 250 staff)"], ["large", "Large (over 250 staff)"]];
-export const sizeLabel = (k?: string | null) => SIZES.find(([v]) => v === k)?.[1] ?? k ?? "";
+export { SIZES, sizeLabel } from "./client-size";
+import { SIZES } from "./client-size";
 
 export const paymentsOn = () => !!KEY();
 /** Fee in naira for a size band, or 0 (no checkout) when unset or Paystack isn't configured. */

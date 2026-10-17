@@ -9,6 +9,7 @@ import { Field, PageHead } from "@/components/ui";
 import { Submit } from "@/components/client";
 import { COUNTRIES, COUNTRY, money } from "@/lib/country";
 import { SIZES, feeFor } from "@/lib/checkout";
+import { sizeFor } from "@/lib/client-size";
 
 async function createClient(fd: FormData) {
   "use server";
@@ -18,8 +19,9 @@ async function createClient(fd: FormData) {
   const dup = await one("select 1 from clients where firm_id = $1 and lower(name) = lower($2)", [u.firm_id, name]);
   const team = all(fd, "team");
   const contactEmail = str(fd, "contact_email").toLowerCase();
-  const size = SIZES.some(([k]) => k === str(fd, "size")) ? str(fd, "size") : null;
-  if (!size) redirect("/app/clients/new?error=Choose+the+client%27s+size");
+  const subjects = Number(str(fd, "data_subjects_count")), depts = Number(str(fd, "departments_count"));
+  if (![subjects, depts].every((n) => Number.isInteger(n) && n >= 0 && n <= 1e9)) redirect("/app/clients/new?error=Enter+the+number+of+data+subjects+and+departments");
+  const size = sizeFor(subjects, depts);
   const fee = await feeFor(size);
   const { clientId, contactId } = await tx(async (t) => {
     const id = await insertClient(t, u.firm_id, u.id, { name, sector: opt(fd, "sector"), size, car_filing_due_on: opt(fd, "car_filing_due_on"), country: opt(fd, "country") });
@@ -29,7 +31,7 @@ async function createClient(fd: FormData) {
       const cc = await t.query<{ id: string }>("insert into client_contacts (firm_id, client_id, name, email) values ($1,$2,$3,$4) returning id", [u.firm_id, id, str(fd, "contact_name") || contactEmail, contactEmail]);
       contactId = cc.rows[0].id;
     }
-    if (fee) await t.query("update clients set checkout_amount = $2 where id = $1", [id, fee]); // invitations wait for checkout
+    await t.query("update clients set data_subjects_count = $2, departments_count = $3, checkout_amount = $4 where id = $1", [id, subjects, depts, fee || null]); // fee set: invitations wait for checkout
     await audit(u, "create", "client", id, { client_id: id }, t);
     return { clientId: id, contactId };
   });
@@ -54,12 +56,16 @@ export default async function NewClient({ searchParams }: { searchParams: Promis
         </Field>
         <Field label="Sector"><input name="sector" list="sectors" /></Field>
         <datalist id="sectors">{["Financial services", "Health", "Education", "Telecoms", "Government", "Retail or e-commerce", "Technology"].map((s) => <option key={s} value={s} />)}</datalist>
-        <Field label="Size" help={fees.some((f) => f) ? "Sets the client onboarding fee. You'll go to checkout next; the portal invitation is sent after payment." : undefined} required>
-          <select name="size" required defaultValue="">
-            <option value="" disabled>Choose…</option>
-            {SIZES.map(([k, l], i) => <option key={k} value={k}>{l}{fees[i] ? ` · ${money(fees[i])}` : ""}</option>)}
-          </select>
-        </Field>
+        <div className="row">
+          <Field label="Number of data subjects" help="Customers, staff, students, patients… (approximate)." required><input type="number" name="data_subjects_count" min={0} inputMode="numeric" required style={{ width: 180 }} /></Field>
+          <Field label="Number of departments" required><input type="number" name="departments_count" min={0} inputMode="numeric" required style={{ width: 140 }} /></Field>
+        </div>
+        {fees.some((f) => f) && (
+          <div className="meta" style={{ marginBottom: 16 }}>
+            <p style={{ margin: "0 0 4px" }}>These set the client&apos;s size and onboarding fee (the larger band applies). You&apos;ll go to checkout next; the portal invitation is sent after payment.</p>
+            <ul style={{ margin: 0 }}>{SIZES.map(([k, l], i) => <li key={k}>{l}: <b>{fees[i] ? money(fees[i]) : "no fee"}</b></li>)}</ul>
+          </div>
+        )}
         <Field label="CAR filing due date" help="Nigerian clients only. Appears on the calendar."><input type="date" name="car_filing_due_on" /></Field>
         <fieldset>
           <legend>Primary client contact</legend>

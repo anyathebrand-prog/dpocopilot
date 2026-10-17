@@ -921,3 +921,6 @@ create table if not exists client_payments (
   created_at timestamptz not null default now()
 );
 insert into platform_settings (key, published_value) values ('client_fee_small','0'), ('client_fee_medium','0'), ('client_fee_large','0') on conflict do nothing;
+-- Sizing for the onboarding fee: the band (clients.size) is worked out from these (lib/client-size.ts).
+alter table clients add column if not exists data_subjects_count int check (data_subjects_count >= 0);
+alter table clients add column if not exists departments_count int check (departments_count >= 0);
