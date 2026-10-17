@@ -47,7 +47,7 @@ assert.match(r.loc ?? "", /\/app/); ok("sign-up creates firm and lands on /app")
 let p = await admin.get("/app");
 assert.match(p.html, /Add your first client/); ok("empty dashboard");
 
-r = await admin.submit("/app/clients/new", "Create client", { name: "Ikeja Clinic", sector: "Health", contact_name: "Tunde Bello", contact_email: `tunde-${run}@clinic.ng` });
+r = await admin.submit("/app/clients/new", "Create client", { name: "Ikeja Clinic", sector: "Health", data_subjects_count: "200", departments_count: "5", contact_name: "Tunde Bello", contact_email: `tunde-${run}@clinic.ng` });
 const clientId = r.loc.match(/clients\/([0-9a-f-]{36})/)[1];
 const C = `/app/clients/${clientId}`;
 p = await admin.get(C);

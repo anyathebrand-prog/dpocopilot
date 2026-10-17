@@ -1,4 +1,6 @@
 import { redirect } from "next/navigation";
+import { invitesHeld, sizeLabel } from "@/lib/checkout";
+import { sizeFor } from "@/lib/client-size";
 import { COUNTRIES, countryOf } from "@/lib/country";
 import { requireClient, audit, ROLE_LABEL } from "@/lib/auth";
 import { q, one, tx } from "@/lib/db";
@@ -18,7 +20,10 @@ async function manager(fd: FormData) {
 async function saveDetails(fd: FormData) {
   "use server";
   const { user, client } = await manager(fd);
-  await q("update clients set name = $2, sector = $3, size = $4, car_filing_due_on = $5, country = $6 where id = $1", [client.id, str(fd, "name") || client.name, opt(fd, "sector"), opt(fd, "size"), opt(fd, "car_filing_due_on"), countryOf(opt(fd, "country") ?? client.country).code]);
+  const subjects = Number(str(fd, "data_subjects_count") || client.data_subjects_count || 0), depts = Number(str(fd, "departments_count") || client.departments_count || 0);
+  if (![subjects, depts].every((n) => Number.isInteger(n) && n >= 0 && n <= 1e9)) redirect(flash(path(client.id), "Enter whole numbers for data subjects and departments.", "error"));
+  const size = str(fd, "data_subjects_count") || str(fd, "departments_count") ? sizeFor(subjects, depts) : client.size;
+  await q("update clients set data_subjects_count = $7, departments_count = $8, name = $2, sector = $3, size = $4, car_filing_due_on = $5, country = $6 where id = $1", [client.id, str(fd, "name") || client.name, opt(fd, "sector"), size, opt(fd, "car_filing_due_on"), countryOf(opt(fd, "country") ?? client.country).code, subjects, depts]);
   await audit(user, "update", "client", client.id, { client_id: client.id });
   redirect(flash(path(client.id), "Details saved"));
 }
@@ -31,8 +36,9 @@ async function inviteContact(fd: FormData) {
   if (await one("select 1 from users where lower(email) = $1", [email])) redirect(flash(path(client.id), "This email already has an account. Use a different email for the portal.", "error"));
   const c = await one<{ id: string }>(`insert into client_contacts (firm_id, client_id, name, email, phone) values ($1,$2,$3,$4,$5)
     on conflict (client_id, email) do update set status = 'invited', name = excluded.name returning id`, [client.firm_id, client.id, str(fd, "name") || email, email, opt(fd, "phone")]);
-  await invite({ firm_id: client.firm_id, client_id: client.id, contact_id: c!.id, email, role: "client_contact", invited_by: user.id });
   await audit(user, "invite", "client_contact", c!.id, { client_id: client.id });
+  if (await invitesHeld(client.id)) redirect(flash(`/app/clients/${client.id}/checkout`, "Contact saved. Their invitation is sent after checkout."));
+  await invite({ firm_id: client.firm_id, client_id: client.id, contact_id: c!.id, email, role: "client_contact", invited_by: user.id });
   redirect(flash(path(client.id), "Invitation sent"));
 }
 
@@ -43,6 +49,7 @@ async function contactAction(fd: FormData) {
   if (!c) redirect("/forbidden");
   if (str(fd, "op") === "resend") {
     await q("update client_contacts set status = 'invited' where id = $1", [c.id]);
+    if (await invitesHeld(client.id)) redirect(flash(`/app/clients/${client.id}/checkout`, "The invitation is sent after checkout."));
     await invite({ firm_id: client.firm_id, client_id: client.id, contact_id: c.id, email: c.email, role: "client_contact", invited_by: user.id });
     redirect(flash(path(client.id), "Invitation sent again"));
   }
@@ -97,7 +104,11 @@ export default async function Settings({ params, searchParams }: { params: Promi
             <select name="country" defaultValue={client.country} required>{Object.values(COUNTRIES).map((c) => <option key={c.code} value={c.code}>{c.name} ({c.law.short}, {c.currency.code})</option>)}</select>
           </Field>
           <Field label="Sector"><input name="sector" defaultValue={client.sector ?? ""} /></Field>
-          <Field label="Size"><input name="size" defaultValue={client.size ?? ""} /></Field>
+          <div className="row">
+            <Field label="Number of data subjects"><input type="number" name="data_subjects_count" min={0} defaultValue={client.data_subjects_count ?? ""} style={{ width: 180 }} /></Field>
+            <Field label="Number of departments"><input type="number" name="departments_count" min={0} defaultValue={client.departments_count ?? ""} style={{ width: 140 }} /></Field>
+          </div>
+          <p className="meta">Size: <b>{sizeLabel(client.size) || "not set"}</b>. Changing these doesn&apos;t change the fee already set for this client.</p>
           <Field label="CAR filing due date"><input type="date" name="car_filing_due_on" defaultValue={client.car_filing_due_on ?? ""} /></Field>
           <Submit className="btn secondary">Save details</Submit>
         </form>

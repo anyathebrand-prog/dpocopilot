@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { invitesHeld } from "@/lib/checkout";
 import { countryOf } from "@/lib/country";
 import type { ReactNode } from "react";
 import { requireClient } from "@/lib/auth";
@@ -18,6 +19,7 @@ export default async function ClientLayout({ children, params }: { children: Rea
       (select count(*)::int from evidence_requests where client_id = $1 and status = 'submitted') as evidence_waiting,
       (select count(*)::int from trainings where client_id = $1 and status = 'scheduled' and starts_on < $2) as training_due,
       (select count(*)::int from remediation_actions where client_id = $1 and status <> 'completed' and audit_year = (select car_audit_year from clients where id = $1)) as remediation_open`, [clientId, todayWAT()]);
+  const held = await invitesHeld(clientId);
   const b = `/app/clients/${clientId}`, cc = countryOf(client.country), car = cc.car;
   const groups: [string | null, [string, string, number?][]][] = [
     [null, [["", "Overview"]]],
@@ -43,6 +45,7 @@ export default async function ClientLayout({ children, params }: { children: Rea
         {car ? <div className="meta">CAR readiness <b className="num" style={{ fontSize: 22, color: "var(--ink-900)" }}>{s!.readiness}%</b></div> : <div className="meta">{cc.name} · {cc.law.short} · {cc.regulator.short}</div>}
       </div>
       {client.archived_at && <Banner kind="warn">This client is archived. Everything is read-only.</Banner>}
+      {held && <Banner kind="warn">Checkout pending: this client&apos;s portal invitation is sent after payment. <Link href={`${b}/checkout`}>Go to checkout</Link></Banner>}
       {/* shortcut: templates, checklists and reports still cite the NDPA; Ghana versions are step 2 */}
       {!car && <Banner kind="warn">{cc.name} client ({cc.law.name}; regulator: {cc.regulator.name}). Invoices use {cc.currency.code} and {cc.name} VAT, and the NDPC CAR is switched off. Templates, reports and checklists still cite Nigerian law, so review every document before sending it.</Banner>}
       <div className="client-layout">
