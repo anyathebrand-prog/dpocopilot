@@ -924,3 +924,14 @@ insert into platform_settings (key, published_value) values ('client_fee_small',
 -- Sizing for the onboarding fee: the band (clients.size) is worked out from these (lib/client-size.ts).
 alter table clients add column if not exists data_subjects_count int check (data_subjects_count >= 0);
 alter table clients add column if not exists departments_count int check (departments_count >= 0);
+
+-- Public website visit counts (no cookies, no IPs, nothing personal): page views per day, page and traffic source.
+-- landings = page loads from outside the site (a new visit), views = every page shown.
+create table if not exists page_views (
+  day date not null,
+  path text not null,
+  source text not null,
+  views int not null default 0,
+  landings int not null default 0,
+  primary key (day, path, source)
+);

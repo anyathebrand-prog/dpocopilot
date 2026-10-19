@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { VisitBeacon } from "@/components/client";
 import type { ReactNode } from "react";
 import { redirect } from "next/navigation";
 import { INSTALL } from "@/lib/install";
@@ -21,6 +22,7 @@ export default async function SiteLayout({ children }: { children: ReactNode }) 
       {/* Splash on first load only: the layout persists across in-site navigation. CSS-only fade, so it can never get stuck. */}
       <div className="splash" aria-hidden>{/* eslint-disable-next-line @next/next/no-img-element -- static splash */}<img src="/logo.png" alt="" width={240} height={65} /><span className="splash-ring" /></div>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: LD }} />
+      <VisitBeacon />
       <main id="main">{children}</main>
       <footer className="site-footer">
         <div className="site-inner spread">

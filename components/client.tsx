@@ -65,3 +65,15 @@ export function SectionSelect({ options }: { options: { href: string; label: str
     </label>
   );
 }
+
+/** Counts public page views (app/api/visit): the first load is a landing with its referrer, later in-site clicks are views. */
+let landed = false;
+export function VisitBeacon() {
+  const path = usePathname();
+  useEffect(() => {
+    const body = JSON.stringify({ path, ref: landed ? "" : document.referrer, landing: !landed });
+    landed = true;
+    try { navigator.sendBeacon?.("/api/visit", new Blob([body], { type: "application/json" })) || fetch("/api/visit", { method: "POST", body, keepalive: true }); } catch { /* counting must never break the page */ }
+  }, [path]);
+  return null;
+}
