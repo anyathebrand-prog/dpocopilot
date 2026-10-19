@@ -9,7 +9,7 @@ import { Submit } from "@/components/client";
 
 async function pay(fd: FormData) {
   "use server";
-  const { user, client } = await requireClient(str(fd, "client_id"), { write: true });
+  const { user, client } = await requireClient(str(fd, "client_id"), { write: true, unpaid: true });
   const back = `/app/clients/${client.id}/checkout`;
   if (client.checkout_amount == null) redirect(back);
   let url: string;
@@ -23,7 +23,7 @@ async function pay(fd: FormData) {
 export default async function Checkout({ params, searchParams }: { params: Promise<{ clientId: string }>; searchParams: Promise<Record<string, string>> }) {
   const { clientId } = await params;
   const sp = await searchParams;
-  const { client } = await requireClient(clientId);
+  const { client } = await requireClient(clientId, { unpaid: true });
   const ref = /^DPOC-[0-9a-f-]{36}$/.test(sp.reference ?? "") ? sp.reference : null;
   const result = ref && (await one("select 1 from client_payments where reference = $1 and client_id = $2", [ref, clientId])) ? await confirmPayment(ref) : null;
   const paid = await one("select amount, paid_at from client_payments where client_id = $1 and status = 'paid' order by paid_at desc limit 1", [clientId]);

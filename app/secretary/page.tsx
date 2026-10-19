@@ -12,6 +12,12 @@ export default async function SecretaryHome() {
     (select count(*)::int from car_template_items where status = 'published') as car`);
   const pending = await pendingSummary();
   const pilots = await q("select * from pilot_requests order by created_at desc limit 50");
+  // Website visits, last 30 days (cookieless counts from app/api/visit).
+  const since = "current_date - 29";
+  const v = (await one(`select coalesce(sum(landings),0)::int as visits, coalesce(sum(views),0)::int as views from page_views where day >= ${since}`))!;
+  const days = await q(`select to_char(day, 'DD Mon') as d, sum(landings)::int as visits, sum(views)::int as views from page_views where day >= ${since} group by day order by day desc`);
+  const pages = await q(`select path, sum(views)::int as views from page_views where day >= ${since} group by path order by views desc limit 10`);
+  const sources = await q(`select source, sum(landings)::int as visits from page_views where day >= ${since} and source <> 'internal' group by source order by visits desc limit 10`);
   const areas: [string, string, string][] = [
     ["/secretary/library", "Regulatory library", `${c!.docs} published source documents`],
     ["/secretary/criteria", "Major-importance criteria", `${c!.criteria} published criteria`],
@@ -26,6 +32,24 @@ export default async function SecretaryHome() {
         <div key={href} className="rule-row info"><Link href={href}><b>{title}</b></Link><span className="meta">{sub}</span></div>
       ))}
       <p className="caption" style={{ marginTop: 24 }}>Policy templates are maintained in code for V1.</p>
+      <h2>Website visits <span className="meta" style={{ fontSize: 14 }}>last 30 days</span></h2>
+      <p className="meta">Public pages only. Counted without cookies or IP addresses, so a returning visitor counts again.</p>
+      {v.views === 0 ? <p className="meta">No visits recorded yet.</p> : (
+        <>
+          <div className="row" style={{ gap: 16, marginBottom: 16 }}>
+            <div className="panel"><div className="meta">Visits</div><b className="num" style={{ fontSize: 24 }}>{v.visits.toLocaleString()}</b></div>
+            <div className="panel"><div className="meta">Page views</div><b className="num" style={{ fontSize: 24 }}>{v.views.toLocaleString()}</b></div>
+          </div>
+          <div className="row" style={{ gap: 24, alignItems: "flex-start", flexWrap: "wrap" }}>
+            <table className="register" style={{ flex: 1, minWidth: 220 }}><thead><tr><th>Day</th><th className="num">Visits</th><th className="num">Page views</th></tr></thead>
+              <tbody>{days.map((d) => <tr key={d.d}><td>{d.d}</td><td data-label="Visits" className="num">{d.visits}</td><td data-label="Page views" className="num">{d.views}</td></tr>)}</tbody></table>
+            <table className="register" style={{ flex: 1, minWidth: 220 }}><thead><tr><th>Page</th><th className="num">Views</th></tr></thead>
+              <tbody>{pages.map((r) => <tr key={r.path}><td>{r.path}</td><td data-label="Views" className="num">{r.views}</td></tr>)}</tbody></table>
+            <table className="register" style={{ flex: 1, minWidth: 220 }}><thead><tr><th>Came from</th><th className="num">Visits</th></tr></thead>
+              <tbody>{sources.map((r) => <tr key={r.source}><td>{r.source}</td><td data-label="Visits" className="num">{r.visits}</td></tr>)}</tbody></table>
+          </div>
+        </>
+      )}
       <h2>Pilot requests</h2>
       {pilots.length === 0 ? <p className="meta">None yet. They arrive from the public &quot;Request pilot access&quot; form.</p> : (
         <table className="register">

@@ -46,7 +46,7 @@ export default function Privacy() {
         <p>Most emails we send contain no compliance content, only a prompt to sign in. Some carry personal data: the email address of the recipient, and, when a firm&apos;s client completes a data subject request, the response letter and evidence sent to the person who made it. These emails pass through Resend&apos;s servers in Ireland, in the European Union, where the General Data Protection Regulation gives protection comparable to the NDPA. We also rely on Resend&apos;s contractual safeguards, as permitted by sections 41 to 43 of the NDPA. [Confirm the transfer basis with counsel.]</p>
 
         <h2>Cookies</h2>
-        <p>We use only the cookies needed to keep you signed in and to protect sign-in. We don&apos;t use advertising or tracking cookies.</p>
+        <p>We use only the cookies needed to keep you signed in and to protect sign-in. We don&apos;t use advertising or tracking cookies. We count visits to our public pages without cookies, keeping only daily totals per page and the website a visitor came from, never your IP address or anything that identifies you.</p>
 
         <h2>How long we keep it</h2>
         <ul>

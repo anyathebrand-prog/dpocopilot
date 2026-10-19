@@ -8,7 +8,7 @@ import { str, opt, all } from "@/lib/form";
 import { Field, PageHead } from "@/components/ui";
 import { Submit } from "@/components/client";
 import { COUNTRIES, COUNTRY, money } from "@/lib/country";
-import { SIZES, feeFor } from "@/lib/checkout";
+import { SIZES, feeFor, startCheckout } from "@/lib/checkout";
 import { sizeFor } from "@/lib/client-size";
 
 async function createClient(fd: FormData) {
@@ -35,7 +35,11 @@ async function createClient(fd: FormData) {
     await audit(u, "create", "client", id, { client_id: id }, t);
     return { clientId: id, contactId };
   });
-  if (fee) redirect(`/app/clients/${clientId}/checkout`);
+  if (fee) { // straight to Paystack; if it can't start, the checkout page offers a retry
+    let url: string | null = null;
+    try { url = await startCheckout({ id: clientId, firm_id: u.firm_id, name, checkout_amount: fee }, { id: u.id, email: u.email, name: u.name }); } catch (e) { console.error("[paystack]", e); }
+    redirect(url ?? `/app/clients/${clientId}/checkout?error=${encodeURIComponent("Payment could not be started. Try again.")}`);
+  }
   if (contactId) await invite({ firm_id: u.firm_id, client_id: clientId, contact_id: contactId, email: contactEmail, role: "client_contact", invited_by: u.id });
   redirect(`/app/clients/${clientId}?ok=${encodeURIComponent(dup ? "Client created. Note: another client already has this name." : "Client created")}`);
 }
