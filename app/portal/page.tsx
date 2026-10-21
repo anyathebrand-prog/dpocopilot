@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { complianceScore } from "@/lib/compliance-score";
 import { ShieldAlert } from "lucide-react";
 import { requireContact } from "@/lib/auth";
 import { q, one } from "@/lib/db";
@@ -11,7 +12,7 @@ export default async function PortalHome({ searchParams }: { searchParams: Promi
   const sp = await searchParams;
   const id = u.client_id!;
   const client = await one("select name, archived_at, car_filing_due_on from clients where id = $1", [id]);
-  const score = await one<{ pct: number }>(`select coalesce(round(100.0 * count(*) filter (where status = 'complete') / nullif(count(*) filter (where status <> 'not_applicable'), 0)), 0)::int as pct from client_car_items where client_id = $1 and audit_year = (select car_audit_year from clients where id = $1) and category_key <> 'data_processors'`, [id]);
+  const { score, parts } = await complianceScore(id);
   const qn = await one("select status from questionnaires where client_id = $1", [id]);
   const evidence = await q("select id, title, due_on, status from evidence_requests where client_id = $1 and status in ('open','rejected') order by due_on nulls last", [id]);
   const signoffs = await q(`select s.id, v.parent_type, v.parent_id, coalesce(d.title, dp.title) as title from signoff_requests s join content_versions v on v.id = s.version_id
@@ -27,9 +28,22 @@ export default async function PortalHome({ searchParams }: { searchParams: Promi
     <>
       <Flash sp={sp} />
       <section className="cx-ready">
-        <h1>Your compliance file is <span className="cx-ready-pct num">{score!.pct}%</span> ready</h1>
-        <Bar pct={score!.pct} label={`Compliance file ${score!.pct}% ready`} />
+        {score === null
+          ? <h1>Your compliance score appears here once {u.firm_name} starts recording your compliance work</h1>
+          : <><h1>Your compliance score is <span className="cx-ready-pct num">{score}%</span></h1><Bar pct={score} label={`Compliance score ${score}%`} /></>}
       </section>
+      {score !== null && (
+        <section className="panel" style={{ marginBottom: 16 }} aria-label="How your score is made up">
+          {parts.map((p) => (
+            <div key={p.key} style={{ marginBottom: 12 }}>
+              <div className="spread"><b>{p.label}</b><span className="num">{p.pct === null ? "Not measured yet" : `${p.pct}%`}</span></div>
+              {p.pct !== null && <Bar pct={p.pct} label={`${p.label} ${p.pct}%`} />}
+              <div className="meta">{p.detail}</div>
+            </div>
+          ))}
+          <p className="caption" style={{ margin: 0 }}>The score is the average of the parts that can be measured. It updates as {u.firm_name} records your compliance work.</p>
+        </section>
+      )}
       <p className="meta">Managed by {u.firm_name}</p>
       {client!.car_filing_due_on && carReminderStage(client!.car_filing_due_on, todayWAT()) !== null && (
         <Banner kind="warn">
