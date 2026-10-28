@@ -233,8 +233,24 @@ export async function GET(req: Request) {
     const rows = await q("select * from ropa_entries where client_id = $1 and state = 'active' order by purpose", [clientId]);
     const cols: [string, (r: any) => string][] = [["Purpose", (r) => r.purpose], ["Department", (r) => r.department], ["Lawful basis", (r) => (r.lawful_basis ? LAWFUL_BASIS[r.lawful_basis] : "")], ["Data subjects", (r) => r.data_subjects], ["Data categories", (r) => r.data_categories],
       ["Recipients", (r) => r.recipients], ["Transfers outside Nigeria", (r) => (r.has_transfer ? `Yes. ${r.transfer_safeguard ?? "No safeguard recorded"}` : "No")], ["Retention", (r) => r.retention_period], ["Security measures", (r) => r.security_measures], ["System / owner", (r) => r.system_owner]];
+    const TITLE = "Record of Processing Activities (RoPA)";
+    if (url.searchParams.get("format") === "xlsx") {
+      await audit(u, "export", "ropa", clientId, { client_id: clientId, details: { format: "xlsx" } });
+      const ExcelJS = (await import("exceljs")).default;
+      const wb = new ExcelJS.Workbook(), ws = wb.addWorksheet("RoPA", { views: [{ state: "frozen", ySplit: 4 }] });
+      ws.addRow([client!.name]).font = { bold: true, size: 16, color: { argb: "FF0D1F4A" } };
+      ws.addRow([TITLE]).font = { bold: true, size: 13 };
+      ws.addRow([`Exported ${fmtWAT(new Date())} by ${u.name}`]).font = { italic: true, size: 9 };
+      const hr = ws.addRow(cols.map(([h]) => h));
+      hr.eachCell((c) => { c.font = { bold: true, color: { argb: "FFFFFFFF" } }; c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF0D1F4A" } }; c.alignment = { wrapText: true, vertical: "middle" }; });
+      for (const r of rows) ws.addRow(cols.map(([, f]) => f(r) ?? "")).alignment = { wrapText: true, vertical: "top" };
+      cols.forEach((_, i) => { ws.getColumn(i + 1).width = 26; });
+      return new Response(new Uint8Array(await wb.xlsx.writeBuffer()), { headers: {
+        "content-type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        "content-disposition": `attachment; filename="${slug(`${client!.name}-ropa`)}.xlsx"` } });
+    }
     await audit(u, "export", "ropa", clientId, { client_id: clientId, details: { format } });
-    return page("Record of processing activities", `<h1>Record of processing activities</h1>${stamp}<table><tr>${cols.map(([h]) => `<th>${h}</th>`).join("")}</tr>${rows.map((r) => `<tr>${cols.map(([, f]) => `<td>${esc(f(r))}</td>`).join("")}</tr>`).join("")}</table>`, format, slug(`${client!.name}-ropa`), CSS, await cover(clientId, "ropa", "Record of Processing Activities"));
+    return page(`${client!.name} - ${TITLE}`, `<h1>${esc(client!.name)}</h1><h2>${TITLE}</h2>${stamp}<table><tr>${cols.map(([h]) => `<th>${h}</th>`).join("")}</tr>${rows.map((r) => `<tr>${cols.map(([, f]) => `<td>${esc(f(r))}</td>`).join("")}</tr>`).join("")}</table>`, format, slug(`${client!.name}-ropa`), CSS, await cover(clientId, "ropa", "Record of Processing Activities"));
   }
 
   if (kind === "car-report" || kind === "car-plan" || kind === "car-tracker") {
