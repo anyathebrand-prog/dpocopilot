@@ -8,7 +8,7 @@ const SUBJECTS: Record<string, string> = {
   evidence_request: "A document has been requested", signoff_request: "A document is waiting for your sign-off",
   questionnaire: "Your data protection questionnaire", car_reminder: "Compliance Audit Return reminder",
   invoice_issued: "New invoice", receipt_issued: "Payment receipt", audit_notice: "Compliance Audit Notification",
-  dsar_acknowledgement: "We have received your data request",
+  dsar_acknowledgement: "We have received your data request", email_changed: "Your login email was changed",
 };
 
 // Our logo travels inside the email as an inline attachment (cid:), so it shows even before the site is public.

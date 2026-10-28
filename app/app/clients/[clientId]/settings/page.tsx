@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { invitesHeld, sizeLabel } from "@/lib/checkout";
 import { sizeFor } from "@/lib/client-size";
 import { COUNTRIES, countryOf } from "@/lib/country";
-import { requireClient, audit, ROLE_LABEL } from "@/lib/auth";
+import { requireClient, audit, send, ROLE_LABEL } from "@/lib/auth";
 import { q, one, tx } from "@/lib/db";
 import { invite } from "@/lib/invites";
 import { str, opt, all, flash } from "@/lib/form";
@@ -57,6 +57,38 @@ async function contactAction(fd: FormData) {
   await q("update client_contacts set status = 'invite_revoked' where id = $1 and status = 'invited'", [c.id]);
   await audit(user, "update", "client_contact", c.id, { client_id: client.id, details: { invitation: "revoked" } });
   redirect(flash(path(client.id), "Invitation revoked"));
+}
+
+/** Firm Admin only: change a client contact's email. A signed-up contact keeps their account and history; an invited one is re-invited at the new address. */
+async function changeContactEmail(fd: FormData) {
+  "use server";
+  const { user, client } = await manager(fd);
+  if (user.role !== "firm_admin") redirect(flash(path(client.id), "Only a Firm Admin can change a contact's email.", "error"));
+  const c = await one("select * from client_contacts where id = $1 and client_id = $2", [str(fd, "contact_id"), client.id]);
+  if (!c) redirect("/forbidden");
+  const email = str(fd, "new_email").toLowerCase();
+  if (!/^\S+@\S+\.\S+$/.test(email)) redirect(flash(path(client.id), "Enter a valid email address.", "error"));
+  if (email === c.email.toLowerCase()) redirect(flash(path(client.id), "That is already their email."));
+  if (await one("select 1 from users where lower(email) = $1 and id is distinct from $2", [email, c.user_id])) redirect(flash(path(client.id), "Another account already uses that email.", "error"));
+  if (await one("select 1 from client_contacts where client_id = $1 and lower(email) = $2 and id <> $3", [client.id, email, c.id])) redirect(flash(path(client.id), "Another contact of this client already uses that email.", "error"));
+  const old = c.email;
+  await tx(async (t) => {
+    await t.query("update client_contacts set email = $2 where id = $1", [c.id, email]);
+    if (c.user_id) await t.query("update users set email = $2 where id = $1", [c.user_id, email]);
+    await t.query("update invitations set status = 'revoked' where contact_id = $1 and status = 'pending'", [c.id]); // old address's link stops working
+    await audit(user, "update", "client_contact", c.id, { client_id: client.id, details: { email_changed: true } }, t);
+  });
+  if (c.user_id) {
+    const notice = `Your ${client.name} compliance portal login email was changed from ${old} to ${email} by ${user.name} at ${user.firm_name}. If you didn't ask for this, contact ${user.firm_name} straight away.`;
+    await send("email", old, "email_changed", notice);
+    await send("email", email, "email_changed", `${notice} From now on, sign in with ${email}.`);
+    redirect(flash(path(client.id), `Email changed to ${email}. They sign in with it from now on; both addresses have been told.`));
+  }
+  if (c.status === "invited" && !(await invitesHeld(client.id))) {
+    await invite({ firm_id: client.firm_id, client_id: client.id, contact_id: c.id, email, role: "client_contact", invited_by: user.id });
+    redirect(flash(path(client.id), `Email changed to ${email} and a new invitation sent.`));
+  }
+  redirect(flash(path(client.id), `Email changed to ${email}.`));
 }
 
 async function saveTeam(fd: FormData) {
@@ -128,7 +160,14 @@ export default async function Settings({ params, searchParams }: { params: Promi
                   <form action={contactAction} className="row">{h}<input type="hidden" name="contact_id" value={c.id} />
                     <Submit className="btn quiet" name="op" value="resend">Send invitation again</Submit>
                     {c.status === "invited" && <Submit className="btn quiet" name="op" value="revoke">Revoke</Submit>}
-                  </form>)}</td>
+                  </form>)}
+                  {!ro && user.role === "firm_admin" && (
+                    <details><summary className="meta" style={{ cursor: "pointer" }}>Change email</summary>
+                      <form action={changeContactEmail} className="row" style={{ marginTop: 6, alignItems: "flex-end" }}>{h}<input type="hidden" name="contact_id" value={c.id} />
+                        <Field label="New email" required><input type="email" name="new_email" required autoComplete="off" /></Field>
+                        <Submit className="btn secondary">Change</Submit>
+                      </form>
+                    </details>)}</td>
               </tr>
             ))}
           </tbody>
