@@ -2,7 +2,7 @@ import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { q, one, type Tx } from "./db";
 import { newToken, sha256 } from "./crypto";
-import { emailOn, deliver } from "./email";
+import { emailOn, deliver, type RawFile } from "./email";
 
 export type Role = "firm_admin" | "lead_consultant" | "associate";
 export type Plan = "solo" | "firm";
@@ -12,7 +12,7 @@ export type User = {
   id: string; name: string; email: string; mfa_enabled: boolean;
   kind: "firm" | "contact" | "secretary";
   firm_id: string; firm_name: string; plan?: Plan;
-  dpco_firm_id?: string | null; dpco_name?: string | null; // Solo DPO: the DPCO firm they work under
+  dpco_firm_id?: string | null; dpco_name?: string | null; dpco_status?: string | null; // Solo DPO: the DPCO firm they work under, and its approval
   membership_id?: string; role?: Role;
   client_id?: string; contact_id?: string;
 };
@@ -41,8 +41,8 @@ export async function getUser(): Promise<User | null> {
     where s.token_hash = $1 and s.expires_at > now() and s.mfa_ok and u.status = 'active'`, [sha256(t)]);
   if (!u) return null;
   if (u.platform_role === "secretary") return { ...base(u), kind: "secretary", firm_id: "", firm_name: "" };
-  const m = await one("select m.id, m.firm_id, m.role, f.name as firm_name, f.plan, f.dpco_firm_id, d.name as dpco_name from memberships m join firms f on f.id = m.firm_id left join firms d on d.id = f.dpco_firm_id where m.user_id = $1 and m.status = 'active'", [u.id]);
-  if (m) return { ...base(u), kind: "firm", firm_id: m.firm_id, firm_name: m.firm_name, plan: m.plan, dpco_firm_id: m.dpco_firm_id, dpco_name: m.dpco_name, membership_id: m.id, role: m.role };
+  const m = await one("select m.id, m.firm_id, m.role, f.name as firm_name, f.plan, f.dpco_firm_id, f.dpco_status, d.name as dpco_name from memberships m join firms f on f.id = m.firm_id left join firms d on d.id = f.dpco_firm_id where m.user_id = $1 and m.status = 'active'", [u.id]);
+  if (m) return { ...base(u), kind: "firm", firm_id: m.firm_id, firm_name: m.firm_name, plan: m.plan, dpco_firm_id: m.dpco_firm_id, dpco_status: m.dpco_status, dpco_name: m.dpco_name, membership_id: m.id, role: m.role };
   const c = await one("select cc.id, cc.client_id, cc.firm_id, f.name as firm_name from client_contacts cc join firms f on f.id = cc.firm_id join clients cl on cl.id = cc.client_id where cc.user_id = $1 and cc.status = 'active'", [u.id]);
   if (c) return { ...base(u), kind: "contact", firm_id: c.firm_id, firm_name: c.firm_name, client_id: c.client_id, contact_id: c.id };
   return null;
@@ -71,8 +71,8 @@ async function need(kind: User["kind"]) {
   if (!u) redirect("/sign-in");
   if (u.kind !== kind) redirect("/forbidden");
   if (mfaRequired(u)) redirect("/setup/mfa");
-  // A Solo DPO picks the DPCO firm they work under before using the workspace (only while there is one to pick).
-  if (u.plan === "solo" && !u.dpco_firm_id && (await one("select 1 from firms where plan = 'firm' and id <> $1 limit 1", [u.firm_id]))) redirect("/choose-dpco");
+  // A Solo DPO picks the DPCO firm they work under, and waits for its approval, before using the workspace (only while there is one to pick).
+  if (u.plan === "solo" && u.dpco_status !== "approved" && (await one("select 1 from firms where plan = 'firm' and id <> $1 limit 1", [u.firm_id]))) redirect("/choose-dpco");
   return u;
 }
 export const requireFirm = () => need("firm");
@@ -127,13 +127,13 @@ export async function audit(u: Pick<User, "id" | "firm_id" | "role" | "kind"> | 
  * Email/SMS carry no compliance content — only "log in to view" (TRD §9.1).
  * Email goes out through Resend when configured (lib/email.ts); SMS has no provider yet. Every message is recorded in outbound_messages.
  */
-export async function send(channel: "email" | "sms", recipient: string, template: string, devText: string, opts: { body?: string; attachments?: string[]; html?: string; brand?: string } = {}) {
+export async function send(channel: "email" | "sms", recipient: string, template: string, devText: string, opts: { body?: string; attachments?: string[]; html?: string; brand?: string; files?: RawFile[] } = {}) {
   // body/attachments: kept only for messages that must carry content (e.g. a data subject's response and its evidence files).
   const m = await one<{ id: string }>("insert into outbound_messages (channel, recipient, template_key, body, attachments) values ($1,$2,$3,$4,$5) returning id",
     [channel, recipient, template, opts.body ?? null, opts.attachments?.length ? JSON.stringify(opts.attachments) : null]);
   if (channel === "email" && emailOn()) {
     // Messages with a body use devText as their subject line; short notices are the text itself.
-    const ok = await deliver(recipient, template, opts.body ?? devText, opts.body ? devText : null, opts.attachments ?? [], opts.html, opts.brand);
+    const ok = await deliver(recipient, template, opts.body ?? devText, opts.body ? devText : null, opts.attachments ?? [], opts.html, opts.brand, opts.files);
     await q("update outbound_messages set status = $2 where id = $1", [m!.id, ok ? "sent" : "failed"]);
   }
   console.log(`[outbound ${channel} → ${recipient}] ${template}: ${devText}${opts.attachments?.length ? ` (+${opts.attachments.length} attachment${opts.attachments.length === 1 ? "" : "s"})` : ""}`);

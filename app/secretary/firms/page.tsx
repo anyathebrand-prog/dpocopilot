@@ -24,7 +24,7 @@ async function setDpco(fd: FormData) {
   const f = await one("select id, name from firms where id = $1 and plan = 'solo'", [/^[0-9a-f-]{36}$/.test(str(fd, "firm_id")) ? str(fd, "firm_id") : null]);
   const d = str(fd, "dpco_firm_id") ? await one("select id, name from firms where id = $1 and plan = 'firm'", [/^[0-9a-f-]{36}$/.test(str(fd, "dpco_firm_id")) ? str(fd, "dpco_firm_id") : null]) : null;
   if (!f || (str(fd, "dpco_firm_id") && !d)) redirect("/secretary/firms");
-  await q("update firms set dpco_firm_id = $2 where id = $1", [f.id, d?.id ?? null]);
+  await q("update firms set dpco_firm_id = $2, dpco_status = $3 where id = $1", [f.id, d?.id ?? null, d ? "approved" : null]); // set by the Secretary: approved
   await audit(u, "update", "firm", f.id, { firm_id: f.id, details: { dpco_firm_id: d?.id ?? null } });
   redirect(flash("/secretary/firms", d ? `${f.name} now works with ${d.name}` : `${f.name} will choose its DPCO at next sign-in`));
 }

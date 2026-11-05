@@ -1,11 +1,13 @@
 "use server";
 import { redirect } from "next/navigation";
 import { ndpcBlock } from "@/lib/ndpc-guard";
-import { requireFirm, audit } from "@/lib/auth";
+import { requireFirm, audit, send } from "@/lib/auth";
 import { q, one } from "@/lib/db";
 import { str, opt, flash } from "@/lib/form";
 import { imageSize } from "@/lib/files";
-import { PROPOSAL_SECTORS, TIERS, type Fin } from "@/lib/proposal";
+import { PROPOSAL_SECTORS, TIERS, type Fin, proposalHtml, coverLetterHtml } from "@/lib/proposal";
+import { htmlToDocx } from "@/lib/docx";
+import { notifyFirm, REVIEWERS } from "@/lib/solo";
 import { SERVICES, type Line } from "@/lib/invoice";
 import { todayWAT } from "@/lib/rules";
 import { COUNTRY, parseAmount } from "@/lib/country";
@@ -65,8 +67,9 @@ export async function saveProposal(fd: FormData) {
       [u.firm_id, `PRP-${year}-${String(n + 1).padStart(3, "0")}`, u.id, ...vals]))!.id;
   }
   if (logo !== undefined) await q("update proposals set logo = $2, logo_w = $3, logo_h = $4 where id = $1", [pid, logo?.data ?? null, logo?.w ?? null, logo?.h ?? null]);
+  if (u.plan === "solo") await q("update proposals set review_status = null where id = $1", [pid]); // a Solo DPO's edited proposal needs approval again
   await audit(u, existing ? "update" : "create", "proposal", pid, {});
-  redirect(flash(`/app/proposals/${pid}`, existing ? "Proposal saved" : "Proposal created. Download the proposal and cover letter below."));
+  redirect(flash(`/app/proposals/${pid}`, u.plan === "solo" ? (existing ? "Proposal saved. Submit it to your DPCO for approval." : "Proposal created. Submit it to your DPCO for approval.") : existing ? "Proposal saved" : "Proposal created. Download the proposal and cover letter below."));
 }
 
 export async function setProposalStatus(fd: FormData) {
@@ -77,4 +80,46 @@ export async function setProposalStatus(fd: FormData) {
   await q("update proposals set status = $2, updated_at = now() where id = $1", [p.id, status]);
   await audit(u, "update", "proposal", p.id, { details: { status } });
   redirect(flash(`/app/proposals/${p.id}`, `Marked as ${status}`));
+}
+
+/** Solo DPO: send a proposal to their DPCO for approval. */
+export async function submitForReview(fd: FormData) {
+  const u = await requireFirm();
+  if (u.plan !== "solo" || u.dpco_status !== "approved" || !u.dpco_firm_id) redirect("/forbidden");
+  const p = await one("update proposals set review_status = 'submitted', updated_at = now() where id = $1 and firm_id = $2 and (review_status is null or review_status = 'returned') returning id, number, client_name",
+    [/^[0-9a-f-]{36}$/.test(str(fd, "id")) ? str(fd, "id") : null, u.firm_id]);
+  if (!p) redirect("/app/proposals");
+  await audit(u, "update", "proposal", p.id, { details: { review: "submitted" } });
+  await notifyFirm(u.dpco_firm_id, "proposal_review", `${u.name} (${u.firm_name}) submitted proposal ${p.number} for ${p.client_name} for your approval.`, "/app/solo-dpos", REVIEWERS);
+  redirect(flash(`/app/proposals/${p.id}`, `Submitted to ${u.dpco_name} for approval. You'll be notified when they respond.`));
+}
+
+/** Email the proposal and cover letter (Word) to the client. A Solo DPO can only do this once their DPCO has approved it. */
+export async function emailProposal(fd: FormData) {
+  const u = await requireFirm();
+  const p = await one("select * from proposals where id = $1 and firm_id = $2", [/^[0-9a-f-]{36}$/.test(str(fd, "id")) ? str(fd, "id") : null, u.firm_id]);
+  if (!p) redirect("/forbidden");
+  if (u.plan === "solo" && p.review_status !== "approved") redirect(flash(`/app/proposals/${p.id}`, "Your DPCO must approve this proposal before you send it.", "error"));
+  const firm = (await one("select * from firms where id = $1", [u.firm_id]))!;
+  const created = p.created_at instanceof Date ? p.created_at.toISOString() : String(p.created_at);
+  const files = [];
+  for (const [make, label] of [[proposalHtml, "Proposal"], [coverLetterHtml, "Cover letter"]] as const) {
+    const r = make({ ...p, created_at: created } as any, firm);
+    files.push({ filename: `${label} ${p.number} - ${p.client_name}.docx`.replace(/[\/:*?"<>|]+/g, "-"), content: (await htmlToDocx(r.body, { title: r.title })).toString("base64") });
+  }
+  const to = p.contact_name ? `Dear ${p.contact_name},` : "Dear Sir/Madam,";
+  await send("email", p.email, "proposal_sent", `Proposal ${p.number}: NDPA compliance services for ${p.client_name}`, {
+    body: `${to}
+
+Please find attached our proposal (${p.number}) for data protection compliance services under the Nigeria Data Protection Act, 2023, with our cover letter.
+
+We look forward to hearing from you.
+
+Yours faithfully,
+${u.name}
+${firm.name}`,
+    brand: firm.name, files });
+  await q("update proposals set status = 'sent', updated_at = now() where id = $1", [p.id]);
+  await audit(u, "update", "proposal", p.id, { details: { emailed_to: p.email } });
+  redirect(flash(`/app/proposals/${p.id}`, `Proposal and cover letter emailed to ${p.email}.`));
 }

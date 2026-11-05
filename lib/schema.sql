@@ -943,3 +943,12 @@ alter table notifications add constraint notifications_kind_check check (kind in
 
 -- A Solo DPO works under one DPCO firm registered on the platform, chosen at first sign-in; only the Secretary can change it.
 alter table firms add column if not exists dpco_firm_id uuid references firms;
+
+-- Solo DPO approval by their chosen DPCO, and the DPCO's review of a Solo DPO's proposals before they reach the client.
+alter table firms add column if not exists dpco_status text check (dpco_status in ('pending','approved','declined'));
+alter table proposals add column if not exists review_status text check (review_status in ('submitted','approved','returned'));
+alter table proposals add column if not exists review_note text;
+alter table proposals add column if not exists reviewed_by uuid references users;
+alter table proposals add column if not exists reviewed_at timestamptz;
+alter table notifications drop constraint if exists notifications_kind_check;
+alter table notifications add constraint notifications_kind_check check (kind in ('breach_reported','dsar_logged','evidence_submitted','signed_off','questionnaire_completed','car_due','renewal_notices','solo_request','solo_decision','proposal_review','proposal_decision'));
