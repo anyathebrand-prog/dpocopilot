@@ -26,7 +26,7 @@ const esc = (s: unknown) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&
 
 /** The cover letter HTML for a client report. `title` is the report's own name. */
 export async function reportCover(clientId: string, kind: Kind, title: string) {
-  const c = (await one("select f.*, c.name as client_name from clients c join firms f on f.id = c.firm_id where c.id = $1", [clientId]))!;
+  const c = (await one("select f.*, c.name as client_name from clients c join doc_firms f on f.id = c.firm_id where c.id = $1", [clientId]))!;
   const ans = await answersOf(clientId), s = (k: string) => (typeof ans[k] === "string" && (ans[k] as string).trim() ? (ans[k] as string).trim() : null);
   const org = s("org_legal_name") ?? c.client_name, dpo = s("dpo_name"), a = ABOUT[kind], today = todayWAT();
   const initials = (n: string) => n.split(/\s+/).filter((w) => /^[A-Za-z]/.test(w) && !/^(ltd|limited|plc|of|and|the)\.?$/i.test(w)).map((w) => w[0].toUpperCase()).join("").slice(0, 6);

@@ -994,3 +994,23 @@ create table if not exists withdrawals (
 -- (schema.sql re-runs on every start: an older, shorter list re-added later fails on existing rows and stops the app.)
 alter table notifications drop constraint if exists notifications_kind_check;
 alter table notifications add constraint notifications_kind_check check (kind in ('breach_reported','dsar_logged','evidence_submitted','signed_off','questionnaire_completed','car_due','renewal_notices','solo_request','solo_decision','proposal_review','proposal_decision','withdrawal_request','withdrawal_decision'));
+
+-- The firm identity printed on documents. A Solo DPO approved by a DPCO prints the DPCO's branding (name, logo, address,
+-- website, NDPC licence, RC number) with their own signatory and contact details (set on My details); everyone else, as is.
+-- Recreated on every start (a view holds no data), so its columns can change freely.
+drop view if exists doc_firms;
+create view doc_firms as
+select f.id, f.created_by, f.created_at, f.plan, f.dpco_firm_id, f.dpco_status, f.solo_share_pct,
+  case when s then d.name else f.name end as name,
+  case when s then d.address else f.address end as address,
+  case when s then d.website else f.website end as website,
+  case when s then d.ndpc_licence_no else f.ndpc_licence_no end as ndpc_licence_no,
+  case when s then d.rc_number else f.rc_number end as rc_number,
+  case when s then d.logo else f.logo end as logo,
+  case when s then d.logo_w else f.logo_w end as logo_w,
+  case when s then d.logo_h else f.logo_h end as logo_h,
+  coalesce(f.email, case when s then d.email end) as email,
+  coalesce(f.phone, case when s then d.phone end) as phone,
+  f.signatory_name, f.signatory_credentials, f.signatory_title
+from firms f left join firms d on d.id = f.dpco_firm_id
+cross join lateral (select f.plan = 'solo' and f.dpco_status = 'approved' and d.id is not null as s) x;

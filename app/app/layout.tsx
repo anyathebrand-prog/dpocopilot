@@ -42,6 +42,7 @@ export default async function FirmLayout({ children }: { children: ReactNode }) 
             <NavLink href="/app/ask"><MessageSquareText aria-hidden />Ask</NavLink>
             {isAdmin(u) && u.plan !== "solo" && <NavLink href="/app/import"><Upload aria-hidden />Import</NavLink>}
             {isAdmin(u) && u.plan !== "solo" && <NavLink href="/app/settings/firm"><Building2 aria-hidden />Firm profile</NavLink>}
+            {u.plan === "solo" && <NavLink href="/app/settings/me"><Building2 aria-hidden />My details</NavLink>}
             {isAdmin(u) && u.plan !== "solo" && <NavLink href="/app/settings/team"><Users aria-hidden />Team</NavLink>}
             {isAdmin(u) && <NavLink href="/app/settings/activity"><Settings aria-hidden />Activity log</NavLink>}
           </nav>
