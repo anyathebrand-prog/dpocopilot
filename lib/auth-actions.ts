@@ -71,8 +71,8 @@ export async function signUp(fd: FormData) {
   const token = str(fd, "token"), solo = str(fd, "plan") === "solo";
   const back = token ? `/sign-up?token=${encodeURIComponent(token)}` : solo ? "/sign-up?plan=solo" : "/sign-up";
   if (!(await signUpOpen(token))) redirect(flash("/sign-in", "This workspace is already set up. Sign in, or ask your firm administrator for an invitation.", "error"));
-  const name = str(fd, "name"), email = str(fd, "email").toLowerCase(), password = String(fd.get("password") ?? ""), firm = str(fd, "firm");
-  if (!name || !firm || !/^\S+@\S+\.\S+$/.test(email)) redirect(flash(back, `Enter your name, a valid email and your ${solo ? "practice" : "firm"}'s name.`, "error"));
+  const name = str(fd, "name"), email = str(fd, "email").toLowerCase(), password = String(fd.get("password") ?? ""), firm = solo ? str(fd, "name") : str(fd, "firm"); // a Solo DPO's practice carries their own name
+  if (!name || !firm || !/^\S+@\S+\.\S+$/.test(email)) redirect(flash(back, solo ? "Enter your name and a valid email." : "Enter your name, a valid email and your firm's name.", "error"));
   if (!validPassword(password)) redirect(flash(back, "Use a password of at least 10 characters.", "error"));
   if (await one("select 1 from users where lower(email) = $1", [email])) redirect(flash(back, "An account with this email exists. Sign in instead.", "error"));
   // Solo DPO: professional details, shown to the DPCO they ask to work under.

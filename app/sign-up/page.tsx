@@ -42,7 +42,7 @@ export default async function SignUp({ searchParams }: { searchParams: Promise<R
               <label className="sp-field"><span>Your full name <em className="req" aria-hidden="true">*</em><span className="sr-only">(required)</span></span><input name="name" autoComplete="name" required /></label>
               <label className="sp-field"><span>Work email <em className="req" aria-hidden="true">*</em><span className="sr-only">(required)</span></span><input type="email" name="email" autoComplete="email" required /></label>
               <label className="sp-field"><span>Password <em>(required, at least 10 characters)</em></span><input type="password" name="password" autoComplete="new-password" minLength={10} required /></label>
-              <label className="sp-field"><span>{solo ? "Practice name" : "Firm name"} {req}</span><input name="firm" autoComplete="organization" required placeholder={solo ? "e.g. Chika Okoro Privacy Consulting" : undefined} /></label>
+              {!solo && <label className="sp-field"><span>Firm name {req}</span><input name="firm" autoComplete="organization" required /></label>}
               {solo && (
                 <>
                   <input type="hidden" name="plan" value="solo" />
