@@ -1,4 +1,6 @@
 import { redirect } from "next/navigation";
+import { addSoloClient } from "@/lib/clients";
+import { ndpcBlock } from "@/lib/ndpc-guard";
 import { requireFirmRole, audit } from "@/lib/auth";
 import { q, one } from "@/lib/db";
 import { str, flash } from "@/lib/form";
@@ -49,6 +51,24 @@ async function saveShare(fd: FormData) {
   if (!f) redirect(BACK);
   await audit(u, "update", "firm", str(fd, "firm_id"), { firm_id: u.firm_id, details: { solo_share_pct: pct } });
   redirect(flash(BACK, `${f.name}'s share set to ${pct}%`));
+}
+
+/** Add a client to an approved Solo DPO's workspace (checked against last year's NDPC audit filings, as for any new client). */
+async function addClientFor(fd: FormData) {
+  "use server";
+  const u = await reviewer();
+  const f = await one("select id, name from firms where id = $1 and dpco_firm_id = $2 and dpco_status = 'approved'", [str(fd, "firm_id"), u.firm_id]);
+  const name = str(fd, "client_name").slice(0, 200);
+  const subjects = Number(str(fd, "data_subjects_count") || 0), depts = Number(str(fd, "departments_count") || 0);
+  if (!f) redirect(BACK);
+  if (!name || ![subjects, depts].every((n) => Number.isInteger(n) && n >= 0)) redirect(flash(BACK, "Enter the client's name and whole numbers for data subjects and departments.", "error"));
+  const why = await ndpcBlock(f.id, name);
+  if (why) redirect(flash(BACK, why, "error"));
+  const c = await addSoloClient(f.id, u.id, { name, subjects, departments: depts });
+  if (!c.created) redirect(flash(BACK, `${f.name} already has a client called ${name}.`, "error"));
+  await audit(u, "create", "client", c.id, { client_id: c.id, firm_id: f.id, details: { added_by_dpco: u.firm_id } });
+  await notifyFirm(f.id, "solo_decision", `${u.firm_name} added ${name} as a client in your workspace.`, `/app/clients/${c.id}`);
+  redirect(flash(BACK, `${name} added to ${f.name}'s clients.`));
 }
 
 /** A Solo DPO's professional details from sign-up, with their certificate and CV. */
@@ -102,7 +122,14 @@ export default async function SoloDpos({ searchParams }: { searchParams: Promise
       <h2>Working under {u.firm_name}</h2>
       {approved.length === 0 ? <Empty><p>No approved Solo DPOs yet.</p></Empty> : (
         <table className="register"><thead><tr><th>Solo DPO</th><th>Practice</th><th>Details</th><th>Their share of paid invoices</th></tr></thead>
-          <tbody>{approved.map((s) => <tr key={s.id}><td>{s.person}<div className="meta">{s.email}</div></td><td data-label="Practice">{s.name}</td><td data-label="Details"><Profile s={s} /></td>
+          <tbody>{approved.map((s) => <tr key={s.id}><td>{s.person}<div className="meta">{s.email}</div></td><td data-label="Practice">{s.name}</td><td data-label="Details"><Profile s={s} />
+              <details style={{ marginTop: 6 }}><summary className="meta" style={{ cursor: "pointer" }}>Add a client for {s.person}</summary>
+                <form action={addClientFor} style={{ marginTop: 6 }}><Hidden values={{ firm_id: s.id }} />
+                  <Field label="Client name" required><input name="client_name" required /></Field>
+                  <div className="row"><Field label="Data subjects"><input type="number" name="data_subjects_count" min={0} style={{ width: 120 }} /></Field><Field label="Departments"><input type="number" name="departments_count" min={0} style={{ width: 100 }} /></Field></div>
+                  <Submit className="btn secondary">Add client</Submit>
+                </form>
+              </details></td>
             <td data-label="Share"><form action={saveShare} className="row"><Hidden values={{ firm_id: s.id }} /><input type="number" name="solo_share_pct" min={0} max={100} step="0.01" defaultValue={Number(s.solo_share_pct ?? 0)} aria-label={`Share for ${s.person}`} style={{ width: 90 }} /> %<Submit className="btn secondary">Save</Submit></form></td></tr>)}</tbody></table>
       )}
     </>

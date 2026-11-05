@@ -1,11 +1,12 @@
 "use server";
 import { redirect } from "next/navigation";
+import { addSoloClient } from "@/lib/clients";
 import { ndpcBlock } from "@/lib/ndpc-guard";
 import { requireFirm, audit, send } from "@/lib/auth";
 import { q, one } from "@/lib/db";
 import { str, opt, flash } from "@/lib/form";
 import { imageSize } from "@/lib/files";
-import { PROPOSAL_SECTORS, TIERS, type Fin, proposalHtml, coverLetterHtml } from "@/lib/proposal";
+import { PROPOSAL_SECTORS, TIERS, type Fin, proposalHtml, coverLetterHtml, units } from "@/lib/proposal";
 import { htmlToDocx } from "@/lib/docx";
 import { notifyFirm, REVIEWERS } from "@/lib/solo";
 import { SERVICES, type Line } from "@/lib/invoice";
@@ -74,11 +75,16 @@ export async function saveProposal(fd: FormData) {
 
 export async function setProposalStatus(fd: FormData) {
   const u = await requireFirm();
-  const p = await one("select id from proposals where id = $1 and firm_id = $2", [/^[0-9a-f-]{36}$/.test(str(fd, "id")) ? str(fd, "id") : null, u.firm_id]);
+  const p = await one("select id, client_name, subjects_count, departments, sector from proposals where id = $1 and firm_id = $2", [/^[0-9a-f-]{36}$/.test(str(fd, "id")) ? str(fd, "id") : null, u.firm_id]);
   const status = str(fd, "status");
   if (!p || !["draft", "sent", "accepted", "declined"].includes(status)) redirect("/forbidden");
   await q("update proposals set status = $2, updated_at = now() where id = $1", [p.id, status]);
   await audit(u, "update", "proposal", p.id, { details: { status } });
+  if (status === "accepted" && u.plan === "solo") { // a Solo DPO's accepted proposal becomes a client
+    const c = await addSoloClient(u.firm_id, u.id, { name: p.client_name, subjects: p.subjects_count, departments: units(p.departments).length, sector: p.sector });
+    if (c.created) await audit(u, "create", "client", c.id, { client_id: c.id, details: { from_proposal: p.id } });
+    redirect(flash(`/app/clients/${c.id}`, c.created ? `Marked as accepted. ${p.client_name} is now a client.` : `Marked as accepted. ${p.client_name} was already a client.`));
+  }
   redirect(flash(`/app/proposals/${p.id}`, `Marked as ${status}`));
 }
 
