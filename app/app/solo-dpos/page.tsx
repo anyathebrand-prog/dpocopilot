@@ -39,6 +39,18 @@ async function review(fd: FormData) {
   redirect(flash(BACK, ok ? `Proposal ${p.number} approved and sent back.` : `Proposal ${p.number} returned with your note.`));
 }
 
+/** The Solo DPO's % of their paid client invoices, which this firm collects and pays out through their wallet. */
+async function saveShare(fd: FormData) {
+  "use server";
+  const u = await reviewer();
+  const pct = Number(str(fd, "solo_share_pct") || 0);
+  if (!Number.isFinite(pct) || pct < 0 || pct > 100) redirect(flash(BACK, "Enter a percentage between 0 and 100.", "error"));
+  const f = await one("update firms set solo_share_pct = $3 where id = $1 and dpco_firm_id = $2 and dpco_status = 'approved' returning name", [str(fd, "firm_id"), u.firm_id, Math.round(pct * 100) / 100]);
+  if (!f) redirect(BACK);
+  await audit(u, "update", "firm", str(fd, "firm_id"), { firm_id: u.firm_id, details: { solo_share_pct: pct } });
+  redirect(flash(BACK, `${f.name}'s share set to ${pct}%`));
+}
+
 /** A Solo DPO's professional details from sign-up, with their certificate and CV. */
 function Profile({ s }: { s: Record<string, any> }) {
   if (!s.certification) return null;
@@ -55,7 +67,7 @@ function Profile({ s }: { s: Record<string, any> }) {
 export default async function SoloDpos({ searchParams }: { searchParams: Promise<Record<string, string>> }) {
   const u = await reviewer();
   const sp = await searchParams;
-  const solos = await q(`select f.id, f.name, f.dpco_status, us.name as person, us.email, sp.phone, sp.state, sp.years_experience, sp.certification, sp.ndpc_number, sp.linkedin, sp.cert_name, sp.cv_name from firms f
+  const solos = await q(`select f.id, f.name, f.dpco_status, f.solo_share_pct, us.name as person, us.email, sp.phone, sp.state, sp.years_experience, sp.certification, sp.ndpc_number, sp.linkedin, sp.cert_name, sp.cv_name from firms f
     left join solo_profiles sp on sp.firm_id = f.id
     left join lateral (select x.name, x.email from memberships m join users x on x.id = m.user_id where m.firm_id = f.id and m.status = 'active' limit 1) us on true
     where f.dpco_firm_id = $1 and f.dpco_status in ('pending','approved') order by f.name`, [u.firm_id]);
@@ -89,8 +101,9 @@ export default async function SoloDpos({ searchParams }: { searchParams: Promise
       ))}
       <h2>Working under {u.firm_name}</h2>
       {approved.length === 0 ? <Empty><p>No approved Solo DPOs yet.</p></Empty> : (
-        <table className="register"><thead><tr><th>Solo DPO</th><th>Practice</th><th>Details</th></tr></thead>
-          <tbody>{approved.map((s) => <tr key={s.id}><td>{s.person}<div className="meta">{s.email}</div></td><td data-label="Practice">{s.name}</td><td data-label="Details"><Profile s={s} /></td></tr>)}</tbody></table>
+        <table className="register"><thead><tr><th>Solo DPO</th><th>Practice</th><th>Details</th><th>Their share of paid invoices</th></tr></thead>
+          <tbody>{approved.map((s) => <tr key={s.id}><td>{s.person}<div className="meta">{s.email}</div></td><td data-label="Practice">{s.name}</td><td data-label="Details"><Profile s={s} /></td>
+            <td data-label="Share"><form action={saveShare} className="row"><Hidden values={{ firm_id: s.id }} /><input type="number" name="solo_share_pct" min={0} max={100} step="0.01" defaultValue={Number(s.solo_share_pct ?? 0)} aria-label={`Share for ${s.person}`} style={{ width: 90 }} /> %<Submit className="btn secondary">Save</Submit></form></td></tr>)}</tbody></table>
       )}
     </>
   );

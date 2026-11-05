@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { syncInvoiceEarnings } from "@/lib/wallet";
 import { requireClient, audit, send } from "@/lib/auth";
 import { q, one } from "@/lib/db";
 import { str, opt, flash } from "@/lib/form";
@@ -37,6 +38,7 @@ async function setStatus(fd: FormData) {
   const status = str(fd, "status");
   if (!["unpaid", "paid", "cancelled"].includes(status)) redirect("/forbidden");
   await q("update invoices set status = $2, paid_on = $3 where id = $1", [inv.id, status, status === "paid" ? todayWAT() : null]);
+  await syncInvoiceEarnings(inv.id); // paid → team / Solo DPO shares; unpaid or cancelled → shares removed
   if (status === "paid") { // Receipt generated automatically; the client is told it's in the portal.
     let receipt = inv.receipt_no;
     if (!receipt) {

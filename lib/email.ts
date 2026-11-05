@@ -9,7 +9,7 @@ const SUBJECTS: Record<string, string> = {
   questionnaire: "Your data protection questionnaire", car_reminder: "Compliance Audit Return reminder",
   invoice_issued: "New invoice", receipt_issued: "Payment receipt", audit_notice: "Compliance Audit Notification",
   dsar_acknowledgement: "We have received your data request", email_changed: "Your login email was changed",
-  solo_request: "A Solo DPO wants to work with your firm", solo_decision: "Your DPCO has responded", proposal_review: "A proposal is waiting for your approval", proposal_decision: "Your proposal has been reviewed",
+  solo_request: "A Solo DPO wants to work with your firm", solo_decision: "Your DPCO has responded", proposal_review: "A proposal is waiting for your approval", proposal_decision: "Your proposal has been reviewed", withdrawal_request: "Withdrawal request to pay", withdrawal_decision: "Your withdrawal",
 };
 
 // Our logo travels inside the email as an inline attachment (cid:), so it shows even before the site is public.
@@ -19,7 +19,7 @@ const inlineLogo = async () => ({ filename: "logo.png", content: (await import("
 // Label for the button made from the email's link.
 const BUTTONS: Record<string, string> = {
   invitation: "Accept invitation", breach_alert: "View breach", evidence_request: "Open portal", signoff_request: "Review document",
-  questionnaire: "Open questionnaire", solo_request: "Review request", solo_decision: "Open DPO Copilot", proposal_review: "Review proposal", proposal_decision: "Open proposal", car_reminder: "Open portal", invoice_issued: "View invoice", receipt_issued: "View receipt", audit_notice: "View letter",
+  questionnaire: "Open questionnaire", solo_request: "Review request", solo_decision: "Open DPO Copilot", proposal_review: "Review proposal", proposal_decision: "Open proposal", withdrawal_request: "Open payouts", withdrawal_decision: "Open wallet", car_reminder: "Open portal", invoice_issued: "View invoice", receipt_issued: "View receipt", audit_notice: "View letter",
 };
 
 export const emailOn = () => !!(process.env.RESEND_API_KEY && process.env.EMAIL_FROM);

@@ -966,3 +966,36 @@ create table if not exists solo_profiles (
   cv_file bytea, cv_mime text, cv_name text,
   created_at timestamptz not null default now()
 );
+
+-- Wallets: what DPCO staff and Solo DPOs have earned (task fees, their % of paid client invoices) and withdrawn.
+-- The DPCO pays withdrawals from its own bank and marks them paid; no money passes through DPO Copilot.
+alter table memberships add column if not exists earning_pct numeric(5,2) not null default 0 check (earning_pct between 0 and 100);
+alter table firms add column if not exists solo_share_pct numeric(5,2) not null default 0 check (solo_share_pct between 0 and 100);
+alter table users add column if not exists bank_name text;
+alter table users add column if not exists bank_account_number text;
+alter table users add column if not exists bank_account_name text;
+create table if not exists wallet_entries (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references users,
+  payer_firm_id uuid not null references firms,
+  kind text not null check (kind in ('task_fee','invoice_share')),
+  source_id uuid not null,
+  amount numeric(14,2) not null check (amount > 0),
+  description text not null,
+  created_at timestamptz not null default now(),
+  unique (kind, source_id, user_id)
+);
+create table if not exists withdrawals (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references users,
+  payer_firm_id uuid not null references firms,
+  amount numeric(14,2) not null check (amount > 0),
+  bank_name text not null, bank_account_number text not null, bank_account_name text not null,
+  status text not null default 'pending' check (status in ('pending','paid','rejected')),
+  note text,
+  decided_by uuid references users,
+  decided_at timestamptz,
+  created_at timestamptz not null default now()
+);
+alter table notifications drop constraint if exists notifications_kind_check;
+alter table notifications add constraint notifications_kind_check check (kind in ('breach_reported','dsar_logged','evidence_submitted','signed_off','questionnaire_completed','car_due','renewal_notices','solo_request','solo_decision','proposal_review','proposal_decision','withdrawal_request','withdrawal_decision'));
