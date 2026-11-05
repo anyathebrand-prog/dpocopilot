@@ -1,3 +1,6 @@
+import { redirect } from "next/navigation";
+import { naira } from "@/lib/invoice";
+import { money } from "@/lib/proposal";
 import Link from "next/link";
 import { requireFirm, canApprove, clientScope, scopeArgs, isAdmin } from "@/lib/auth";
 import { q } from "@/lib/db";
@@ -14,6 +17,8 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
   const archived = sp.archived === "1";
   const scope = clientScope(u), args = scopeArgs(u);
   const today = todayWAT();
+  // Solo DPO: the prospects their proposals went to (marked sent, accepted or declined).
+  const sent = u.plan === "solo" ? await q("select * from proposals where firm_id = $1 and status in ('sent','accepted','declined') order by updated_at desc", [u.firm_id]) : [];
 
   const breaches = await q(`select b.id, b.client_id, b.deadline_at, b.reported_via, c.name as client_name from breaches b join clients c on c.id = b.client_id
     where ${scope} and b.status = 'open' and b.notification_required <> 'no' and c.archived_at is null
@@ -62,9 +67,28 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
         </section>
       )}
 
+      {u.plan === "solo" && !archived && (
+        <section style={{ marginBottom: 24 }}>
+          <h2 style={{ marginTop: 0 }}>Clients you&apos;ve sent proposals to</h2>
+          {sent.length === 0 ? <p className="meta">None yet. Once {u.dpco_name ?? "your DPCO"} approves a proposal and you send it, mark it as Sent on the proposal and it appears here.</p> : (
+            <table className="register">
+              <thead><tr><th>Client</th><th>Proposal</th><th className="num">Total</th><th>Status</th></tr></thead>
+              <tbody>{sent.map((p) => (
+                <tr key={p.id}>
+                  <td>{p.client_name}<div className="meta">{p.email}</div></td>
+                  <td data-label="Proposal"><Link href={`/app/proposals/${p.id}`}>{p.number}</Link></td>
+                  <td data-label="Total" className="num">{naira(money(p as any).total)}</td>
+                  <td data-label="Status" className="small">{p.status === "accepted" ? "Accepted" : p.status === "declined" ? "Declined" : "Sent"}</td>
+                </tr>
+              ))}</tbody>
+            </table>
+          )}
+        </section>
+      )}
+
       <PageHead title={archived ? "Archived clients" : "Clients"}>
         <Link className="btn quiet" href={archived ? "/app" : "/app?archived=1"}>{archived ? "Show active clients" : "Show archived"}</Link>
-        {u.role !== "associate" && !archived && <Link className="btn secondary" href="/app/audit-notices">Generate Compliance Audit Notification Letter</Link>}
+        {u.role !== "associate" && !archived && u.plan !== "solo" && <Link className="btn secondary" href="/app/audit-notices">Generate Compliance Audit Notification Letter</Link>}
         {u.role !== "associate" && !archived && <Link className="btn" href="/app/clients/new">Add client</Link>}
       </PageHead>
 

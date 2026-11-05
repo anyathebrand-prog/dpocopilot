@@ -59,6 +59,7 @@ async function sendNotices(fd: FormData) {
 
 export default async function AuditNotices({ searchParams }: { searchParams: Promise<Record<string, string>> }) {
   const u = await requireFirm();
+  if (u.plan === "solo") redirect("/app"); // not part of the Solo DPO workspace
   const sp = await searchParams;
   const year = validYear(sp.year ?? "") ?? Number(todayWAT().slice(0, 4));
   // CAR notices go only to clients whose country has the NDPC CAR.
