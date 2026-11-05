@@ -39,11 +39,25 @@ async function review(fd: FormData) {
   redirect(flash(BACK, ok ? `Proposal ${p.number} approved and sent back.` : `Proposal ${p.number} returned with your note.`));
 }
 
+/** A Solo DPO's professional details from sign-up, with their certificate and CV. */
+function Profile({ s }: { s: Record<string, any> }) {
+  if (!s.certification) return null;
+  const file = (kind: string) => `/solo-file?firm=${s.id}&kind=${kind}`;
+  return (
+    <div className="small" style={{ marginTop: 6 }}>
+      {s.certification} · {s.years_experience} year{s.years_experience === 1 ? "" : "s"} · {s.state} · {s.phone}
+      {s.ndpc_number && <> · NDPC no. {s.ndpc_number}</>}
+      <div className="row" style={{ gap: 12 }}><a href={file("cert")} target="_blank">Certificate</a>{s.cv_name && <a href={file("cv")} target="_blank">CV</a>}{s.linkedin && <a href={s.linkedin} target="_blank" rel="noreferrer">LinkedIn</a>}</div>
+    </div>
+  );
+}
+
 /** DPCO firm: approve Solo DPOs who want to work under the firm, and review their proposals before they reach clients. */
 export default async function SoloDpos({ searchParams }: { searchParams: Promise<Record<string, string>> }) {
   const u = await reviewer();
   const sp = await searchParams;
-  const solos = await q(`select f.id, f.name, f.dpco_status, us.name as person, us.email from firms f
+  const solos = await q(`select f.id, f.name, f.dpco_status, us.name as person, us.email, sp.phone, sp.state, sp.years_experience, sp.certification, sp.ndpc_number, sp.linkedin, sp.cert_name, sp.cv_name from firms f
+    left join solo_profiles sp on sp.firm_id = f.id
     left join lateral (select x.name, x.email from memberships m join users x on x.id = m.user_id where m.firm_id = f.id and m.status = 'active' limit 1) us on true
     where f.dpco_firm_id = $1 and f.dpco_status in ('pending','approved') order by f.name`, [u.firm_id]);
   const props = await q(`select p.*, f.name as solo from proposals p join firms f on f.id = p.firm_id
@@ -57,7 +71,7 @@ export default async function SoloDpos({ searchParams }: { searchParams: Promise
       <h2>Requests to work under {u.firm_name}</h2>
       {pending.length === 0 ? <p className="meta">No requests waiting.</p> : pending.map((s) => (
         <form key={s.id} action={decide} className="rule-row info"><Hidden values={{ firm_id: s.id }} />
-          <span><b>{s.person ?? s.name}</b> · {s.name}<div className="meta">{s.email}</div></span>
+          <span><b>{s.person ?? s.name}</b> · {s.name}<div className="meta">{s.email}</div><Profile s={s} /></span>
           <span className="row"><Submit name="op" value="approve">Approve</Submit><Submit className="btn secondary" name="op" value="decline">Decline</Submit></span>
         </form>
       ))}
@@ -76,8 +90,8 @@ export default async function SoloDpos({ searchParams }: { searchParams: Promise
       ))}
       <h2>Working under {u.firm_name}</h2>
       {approved.length === 0 ? <Empty><p>No approved Solo DPOs yet.</p></Empty> : (
-        <table className="register"><thead><tr><th>Solo DPO</th><th>Practice</th><th>Email</th></tr></thead>
-          <tbody>{approved.map((s) => <tr key={s.id}><td>{s.person}</td><td data-label="Practice">{s.name}</td><td data-label="Email">{s.email}</td></tr>)}</tbody></table>
+        <table className="register"><thead><tr><th>Solo DPO</th><th>Practice</th><th>Details</th></tr></thead>
+          <tbody>{approved.map((s) => <tr key={s.id}><td>{s.person}<div className="meta">{s.email}</div></td><td data-label="Practice">{s.name}</td><td data-label="Details"><Profile s={s} /></td></tr>)}</tbody></table>
       )}
     </>
   );
