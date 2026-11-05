@@ -15,6 +15,7 @@ import { sizeFor } from "@/lib/client-size";
 async function createClient(fd: FormData) {
   "use server";
   const u = await requireFirmRole("firm_admin", "lead_consultant");
+  if (u.plan === "solo") redirect("/app"); // Solo DPOs get clients from accepted proposals or their DPCO
   const name = str(fd, "name");
   if (!name) redirect("/app/clients/new?error=Enter+the+client%27s+name");
   const why = await ndpcBlock(u.firm_id, name);
@@ -49,6 +50,7 @@ async function createClient(fd: FormData) {
 
 export default async function NewClient({ searchParams }: { searchParams: Promise<Record<string, string>> }) {
   const u = await requireFirmRole("firm_admin", "lead_consultant");
+  if (u.plan === "solo") redirect(`/app?error=${encodeURIComponent("Clients come from your accepted proposals, or your DPCO adds them for you.")}`);
   const sp = await searchParams;
   const fees = await Promise.all(SIZES.map(([k]) => feeFor(k)));
   const members = await q("select m.id, u.name, m.role from memberships m join users u on u.id = m.user_id where m.firm_id = $1 and m.status = 'active' order by u.name", [u.firm_id]);

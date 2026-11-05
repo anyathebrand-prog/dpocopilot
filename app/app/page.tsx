@@ -95,7 +95,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
       {clients.length === 0 ? (
         u.role === "associate" ? <Empty><p>You haven&apos;t been assigned any clients yet. Ask your firm administrator.</p></Empty> :
         archived ? <Empty><p>No archived clients.</p></Empty> :
-        u.plan === "solo" ? <Empty><p>No clients yet.</p></Empty> :
+        u.plan === "solo" ? <Empty><p>No clients yet. Mark a proposal as Accepted and the client appears here, or your DPCO can add one for you.</p></Empty> :
         <Empty>
           <p>Add your first client to start their compliance file.</p>
           <div className="row" style={{ justifyContent: "center" }}>

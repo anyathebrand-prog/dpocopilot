@@ -20,3 +20,20 @@ export async function insertClient(t: Tx, firmId: string, userId: string, f: { n
   await startCarYear(t, firmId, id, year);
   return id;
 }
+
+/**
+ * A client in a Solo DPO's workspace, from an accepted proposal or added by their DPCO. Solo DPOs can't add clients themselves.
+ * Returns the existing client when one of that name is already there; no checkout and no portal invitation are started.
+ */
+export async function addSoloClient(soloFirmId: string, byUserId: string, f: { name: string; subjects?: number | null; departments?: number | null; sector?: string | null }) {
+  const { one, tx } = await import("./db");
+  const { sizeFor } = await import("./client-size");
+  const same = await one<{ id: string }>("select id from clients where firm_id = $1 and lower(name) = lower($2)", [soloFirmId, f.name]);
+  if (same) return { id: same.id, created: false };
+  const id = await tx(async (t) => {
+    const id = await insertClient(t, soloFirmId, byUserId, { name: f.name, sector: f.sector ?? null, size: sizeFor(f.subjects ?? 0, f.departments ?? 0) });
+    await t.query("update clients set data_subjects_count = $2, departments_count = $3 where id = $1", [id, f.subjects ?? null, f.departments ?? null]);
+    return id;
+  });
+  return { id, created: true };
+}
