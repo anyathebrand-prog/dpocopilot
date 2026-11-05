@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { ndpcBlock } from "@/lib/ndpc-guard";
 import { invitesHeld, sizeLabel } from "@/lib/checkout";
 import { sizeFor } from "@/lib/client-size";
 import { COUNTRIES, countryOf } from "@/lib/country";
@@ -23,6 +24,8 @@ async function saveDetails(fd: FormData) {
   const subjects = Number(str(fd, "data_subjects_count") || client.data_subjects_count || 0), depts = Number(str(fd, "departments_count") || client.departments_count || 0);
   if (![subjects, depts].every((n) => Number.isInteger(n) && n >= 0 && n <= 1e9)) redirect(flash(path(client.id), "Enter whole numbers for data subjects and departments.", "error"));
   const size = str(fd, "data_subjects_count") || str(fd, "departments_count") ? sizeFor(subjects, depts) : client.size;
+  const newName = str(fd, "name");
+  if (newName && newName !== client.name) { const why = await ndpcBlock(client.firm_id, newName); if (why) redirect(flash(path(client.id), why, "error")); }
   await q("update clients set data_subjects_count = $7, departments_count = $8, name = $2, sector = $3, size = $4, car_filing_due_on = $5, country = $6 where id = $1", [client.id, str(fd, "name") || client.name, opt(fd, "sector"), size, opt(fd, "car_filing_due_on"), countryOf(opt(fd, "country") ?? client.country).code, subjects, depts]);
   await audit(user, "update", "client", client.id, { client_id: client.id });
   redirect(flash(path(client.id), "Details saved"));
