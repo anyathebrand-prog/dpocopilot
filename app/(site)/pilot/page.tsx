@@ -17,7 +17,7 @@ async function request(fd: FormData) {
   const name = str(fd, "name").slice(0, 200), email = str(fd, "email").toLowerCase().slice(0, 200), firm = str(fd, "firm").slice(0, 200);
   if (!name || !firm || !/^\S+@\S+\.\S+$/.test(email)) redirect(flash("/pilot", "Enter your name, work email and firm name.", "error"));
   await q("insert into pilot_requests (name, email, firm, client_count, phone, message) values ($1,$2,$3,$4,$5,$6)",
-    [name, email, firm, opt(fd, "client_count"), opt(fd, "phone")?.slice(0, 40) ?? null, opt(fd, "message")?.slice(0, 2000) ?? null]);
+    [name, email, firm, opt(fd, "client_count"), opt(fd, "phone")?.slice(0, 40) ?? null, ((str(fd, "plan") === "solo" ? "[Solo DPO plan] " : "") + (opt(fd, "message") ?? "")).slice(0, 2000) || null]);
   redirect(flash("/pilot", "We've got your details and will be in touch soon to set up your workspace."));
 }
 
@@ -34,7 +34,7 @@ export default async function Pilot({ searchParams }: { searchParams: Promise<Re
             <SplitHeading as="h1" className="hp-h2 big" line1="Join" line2="the pilot" />
             <Reveal delay={0.3}><p className="hp-sub">We&apos;re onboarding a small group of DPCO firms and setting each one up personally.</p></Reveal>
           </div>
-          <PilotView action={request} ok={sp.ok} error={sp.error} />
+          <PilotView action={request} ok={sp.ok} error={sp.error} plan={sp.plan === "solo" ? "solo" : undefined} />
         </div>
       </section>
     </div>

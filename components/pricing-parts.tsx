@@ -6,7 +6,7 @@ import { Check, Plus, ArrowRight } from "lucide-react";
 
 const ease = [0.22, 1, 0.36, 1] as const;
 
-export type Tier = { key: string; name: string; who: string; price: string; cta: string; note: string };
+export type Tier = { key: string; name: string; who: string; price: string; cta: string; note: string; href: string };
 
 const cards: Variants = { hidden: {}, show: { transition: { staggerChildren: 0.12, delayChildren: 0.1 } } };
 const card: Variants = { hidden: { opacity: 0, y: 32, filter: "blur(6px)" }, show: { opacity: 1, y: 0, filter: "blur(0px)", transition: { duration: 0.8, ease } } };
@@ -24,7 +24,7 @@ export function Tiers({ tiers }: { tiers: readonly Tier[] }) {
               <h3 id={`t-${t.key}`}>{t.name}</h3>
               <p>{t.who}</p>
               <p className="sp-price">{t.price}</p>
-              <Link href="/pilot" className={main ? "btn-cta" : "hp-ghost"}>{t.cta}{main && <ArrowRight aria-hidden />}</Link>
+              <Link href={t.href} className={main ? "btn-cta" : "hp-ghost"}>{t.cta}{main && <ArrowRight aria-hidden />}</Link>
             </motion.section>
           );
         })}
