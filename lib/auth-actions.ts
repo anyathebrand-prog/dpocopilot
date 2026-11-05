@@ -4,6 +4,7 @@ import { q, one, tx } from "./db";
 import { hashPassword, verifyPassword, sha256, verifyTotp } from "./crypto";
 import { createSession, destroySession, getUser, pendingMfaUser, markMfaPassed, audit, clientIp, home } from "./auth";
 import { str, flash } from "./form";
+import { readDoc, linkedinOk, NG_STATES } from "./solo-profile";
 import { signUpOpen } from "./install";
 
 // Login/MFA throttle: 8 failures per key in a 15-minute window (login_attempts table, shared across restarts and instances).
@@ -67,15 +68,32 @@ export async function setupMfa(fd: FormData) {
 }
 
 export async function signUp(fd: FormData) {
-  const token = str(fd, "token"), back = token ? `/sign-up?token=${encodeURIComponent(token)}` : "/sign-up";
+  const token = str(fd, "token"), solo = str(fd, "plan") === "solo";
+  const back = token ? `/sign-up?token=${encodeURIComponent(token)}` : solo ? "/sign-up?plan=solo" : "/sign-up";
   if (!(await signUpOpen(token))) redirect(flash("/sign-in", "This workspace is already set up. Sign in, or ask your firm administrator for an invitation.", "error"));
   const name = str(fd, "name"), email = str(fd, "email").toLowerCase(), password = String(fd.get("password") ?? ""), firm = str(fd, "firm");
-  if (!name || !firm || !/^\S+@\S+\.\S+$/.test(email)) redirect(flash(back, "Enter your name, a valid email and your firm's name.", "error"));
+  if (!name || !firm || !/^\S+@\S+\.\S+$/.test(email)) redirect(flash(back, `Enter your name, a valid email and your ${solo ? "practice" : "firm"}'s name.`, "error"));
   if (!validPassword(password)) redirect(flash(back, "Use a password of at least 10 characters.", "error"));
   if (await one("select 1 from users where lower(email) = $1", [email])) redirect(flash(back, "An account with this email exists. Sign in instead.", "error"));
+  // Solo DPO: professional details, shown to the DPCO they ask to work under.
+  let profile: unknown[] | null = null;
+  if (solo) {
+    const years = Number(str(fd, "years_experience")), linkedin = str(fd, "linkedin");
+    const cert = await readDoc(fd.get("cert_file")), cv = await readDoc(fd.get("cv_file"));
+    if (!str(fd, "phone") || !NG_STATES.includes(str(fd, "state")) || !Number.isInteger(years) || years < 0 || years > 60 || !str(fd, "certification"))
+      redirect(flash(back, "Enter your phone number, state, years of experience and certification.", "error"));
+    if (!cert || cert === "bad") redirect(flash(back, "Upload your certificate as a PDF, PNG or JPEG under 5 MB.", "error"));
+    if (cv === "bad") redirect(flash(back, "Upload your CV as a PDF, PNG or JPEG under 5 MB.", "error"));
+    if (!linkedinOk(linkedin)) redirect(flash(back, "Enter your LinkedIn profile as a full link (https://www.linkedin.com/in/…).", "error"));
+    if (!cv && !linkedin) redirect(flash(back, "Upload your CV or give your LinkedIn profile.", "error"));
+    profile = [str(fd, "phone").slice(0, 40), str(fd, "state"), years, str(fd, "certification").slice(0, 300), null, linkedin || null,
+      cert.bytes, cert.mime, cert.name, cv?.bytes ?? null, cv?.mime ?? null, cv?.name ?? null];
+  }
   const ids = await tx(async (t) => {
     const u = await t.query<{ id: string }>("insert into users (name, email, password_hash) values ($1,$2,$3) returning id", [name, email, hashPassword(password)]);
-    const f = await t.query<{ id: string }>("insert into firms (name, created_by) values ($1,$2) returning id", [firm, u.rows[0].id]);
+    const f = await t.query<{ id: string }>("insert into firms (name, created_by, plan) values ($1,$2,$3) returning id", [firm, u.rows[0].id, solo ? "solo" : "firm"]);
+    if (profile) await t.query(`insert into solo_profiles (firm_id, phone, state, years_experience, certification, ndpc_number, linkedin, cert_file, cert_mime, cert_name, cv_file, cv_mime, cv_name)
+      values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)`, [f.rows[0].id, ...profile]);
     await t.query("insert into memberships (firm_id, user_id, role) values ($1,$2,'firm_admin')", [f.rows[0].id, u.rows[0].id]);
     await audit({ id: u.rows[0].id, firm_id: f.rows[0].id, role: "firm_admin", kind: "firm" }, "create", "firm", f.rows[0].id, {}, t);
     return u.rows[0].id;

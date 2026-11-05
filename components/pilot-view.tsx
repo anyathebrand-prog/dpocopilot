@@ -18,7 +18,7 @@ const STEPS: [string, string][] = [
 const SIZES = ["1–5", "6–20", "21–50", "More than 50"];
 
 /** Pilot request: a dark card with the stamp scene and next steps, and a dark card with the form (or the success seal). */
-export function PilotView({ action, ok, error, plan }: { action: (fd: FormData) => Promise<void>; ok?: string; error?: string; plan?: "solo" }) {
+export function PilotView({ action, ok, error }: { action: (fd: FormData) => Promise<void>; ok?: string; error?: string }) {
   const [size, setSize] = useState("");
   return (
     <MotionConfig reducedMotion="user">
@@ -73,7 +73,6 @@ export function PilotView({ action, ok, error, plan }: { action: (fd: FormData) 
               </motion.fieldset>
               <motion.label variants={item} className="sp-field"><span>Phone number</span><input type="tel" name="phone" autoComplete="tel" /></motion.label>
               <motion.label variants={item} className="sp-field"><span>Anything we should know?</span><textarea name="message" /></motion.label>
-              {plan && <input type="hidden" name="plan" value={plan} />}
               <div aria-hidden="true" style={{ position: "absolute", left: -9999 }}><label>Website <input name="website" tabIndex={-1} autoComplete="off" /></label></div>
               <motion.p variants={item} className="sp-note">We use these details only to contact you about the pilot. See our <Link href="/privacy">privacy notice</Link>.</motion.p>
               <motion.div variants={item} whileTap={{ scale: 0.98 }} className="sp-submit"><Submit className="btn-cta">Request pilot access</Submit></motion.div>

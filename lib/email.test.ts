@@ -23,3 +23,9 @@ test("a given subject wins; a Resend error returns false instead of throwing", a
   status = 422;
   assert.equal(await deliver("a@b.ng", "otp", "code", null, []), false);
 });
+
+test("raw attachments (e.g. a generated Word proposal) are sent", async () => {
+  status = 200;
+  await deliver("a@b.ng", "proposal_sent", "Dear Sir", "Proposal PRP-1", [], undefined, "Firm", [{ filename: "Proposal.docx", content: "UEsDBA==" }]);
+  assert.deepEqual(JSON.parse(sent!.init.body as string).attachments, [{ filename: "Proposal.docx", content: "UEsDBA==" }]);
+});

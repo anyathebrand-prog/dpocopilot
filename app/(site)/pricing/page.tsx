@@ -11,7 +11,7 @@ import "@/components/site-pages.css";
 export const metadata = { title: "Pricing · DPO Copilot" };
 
 const TIERS = [
-  { key: "solo", name: "Solo DPO", who: "Independent DPOs managing a few clients", price: "Contact us", cta: "Get started", note: "Open now", href: "/pilot?plan=solo" },
+  { key: "solo", name: "Solo DPO", who: "Independent DPOs managing a few clients", price: "Contact us", cta: "Get started", note: "Open now", href: "/sign-up?plan=solo" },
   { key: "firm", name: "DPCO Firm", who: "Licensed compliance firms serving many clients", price: "On request", cta: "Request pilot access", note: "Pilot open now", href: "/pilot" },
 ] as const;
 

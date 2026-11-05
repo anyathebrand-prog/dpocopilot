@@ -1,7 +1,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { Users, ListChecks, Calendar, MessageSquareText, Upload, Settings, Bell, Menu, LayoutList, LogOut, Building2, Receipt, FileSignature, BookOpen, Mail, SearchCheck } from "lucide-react";
-import { requireFirm, isAdmin, ROLE_LABEL, PLAN_LABEL } from "@/lib/auth";
+import { Users, ListChecks, Calendar, MessageSquareText, Upload, Settings, Bell, Menu, LayoutList, LogOut, Building2, Receipt, FileSignature, BookOpen, Mail, SearchCheck, UserCheck } from "lucide-react";
+import { requireFirm, isAdmin, canApprove, ROLE_LABEL, PLAN_LABEL } from "@/lib/auth";
 import { one } from "@/lib/db";
 import { signOut } from "@/lib/auth-actions";
 import { NavLink } from "@/components/client";
@@ -31,6 +31,7 @@ export default async function FirmLayout({ children }: { children: ReactNode }) 
             <NavLink href="/app/tasks"><ListChecks aria-hidden />Tasks</NavLink>
             <NavLink href="/app/calendar"><Calendar aria-hidden />Calendar</NavLink>
             <NavLink href="/app/proposals"><FileSignature aria-hidden />Proposals</NavLink>
+            {u.plan !== "solo" && canApprove(u) && <NavLink href="/app/solo-dpos"><UserCheck aria-hidden />Solo DPOs</NavLink>}
             <NavLink href="/app/billing"><Receipt aria-hidden />Billing</NavLink>
             <NavLink href="/app/audit-notices"><Mail aria-hidden />Audit notices</NavLink>
             <NavLink href="/app/library"><BookOpen aria-hidden />Library</NavLink>

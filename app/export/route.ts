@@ -158,9 +158,11 @@ export async function GET(req: Request) {
   }
   if (kind === "proposal") { // prospect, not a client yet: firm-scoped
     const id = url.searchParams.get("id") ?? "";
-    const p = u.kind === "firm" && /^[0-9a-f-]{36}$/.test(id) ? await one("select * from proposals where id = $1 and firm_id = $2", [id, u.firm_id]) : null;
+    // Own firm's proposals; a Solo DPO's only once approved by their DPCO, whose reviewers may read them while reviewing.
+    const p = u.kind === "firm" && /^[0-9a-f-]{36}$/.test(id) ? await one(`select p.* from proposals p join firms f on f.id = p.firm_id where p.id = $1
+      and ((p.firm_id = $2 and (f.plan <> 'solo' or (p.review_status = 'approved' and $3 <> 'doc'))) or (f.dpco_firm_id = $2 and f.dpco_status = 'approved' and p.review_status is not null))`, [id, u.firm_id, format]) : null; // a Solo DPO gets the approved PDF only
     if (!p) return denied();
-    const firm = (await one("select * from firms where id = $1", [u.firm_id]))!;
+    const firm = (await one("select * from firms where id = $1", [p.firm_id]))!;
     const created = p.created_at instanceof Date ? p.created_at.toISOString() : String(p.created_at);
     const r = (url.searchParams.get("doc") === "letter" ? coverLetterHtml : proposalHtml)({ ...p, created_at: created } as any, firm);
     await audit(u, "export", "proposal", id, { details: { format, doc: url.searchParams.get("doc") ?? "proposal" } });
