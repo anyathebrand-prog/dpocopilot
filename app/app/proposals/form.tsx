@@ -6,13 +6,13 @@ import { saveProposal } from "./actions";
 import { COUNTRY } from "@/lib/country";
 
 /** The proposal form, empty for a new proposal or filled from an existing one. */
-export function ProposalForm({ p }: { p?: Record<string, any> }) {
+export function ProposalForm({ p, name }: { p?: Record<string, any>; name?: string }) {
   const f: Fin = p?.fin ?? {}, lines: Line[] = p?.lines ?? [], line = (s: string) => lines.find((l) => l.service === s);
   return (
     <form action={saveProposal} className="panel" style={{ maxWidth: 920 }}>
       {p && <Hidden values={{ id: p.id }} />}
       <h3 style={{ marginTop: 0 }}>Client</h3>
-      <Field label="Name of the client" required><input name="client_name" required defaultValue={p?.client_name ?? ""} /></Field>
+      <Field label="Name of the client" required><input name="client_name" required defaultValue={p?.client_name ?? name ?? ""} /></Field>
       <Field label="Address" required><textarea name="address" rows={2} required defaultValue={p?.address ?? ""} /></Field>
       <Field label="Email address of the client" required><input type="email" name="email" required defaultValue={p?.email ?? ""} /></Field>
       <div className="row">
