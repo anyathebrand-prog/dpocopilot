@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { q, one, tx } from "./db";
 import { hashPassword, verifyPassword, sha256, verifyTotp } from "./crypto";
 import { createSession, destroySession, getUser, pendingMfaUser, markMfaPassed, audit, clientIp, home } from "./auth";
-import { str, opt, flash } from "./form";
+import { str, flash } from "./form";
 import { readDoc, linkedinOk, NG_STATES } from "./solo-profile";
 import { signUpOpen } from "./install";
 
@@ -86,7 +86,7 @@ export async function signUp(fd: FormData) {
     if (cv === "bad") redirect(flash(back, "Upload your CV as a PDF, PNG or JPEG under 5 MB.", "error"));
     if (!linkedinOk(linkedin)) redirect(flash(back, "Enter your LinkedIn profile as a full link (https://www.linkedin.com/in/…).", "error"));
     if (!cv && !linkedin) redirect(flash(back, "Upload your CV or give your LinkedIn profile.", "error"));
-    profile = [str(fd, "phone").slice(0, 40), str(fd, "state"), years, str(fd, "certification").slice(0, 300), opt(fd, "ndpc_number")?.slice(0, 100) ?? null, linkedin || null,
+    profile = [str(fd, "phone").slice(0, 40), str(fd, "state"), years, str(fd, "certification").slice(0, 300), null, linkedin || null,
       cert.bytes, cert.mime, cert.name, cv?.bytes ?? null, cv?.mime ?? null, cv?.name ?? null];
   }
   const ids = await tx(async (t) => {

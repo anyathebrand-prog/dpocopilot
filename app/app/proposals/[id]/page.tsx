@@ -19,7 +19,7 @@ export default async function ProposalPage({ params, searchParams }: { params: P
   // A Solo DPO's proposal reaches the client only after their DPCO approves it.
   const solo = u.plan === "solo", locked = solo && p.review_status !== "approved";
   const dl = (doc: string) => locked ? <span className="meta">Available once {u.dpco_name} approves it</span>
-    : <div className="row" style={{ marginTop: 8 }}><a className="btn" href={exp(doc, "pdf")} target="_blank">PDF</a><a className="btn secondary" href={exp(doc, "doc")}>Word</a></div>;
+    : <div className="row" style={{ marginTop: 8 }}><a className="btn" href={exp(doc, "pdf")} target="_blank">PDF</a>{!solo && <a className="btn secondary" href={exp(doc, "doc")}>Word</a>}</div>; // Solo DPO: PDF only
   return (
     <>
       <nav className="meta" aria-label="Breadcrumb"><Link href="/app/proposals">Proposals</Link> / {p.number}</nav>

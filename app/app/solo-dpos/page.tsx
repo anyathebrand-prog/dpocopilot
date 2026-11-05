@@ -46,7 +46,6 @@ function Profile({ s }: { s: Record<string, any> }) {
   return (
     <div className="small" style={{ marginTop: 6 }}>
       {s.certification} · {s.years_experience} year{s.years_experience === 1 ? "" : "s"} · {s.state} · {s.phone}
-      {s.ndpc_number && <> · NDPC no. {s.ndpc_number}</>}
       <div className="row" style={{ gap: 12 }}><a href={file("cert")} target="_blank">Certificate</a>{s.cv_name && <a href={file("cv")} target="_blank">CV</a>}{s.linkedin && <a href={s.linkedin} target="_blank" rel="noreferrer">LinkedIn</a>}</div>
     </div>
   );

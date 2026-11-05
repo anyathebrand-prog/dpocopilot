@@ -49,9 +49,8 @@ export default async function SignUp({ searchParams }: { searchParams: Promise<R
                   <label className="sp-field"><span>Phone number {req}</span><input type="tel" name="phone" autoComplete="tel" required /></label>
                   <label className="sp-field"><span>State {req}</span><select name="state" required defaultValue=""><option value="" disabled>Choose…</option>{NG_STATES.map((s) => <option key={s}>{s}</option>)}</select></label>
                   <label className="sp-field"><span>Years of experience in data protection {req}</span><input type="number" name="years_experience" min={0} max={60} required /></label>
-                  <label className="sp-field"><span>Certification {req}</span><input name="certification" required placeholder="e.g. CDPO, CIPP/E, NDPC-recognised DPO training" /></label>
+                  <label className="sp-field"><span>Certification {req}</span><input name="certification" required placeholder="e.g. CDPO, NDPC-recognised DPO training" /></label>
                   <label className="sp-field"><span>Certificate {req} <em>(PDF, PNG or JPEG, up to 5 MB)</em></span><input type="file" name="cert_file" accept=".pdf,.png,.jpg,.jpeg" required /></label>
-                  <label className="sp-field"><span>NDPC DPO registration or licence number <em>(if any)</em></span><input name="ndpc_number" /></label>
                   <label className="sp-field"><span>CV <em>(PDF, PNG or JPEG, up to 5 MB; or give your LinkedIn below)</em></span><input type="file" name="cv_file" accept=".pdf,.png,.jpg,.jpeg" /></label>
                   <label className="sp-field"><span>LinkedIn profile <em>(or upload your CV above)</em></span><input type="url" name="linkedin" placeholder="https://www.linkedin.com/in/…" /></label>
                 </>
