@@ -92,6 +92,9 @@ export async function signUp(fd: FormData) {
   const ids = await tx(async (t) => {
     const u = await t.query<{ id: string }>("insert into users (name, email, password_hash) values ($1,$2,$3) returning id", [name, email, hashPassword(password)]);
     const f = await t.query<{ id: string }>("insert into firms (name, created_by, plan) values ($1,$2,$3) returning id", [firm, u.rows[0].id, solo ? "solo" : "firm"]);
+    // A Solo DPO signs their documents: start their signatory and contact details from sign-up (editable on My details).
+    if (profile) await t.query("update firms set signatory_name = $2, signatory_title = 'Data Protection Officer', signatory_credentials = $3, email = $4, phone = $5 where id = $1",
+      [f.rows[0].id, name, str(fd, "certification").slice(0, 300), email, str(fd, "phone").slice(0, 40)]);
     if (profile) await t.query(`insert into solo_profiles (firm_id, phone, state, years_experience, certification, ndpc_number, linkedin, cert_file, cert_mime, cert_name, cv_file, cv_mime, cv_name)
       values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)`, [f.rows[0].id, ...profile]);
     await t.query("insert into memberships (firm_id, user_id, role) values ($1,$2,'firm_admin')", [f.rows[0].id, u.rows[0].id]);

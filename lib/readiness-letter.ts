@@ -14,7 +14,7 @@ const nextMonday = (from: string, days: number) => { const d = new Date(Date.par
 export async function draftReadinessLetter(invoiceId: string, userId: string) {
   const existing = await one<{ id: string }>("select id from readiness_letters where invoice_id = $1", [invoiceId]);
   if (existing) return existing.id;
-  const inv = (await one("select i.firm_id, i.client_id, c.name, c.car_audit_year, f.name as firm from invoices i join clients c on c.id = i.client_id join firms f on f.id = i.firm_id where i.id = $1", [invoiceId]))!;
+  const inv = (await one("select i.firm_id, i.client_id, c.name, c.car_audit_year, f.name as firm from invoices i join clients c on c.id = i.client_id join doc_firms f on f.id = i.firm_id where i.id = $1", [invoiceId]))!;
   const today = todayWAT(), year = today.slice(0, 4);
   const n = (await one<{ n: number }>("select count(*)::int as n from readiness_letters where firm_id = $1 and extract(year from created_at) = $2", [inv.firm_id, Number(year)]))!.n;
   const ans = await answersOf(inv.client_id);
@@ -37,7 +37,7 @@ function sectorExamples(sector: string, subjects: string[]) {
 export async function loadReadinessLetter(id: string) {
   const l = await one("select * from readiness_letters where id = $1", [id]);
   if (!l) return null;
-  const firm = (await one("select * from firms where id = $1", [l.firm_id]))!;
+  const firm = (await one("select * from doc_firms where id = $1", [l.firm_id]))!;
   const c = (await one("select name from clients where id = $1", [l.client_id]))!;
   return { l, firm, clientName: c.name as string, ans: await answersOf(l.client_id) };
 }

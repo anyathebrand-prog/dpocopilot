@@ -38,6 +38,7 @@ async function save(fd: FormData) {
 /** The DPCO's own details, printed on CAR audit reports and remediation plans. */
 export default async function FirmProfile({ searchParams }: { searchParams: Promise<Record<string, string>> }) {
   const u = await requireFirmRole("firm_admin");
+  if (u.plan === "solo") redirect("/app"); // not part of the Solo DPO workspace
   const sp = await searchParams;
   const f = await one("select * from firms where id = $1", [u.firm_id]);
   return (

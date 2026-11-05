@@ -149,7 +149,7 @@ export async function GET(req: Request) {
     const contactOk = !!inv && u.kind === "contact" && u.client_id === inv.client_id && inv.status !== "cancelled";
     if (!inv || !(contactOk || (u.kind === "firm" && (await canSeeClient(inv.client_id))))) return denied();
     if (kind === "receipt" && (inv.status !== "paid" || !inv.receipt_no)) return denied();
-    const firm = (await one("select * from firms where id = $1", [inv.firm_id]))!;
+    const firm = (await one("select * from doc_firms where id = $1", [inv.firm_id]))!;
     const ans = Object.fromEntries((await q("select question_key, answer from answers where client_id = $1 and question_key in ('org_legal_name','org_address','org_email','org_phone')", [inv.client_id])).map((r) => [r.question_key, r.answer]));
     const c = (await one("select name from clients where id = $1", [inv.client_id]))!;
     const r = invoiceHtml(inv, firm, { name: String(ans.org_legal_name || c.name), address: ans.org_address, email: ans.org_email, phone: ans.org_phone }, kind === "receipt");
@@ -162,7 +162,7 @@ export async function GET(req: Request) {
     const p = u.kind === "firm" && /^[0-9a-f-]{36}$/.test(id) ? await one(`select p.* from proposals p join firms f on f.id = p.firm_id where p.id = $1
       and ((p.firm_id = $2 and (f.plan <> 'solo' or (p.review_status = 'approved' and $3 <> 'doc'))) or (f.dpco_firm_id = $2 and f.dpco_status = 'approved' and p.review_status is not null))`, [id, u.firm_id, format]) : null; // a Solo DPO gets the approved PDF only
     if (!p) return denied();
-    const firm = (await one("select * from firms where id = $1", [p.firm_id]))!;
+    const firm = (await one("select * from doc_firms where id = $1", [p.firm_id]))!;
     const created = p.created_at instanceof Date ? p.created_at.toISOString() : String(p.created_at);
     const r = (url.searchParams.get("doc") === "letter" ? coverLetterHtml : proposalHtml)({ ...p, created_at: created } as any, firm);
     await audit(u, "export", "proposal", id, { details: { format, doc: url.searchParams.get("doc") ?? "proposal" } });

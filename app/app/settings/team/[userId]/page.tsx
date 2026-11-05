@@ -14,6 +14,17 @@ async function member(fd: FormData) {
   return { u, m, back: `/app/settings/team/${m.id}` };
 }
 
+/** The member's % of each paid invoice of the clients they're assigned to (credited to their wallet). */
+async function saveEarning(fd: FormData) {
+  "use server";
+  const { u, m, back } = await member(fd);
+  const pct = Number(str(fd, "earning_pct") || 0);
+  if (!Number.isFinite(pct) || pct < 0 || pct > 100) redirect(flash(back, "Enter a percentage between 0 and 100.", "error"));
+  await q("update memberships set earning_pct = $2 where id = $1", [m.id, Math.round(pct * 100) / 100]);
+  await audit(u, "update", "membership", m.id, { details: { earning_pct: pct } });
+  redirect(flash(back, `Share of paid invoices set to ${pct}%`));
+}
+
 /** FLAG-16 default: a firm always keeps at least one active Firm Admin. */
 async function lastAdmin(firmId: string, membershipId: string) {
   const r = await one<{ n: number }>("select count(*)::int as n from memberships where firm_id = $1 and role = 'firm_admin' and status = 'active' and id <> $2", [firmId, membershipId]);
@@ -79,6 +90,13 @@ export default async function Member({ params, searchParams }: { params: Promise
             <h3>Role</h3>
             <Field label="Role"><select name="role" defaultValue={m.role}>{Object.entries(ROLE_LABEL).map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select></Field>
             <Submit className="btn secondary">Change role</Submit>
+          </form>
+          <form action={saveEarning} className="panel">{h}
+            <h3>Share of paid invoices</h3>
+            <Field label="Percentage" help="Of each paid invoice (before VAT) of the clients this person is assigned to. Goes to their wallet; 0 for none.">
+              <input type="number" name="earning_pct" min={0} max={100} step="0.01" defaultValue={Number(m.earning_pct ?? 0)} style={{ width: 120 }} />
+            </Field>
+            <Submit className="btn secondary">Save</Submit>
           </form>
           <form action={saveAssignments} className="panel">{h}
             <h3>Assigned clients</h3>

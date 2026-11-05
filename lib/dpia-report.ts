@@ -42,7 +42,7 @@ export async function loadDpiaReport(dpiaId: string) {
   const ctx = await loadCtx(d.client_id, ropaIds);
   const a = await answersOf(d.client_id);
   const c = (await one(`select c.name, c.mi_class, c.car_audit_year, f.name as firm_name, f.signatory_name, f.signatory_title, f.email as firm_email, f.phone as firm_phone
-    from clients c join firms f on f.id = c.firm_id where c.id = $1`, [d.client_id]))!;
+    from clients c join doc_firms f on f.id = c.firm_id where c.id = $1`, [d.client_id]))!;
   const car = await q<{ item_text: string; status: string; answer: string | null }>(
     "select item_text, status, answer from client_car_items where client_id = $1 and audit_year = $2 and (item_text ilike '%registered with the NDPC%' or item_text ilike 'NDPC registration number')", [d.client_id, c.car_audit_year]);
   const seq = (await one<{ n: number }>("select count(*)::int as n from dpias where client_id = $1 and assessment_year = $2 and created_at <= $3", [d.client_id, d.assessment_year, d.created_at]))!.n;

@@ -53,7 +53,7 @@ export function positionsFrom(text: string) {
 }
 
 export async function loadFramework(clientId: string) {
-  const c = (await one(`select c.name, c.mi_class, f.name as firm_name, f.signatory_name, f.signatory_title from clients c join firms f on f.id = c.firm_id where c.id = $1`, [clientId]))!;
+  const c = (await one(`select c.name, c.mi_class, f.name as firm_name, f.signatory_name, f.signatory_title from clients c join doc_firms f on f.id = c.firm_id where c.id = $1`, [clientId]))!;
   const ans = await answersOf(clientId);
   const ropa = await q("select * from ropa_entries where client_id = $1 and state = 'active' order by purpose", [clientId]);
   // The organogram, embedded when it is an image (PDF/Word organograms are referenced and their position titles listed).

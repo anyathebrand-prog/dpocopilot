@@ -17,7 +17,7 @@ export async function loadLiaReport(id: string) {
   const a = await one("select a.*, u.name as approver, cu.name as author from assessments a left join users u on u.id = a.approved_by join users cu on cu.id = a.created_by where a.id = $1 and a.kind = 'lia'", [id]);
   if (!a) return null;
   const c = (await one(`select c.name, c.mi_class, c.car_audit_year, f.name as firm_name, f.signatory_name, f.signatory_title, f.email as firm_email, f.phone as firm_phone
-    from clients c join firms f on f.id = c.firm_id where c.id = $1`, [a.client_id]))!;
+    from clients c join doc_firms f on f.id = c.firm_id where c.id = $1`, [a.client_id]))!;
   const ans = await answersOf(a.client_id);
   const ropa = a.ropa_entry_id ? await one("select * from ropa_entries where id = $1", [a.ropa_entry_id]) : null;
   const car = await q<{ item_text: string; status: string; answer: string | null }>("select item_text, status, answer from client_car_items where client_id = $1 and audit_year = $2 and (item_text ilike '%registered with the NDPC%' or item_text ilike 'NDPC registration number')", [a.client_id, c.car_audit_year]);

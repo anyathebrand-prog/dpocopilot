@@ -1,6 +1,7 @@
+import { redirect } from "next/navigation";
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { Users, ListChecks, Calendar, MessageSquareText, Upload, Settings, Bell, Menu, LayoutList, LogOut, Building2, Receipt, FileSignature, BookOpen, Mail, SearchCheck, UserCheck } from "lucide-react";
+import { Users, ListChecks, Calendar, MessageSquareText, Upload, Settings, Bell, Menu, LayoutList, LogOut, Building2, Receipt, FileSignature, BookOpen, Mail, SearchCheck, UserCheck, Wallet, Banknote } from "lucide-react";
 import { requireFirm, isAdmin, canApprove, ROLE_LABEL, PLAN_LABEL } from "@/lib/auth";
 import { one } from "@/lib/db";
 import { signOut } from "@/lib/auth-actions";
@@ -33,13 +34,16 @@ export default async function FirmLayout({ children }: { children: ReactNode }) 
             <NavLink href="/app/proposals"><FileSignature aria-hidden />Proposals</NavLink>
             {u.plan !== "solo" && canApprove(u) && <NavLink href="/app/solo-dpos"><UserCheck aria-hidden />Solo DPOs</NavLink>}
             <NavLink href="/app/billing"><Receipt aria-hidden />Billing</NavLink>
-            <NavLink href="/app/audit-notices"><Mail aria-hidden />Audit notices</NavLink>
+            <NavLink href="/app/wallet"><Wallet aria-hidden />Wallet</NavLink>
+            {u.plan !== "solo" && isAdmin(u) && <NavLink href="/app/payouts"><Banknote aria-hidden />Payouts</NavLink>}
+            {u.plan !== "solo" && <NavLink href="/app/audit-notices"><Mail aria-hidden />Audit notices</NavLink>}
             <NavLink href="/app/library"><BookOpen aria-hidden />Library</NavLink>
             <NavLink href="/app/verify"><SearchCheck aria-hidden />NDPC check</NavLink>
             <NavLink href="/app/ask"><MessageSquareText aria-hidden />Ask</NavLink>
             {isAdmin(u) && u.plan !== "solo" && <NavLink href="/app/import"><Upload aria-hidden />Import</NavLink>}
-            {isAdmin(u) && <NavLink href="/app/settings/firm"><Building2 aria-hidden />Firm profile</NavLink>}
-            {isAdmin(u) && <NavLink href="/app/settings/team"><Users aria-hidden />Team</NavLink>}
+            {isAdmin(u) && u.plan !== "solo" && <NavLink href="/app/settings/firm"><Building2 aria-hidden />Firm profile</NavLink>}
+            {u.plan === "solo" && <NavLink href="/app/settings/me"><Building2 aria-hidden />My details</NavLink>}
+            {isAdmin(u) && u.plan !== "solo" && <NavLink href="/app/settings/team"><Users aria-hidden />Team</NavLink>}
             {isAdmin(u) && <NavLink href="/app/settings/activity"><Settings aria-hidden />Activity log</NavLink>}
           </nav>
         </details>

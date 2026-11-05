@@ -32,6 +32,7 @@ async function invitationAction(fd: FormData) {
 
 export default async function Team({ searchParams }: { searchParams: Promise<Record<string, string>> }) {
   const u = await requireFirmRole("firm_admin");
+  if (u.plan === "solo") redirect("/app"); // not part of the Solo DPO workspace
   const sp = await searchParams;
   const members = await q(`select m.id, m.role, m.status, u.name, u.email, u.mfa_enabled, (select count(*)::int from client_assignments a where a.membership_id = m.id) as clients
     from memberships m join users u on u.id = m.user_id where m.firm_id = $1 order by m.status, u.name`, [u.firm_id]);
@@ -40,7 +41,6 @@ export default async function Team({ searchParams }: { searchParams: Promise<Rec
     <>
       <PageHead title="Team" />
       <Flash sp={sp} />
-      {u.plan === "solo" && <Banner kind="info">Your practice is on the <b>Solo DPO</b> plan: one seat, so team invitations are not available. Team seats with Admin, Lead and Associate roles come with the DPCO Firm plan.</Banner>}
       <table className="register">
         <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Status</th><th className="num">Assigned clients</th></tr></thead>
         <tbody>{members.map((m) => (
@@ -65,14 +65,14 @@ export default async function Team({ searchParams }: { searchParams: Promise<Rec
           ))}
         </>
       )}
-      {u.plan !== "solo" && (<form action={inviteMember} className="panel" style={{ maxWidth: 640, marginTop: 32 }}>
+      <form action={inviteMember} className="panel" style={{ maxWidth: 640, marginTop: 32 }}>
         <h3>Invite a team member</h3>
         <Field label="Email" required><input type="email" name="email" required /></Field>
         <Field label="Role" help="Associates only see clients they are assigned to and cannot approve.">
           <select name="role" defaultValue="associate">{Object.entries(ROLE_LABEL).map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select>
         </Field>
         <Submit>Send invitation</Submit>
-      </form>)}
+      </form>
     </>
   );
 }

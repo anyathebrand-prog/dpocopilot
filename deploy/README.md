@@ -1,5 +1,10 @@
 # DPCO install runbook
 
+> **Not for the live site.** dpocopilot.ng runs on PM2 + Nginx and is deployed only by GitHub Actions when a pull
+> request is merged into `main` (`.github/workflows/deploy.yml` runs `/var/www/dpocopilot/deploy.sh` on the server).
+> To ship a change: push to `feat/site-redesign`, open a PR into `main`, merge when the checks are green.
+> Never `git pull` or `docker compose` on the production server. This folder is only for separate per-client installs.
+
 Each DPCO gets its own copy of DPO Copilot on its own server and domain, run by us in a Nigerian data centre.
 One install = one server running this folder's `docker-compose.yml`: the app, Postgres 16, Caddy (HTTPS),
 ClamAV (upload scanning) and a daily reminder job. Firms never share a server or a database.

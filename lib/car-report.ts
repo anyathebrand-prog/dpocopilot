@@ -30,7 +30,7 @@ export async function loadCarReport(clientId: string, year: number) {
   const findings = await q<Finding>("select id, observation, risk, recommendation, status from car_findings where client_id = $1 and audit_year = $2 order by created_at", [clientId, year]);
   const c = (await one(`select c.name, c.sector, c.mi_class, f.name as firm_name, f.address as firm_address, f.website as firm_website, f.email as firm_email,
       f.phone as firm_phone, f.ndpc_licence_no, f.signatory_name, f.signatory_credentials, f.signatory_title
-    from clients c join firms f on f.id = c.firm_id where c.id = $1`, [clientId]))!;
+    from clients c join doc_firms f on f.id = c.firm_id where c.id = $1`, [clientId]))!;
   const a = await answersOf(clientId);
   const ropa = await q<{ purpose: string; department: string | null; data_categories: string | null }>(
     "select purpose, department, data_categories from ropa_entries where client_id = $1 and state = 'active' order by department nulls last, purpose", [clientId]);

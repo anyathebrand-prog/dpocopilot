@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { syncTaskEarning } from "@/lib/wallet";
 import { redirect } from "next/navigation";
 import { requireFirm, requireClient, clientScope, scopeArgs, audit, canApprove } from "@/lib/auth";
 import { naira } from "@/lib/invoice";
@@ -41,6 +42,7 @@ async function update(fd: FormData) {
   if (Number.isNaN(amount)) redirect(flash("/app/tasks", "Enter the professional fee as an amount in naira.", "error"));
   await q("update tasks set status = $2, assignee_membership_id = $3, start_on = $4, due_on = $5, fee = $7, done_on = case when $2 = 'done' then coalesce(done_on, $6::date) else null end where id = $1",
     [t.id, status, assignee, start, due, todayWAT(), amount]);
+  await syncTaskEarning(t.id); // done task with a fee → assignee's wallet
   await audit(user, "update", "task", t.id, { client_id: t.client_id, details: { status } });
   redirect(flash("/app/tasks", "Task updated"));
 }
