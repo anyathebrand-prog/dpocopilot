@@ -2,6 +2,7 @@ import Link from "next/link";
 import {
   ClipboardList, ListTree, FileSearch, FileText, ShieldAlert, UserSearch, FolderCheck, CalendarClock,
   LayoutDashboard, Users, Smartphone, Copy, AlarmClock, MessageSquareWarning, Pencil, UserCheck, Stamp, Signature, ArrowRight,
+  UserPlus, Building2, Send, ListChecks, Wallet, PackageCheck, Award,
 } from "lucide-react";
 import { getUser, home } from "@/lib/auth";
 import { VideoHero } from "@/components/video-hero";
@@ -42,6 +43,19 @@ const FIT: [Icon, string, string][] = [
   [LayoutDashboard, "Many clients, one dashboard", "Status, open gaps, overdue work, active breaches and readiness for every client, plus one queue of everything waiting for your review."],
   [Users, "Your team, the right access", "Firm Admins, Lead Consultants and Associates. Associates see only the clients they're assigned to, and only leads can approve."],
   [Smartphone, "A portal for your clients", "Client contacts answer questions, upload evidence, sign documents, report breaches and log requests from their phones."],
+];
+
+const SOLO_STEPS: [Icon, string, string][] = [
+  [UserPlus, "Sign in", "Create your DPO profile and show your credentials."],
+  [Building2, "Pick a DPCO", "Choose the firm you want to work with."],
+  [Send, "Send a proposal", "Set out what you'll take on and your fee."],
+  [ListChecks, "Get tasks", "Work on assigned client tasks inside the same guided workflows, reviewed and logged."],
+];
+
+const SOLO_BENEFITS: [Icon, string, string][] = [
+  [Wallet, "Paid directly by the firm", "You agree your terms with the DPCO, and they pay you straight."],
+  [PackageCheck, "No tools to buy", "RoPA, DPIA, breach and DSAR workflows are ready the moment you're assigned."],
+  [Award, "Build a track record", "Every task you complete is logged, so your work speaks for you."],
 ];
 
 // Real product figures only.
@@ -136,6 +150,36 @@ export default async function Home() {
               </Reveal>
             ))}
           </div>
+        </div>
+      </section>
+
+      <section className="hp-card hp-bare" id="solo-dpos">
+        <div className="hp-inner">
+          <Head kicker="For independent DPOs" line1="Certified DPO?" line2="Get paid work through DPO Copilot"
+            sub="Work on real NDPA engagements with DPCO firms, without building a firm of your own." />
+          <Reveal className="hp-flow" delay={0.1}>
+            <ol aria-label="How Solo DPOs get work">
+              {SOLO_STEPS.map(([I, t, d], i) => (
+                <li key={t} className="hp-step" style={{ ["--i" as string]: i }}>
+                  <span className="hp-step-node"><I aria-hidden /></span>
+                  <b>{t}</b>
+                  <span>{d}</span>
+                </li>
+              ))}
+            </ol>
+          </Reveal>
+          <div className="hp-cols">
+            {SOLO_BENEFITS.map(([I, t, d], i) => (
+              <Reveal key={t} delay={i * 0.08} className="hp-feature hp-float">
+                <Node Icon={I} /><h3>{t}</h3><p>{d}</p>
+              </Reveal>
+            ))}
+          </div>
+          <Reveal delay={0.2}>
+            <div className="hp-actions">
+              <Link href="/sign-up?plan=solo" className="btn-cta">Join as a Solo DPO</Link>
+            </div>
+          </Reveal>
         </div>
       </section>
 
