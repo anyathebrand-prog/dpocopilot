@@ -39,7 +39,7 @@ services:
     image: clamav/clamav:stable
     restart: unless-stopped
 
-  # CAR reminders daily at 08:00 WAT (07:00 UTC).
+  # Daily at 08:00 WAT (07:00 UTC): CAR reminders, and from 1 November the yearly renewal notices.
   cron:
     image: alpine:3
     restart: unless-stopped

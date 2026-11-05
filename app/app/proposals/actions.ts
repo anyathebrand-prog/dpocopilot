@@ -1,5 +1,6 @@
 "use server";
 import { redirect } from "next/navigation";
+import { ndpcBlock } from "@/lib/ndpc-guard";
 import { requireFirm, audit } from "@/lib/auth";
 import { q, one } from "@/lib/db";
 import { str, opt, flash } from "@/lib/form";
@@ -23,6 +24,7 @@ export async function saveProposal(fd: FormData) {
   const fail = (m: string) => redirect(flash(back, m, "error"));
   const name = str(fd, "client_name"), address = str(fd, "address"), email = str(fd, "email");
   if (!name || !address || !EMAIL.test(email)) fail("Enter the client's name, address and a valid email address.");
+  if (!existing || existing.client_name !== name) { const why = await ndpcBlock(u.firm_id, name); if (why) fail(why); }
   const primary = str(fd, "primary_color"), secondary = str(fd, "secondary_color");
   if (!HEX.test(primary) || !HEX.test(secondary)) fail("Choose the client's primary and secondary colours.");
   const sector = opt(fd, "sector"), tier = str(fd, "tier") || "TBC";

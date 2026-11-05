@@ -11,8 +11,8 @@ import "@/components/site-pages.css";
 export const metadata = { title: "Pricing · DPO Copilot" };
 
 const TIERS = [
-  { key: "solo", name: "Solo DPO", who: "Independent DPOs managing a few clients", price: "Contact us", cta: "Register interest", note: "Coming later" },
-  { key: "firm", name: "DPCO Firm", who: "Licensed compliance firms serving many clients", price: "On request", cta: "Request pilot access", note: "Pilot open now" },
+  { key: "solo", name: "Solo DPO", who: "Independent DPOs managing a few clients", price: "Contact us", cta: "Get started", note: "Open now", href: "/pilot?plan=solo" },
+  { key: "firm", name: "DPCO Firm", who: "Licensed compliance firms serving many clients", price: "On request", cta: "Request pilot access", note: "Pilot open now", href: "/pilot" },
 ] as const;
 
 // [feature, solo, firm]
@@ -76,7 +76,7 @@ export default function Pricing() {
               </tbody>
             </table>
           </Reveal>
-          <p className="sp-foot">DPCO Firm is the V1 plan. The Solo DPO feature split is provisional.</p>
+          <p className="sp-foot">Both plans are open now.</p>
         </div>
       </section>
 

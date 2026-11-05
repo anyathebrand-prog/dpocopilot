@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ndpcBlock } from "@/lib/ndpc-guard";
 import { redirect } from "next/navigation";
 import { requireFirmRole, audit, ROLE_LABEL } from "@/lib/auth";
 import { q, one, tx } from "@/lib/db";
@@ -16,6 +17,8 @@ async function createClient(fd: FormData) {
   const u = await requireFirmRole("firm_admin", "lead_consultant");
   const name = str(fd, "name");
   if (!name) redirect("/app/clients/new?error=Enter+the+client%27s+name");
+  const why = await ndpcBlock(u.firm_id, name);
+  if (why) redirect(`/app/clients/new?error=${encodeURIComponent(why)}`);
   const dup = await one("select 1 from clients where firm_id = $1 and lower(name) = lower($2)", [u.firm_id, name]);
   const team = all(fd, "team");
   const contactEmail = str(fd, "contact_email").toLowerCase();

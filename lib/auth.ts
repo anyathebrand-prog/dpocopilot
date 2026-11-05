@@ -12,6 +12,7 @@ export type User = {
   id: string; name: string; email: string; mfa_enabled: boolean;
   kind: "firm" | "contact" | "secretary";
   firm_id: string; firm_name: string; plan?: Plan;
+  dpco_firm_id?: string | null; dpco_name?: string | null; // Solo DPO: the DPCO firm they work under
   membership_id?: string; role?: Role;
   client_id?: string; contact_id?: string;
 };
@@ -40,8 +41,8 @@ export async function getUser(): Promise<User | null> {
     where s.token_hash = $1 and s.expires_at > now() and s.mfa_ok and u.status = 'active'`, [sha256(t)]);
   if (!u) return null;
   if (u.platform_role === "secretary") return { ...base(u), kind: "secretary", firm_id: "", firm_name: "" };
-  const m = await one("select m.id, m.firm_id, m.role, f.name as firm_name, f.plan from memberships m join firms f on f.id = m.firm_id where m.user_id = $1 and m.status = 'active'", [u.id]);
-  if (m) return { ...base(u), kind: "firm", firm_id: m.firm_id, firm_name: m.firm_name, plan: m.plan, membership_id: m.id, role: m.role };
+  const m = await one("select m.id, m.firm_id, m.role, f.name as firm_name, f.plan, f.dpco_firm_id, d.name as dpco_name from memberships m join firms f on f.id = m.firm_id left join firms d on d.id = f.dpco_firm_id where m.user_id = $1 and m.status = 'active'", [u.id]);
+  if (m) return { ...base(u), kind: "firm", firm_id: m.firm_id, firm_name: m.firm_name, plan: m.plan, dpco_firm_id: m.dpco_firm_id, dpco_name: m.dpco_name, membership_id: m.id, role: m.role };
   const c = await one("select cc.id, cc.client_id, cc.firm_id, f.name as firm_name from client_contacts cc join firms f on f.id = cc.firm_id join clients cl on cl.id = cc.client_id where cc.user_id = $1 and cc.status = 'active'", [u.id]);
   if (c) return { ...base(u), kind: "contact", firm_id: c.firm_id, firm_name: c.firm_name, client_id: c.client_id, contact_id: c.id };
   return null;
@@ -70,6 +71,8 @@ async function need(kind: User["kind"]) {
   if (!u) redirect("/sign-in");
   if (u.kind !== kind) redirect("/forbidden");
   if (mfaRequired(u)) redirect("/setup/mfa");
+  // A Solo DPO picks the DPCO firm they work under before using the workspace (only while there is one to pick).
+  if (u.plan === "solo" && !u.dpco_firm_id && (await one("select 1 from firms where plan = 'firm' and id <> $1 limit 1", [u.firm_id]))) redirect("/choose-dpco");
   return u;
 }
 export const requireFirm = () => need("firm");
