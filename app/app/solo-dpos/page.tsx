@@ -70,7 +70,7 @@ export default async function SoloDpos({ searchParams }: { searchParams: Promise
       <h2>Requests to work under {u.firm_name}</h2>
       {pending.length === 0 ? <p className="meta">No requests waiting.</p> : pending.map((s) => (
         <form key={s.id} action={decide} className="rule-row info"><Hidden values={{ firm_id: s.id }} />
-          <span><b>{s.person ?? s.name}</b> · {s.name}<div className="meta">{s.email}</div><Profile s={s} /></span>
+          <span><b>{s.person ?? s.name}</b>{s.name !== s.person && <> · {s.name}</>}<div className="meta">{s.email}</div><Profile s={s} /></span>
           <span className="row"><Submit name="op" value="approve">Approve</Submit><Submit className="btn secondary" name="op" value="decline">Decline</Submit></span>
         </form>
       ))}
