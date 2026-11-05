@@ -34,7 +34,7 @@ async function review(fd: FormData) {
   if (!p) redirect(BACK);
   await audit(u, "update", "proposal", p.id, { firm_id: u.firm_id, details: { review: ok ? "approved" : "returned" } });
   await notifyFirm(p.firm_id, "proposal_decision", ok
-    ? `${u.firm_name} approved proposal ${p.number} for ${p.client_name}. You can now download it or email it to the client.`
+    ? `${u.firm_name} approved proposal ${p.number} for ${p.client_name}. You can now download the PDF and send it to the client.`
     : `${u.firm_name} returned proposal ${p.number} for ${p.client_name}: ${note}`, `/app/proposals/${p.id}`);
   redirect(flash(BACK, ok ? `Proposal ${p.number} approved and sent back.` : `Proposal ${p.number} returned with your note.`));
 }

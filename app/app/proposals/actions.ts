@@ -94,12 +94,12 @@ export async function submitForReview(fd: FormData) {
   redirect(flash(`/app/proposals/${p.id}`, `Submitted to ${u.dpco_name} for approval. You'll be notified when they respond.`));
 }
 
-/** Email the proposal and cover letter (Word) to the client. A Solo DPO can only do this once their DPCO has approved it. */
+/** Email the proposal and cover letter (Word) to the client. Not for Solo DPOs, who send the approved PDF themselves. */
 export async function emailProposal(fd: FormData) {
   const u = await requireFirm();
   const p = await one("select * from proposals where id = $1 and firm_id = $2", [/^[0-9a-f-]{36}$/.test(str(fd, "id")) ? str(fd, "id") : null, u.firm_id]);
   if (!p) redirect("/forbidden");
-  if (u.plan === "solo" && p.review_status !== "approved") redirect(flash(`/app/proposals/${p.id}`, "Your DPCO must approve this proposal before you send it.", "error"));
+  if (u.plan === "solo") redirect(flash(`/app/proposals/${p.id}`, "Download the approved PDF and send it to the client yourself.", "error")); // Solo DPOs share the approved PDF only
   const firm = (await one("select * from firms where id = $1", [u.firm_id]))!;
   const created = p.created_at instanceof Date ? p.created_at.toISOString() : String(p.created_at);
   const files = [];

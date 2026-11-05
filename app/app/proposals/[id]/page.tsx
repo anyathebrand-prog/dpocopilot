@@ -26,10 +26,10 @@ export default async function ProposalPage({ params, searchParams }: { params: P
       <h1 style={{ marginTop: 8 }}>{p.client_name} <span className="meta" style={{ fontSize: "0.5em" }}>{p.number} · {p.status}</span></h1>
       <Flash sp={sp} />
       {solo && (p.review_status === "submitted" ? <Banner kind="info">Waiting for <b>{u.dpco_name}</b> to approve this proposal.</Banner>
-        : p.review_status === "approved" ? <Banner kind="ok">Approved by <b>{u.dpco_name}</b>. You can download it or email it to the client.</Banner>
+        : p.review_status === "approved" ? <Banner kind="ok">Approved by <b>{u.dpco_name}</b>. Download the PDF and send it to the client.</Banner>
         : <Banner kind={p.review_status === "returned" ? "warn" : "info"}>{p.review_status === "returned" ? <>Returned by {u.dpco_name}: <b>{p.review_note}</b>. Make the changes, then submit again.</> : <>Submit this proposal to <b>{u.dpco_name}</b> for approval before sending it to the client.</>}
             <form action={submitForReview} style={{ marginTop: 8 }}><Hidden values={{ id: p.id }} /><Submit>Submit for approval</Submit></form></Banner>)}
-      {!locked && <form action={emailProposal} className="row" style={{ margin: "8px 0" }}><Hidden values={{ id: p.id }} /><Submit className="btn secondary">Email proposal and cover letter to {p.email}</Submit></form>}
+      {!solo && <form action={emailProposal} className="row" style={{ margin: "8px 0" }}><Hidden values={{ id: p.id }} /><Submit className="btn secondary">Email proposal and cover letter to {p.email}</Submit></form>}
       <div className="row" style={{ gap: 24, alignItems: "stretch", margin: "16px 0" }}>
         <div className="panel" style={{ borderTop: `6px solid ${p.primary_color}` }}>
           <b>Proposal and service agreement</b>
