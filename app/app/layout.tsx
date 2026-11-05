@@ -24,7 +24,7 @@ export default async function FirmLayout({ children }: { children: ReactNode }) 
               <span className="menu-toggle cx-menu" aria-label="Menu"><Menu aria-hidden /></span>
             </span>
             <span className="cx-pill">{u.firm_name}</span>
-            <span className="meta" style={{ display: "block", marginTop: 4, fontSize: 12 }}>{PLAN_LABEL[u.plan ?? "firm"]} plan</span>
+            <span className="meta" style={{ display: "block", marginTop: 4, fontSize: 12 }}>{PLAN_LABEL[u.plan ?? "firm"]} plan{u.plan === "solo" && u.dpco_name ? ` · with ${u.dpco_name}` : ""}</span>
           </summary>
           <nav className="nav" aria-label="Main">
             <NavLink href="/app" exact><LayoutList aria-hidden />Clients</NavLink>
