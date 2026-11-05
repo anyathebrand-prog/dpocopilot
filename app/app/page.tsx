@@ -89,17 +89,18 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
       <PageHead title={archived ? "Archived clients" : "Clients"}>
         <Link className="btn quiet" href={archived ? "/app" : "/app?archived=1"}>{archived ? "Show active clients" : "Show archived"}</Link>
         {u.role !== "associate" && !archived && u.plan !== "solo" && <Link className="btn secondary" href="/app/audit-notices">Generate Compliance Audit Notification Letter</Link>}
-        {u.role !== "associate" && !archived && <Link className="btn" href="/app/clients/new">Add client</Link>}
+        {u.role !== "associate" && !archived && u.plan !== "solo" && <Link className="btn" href="/app/clients/new">Add client</Link>}
       </PageHead>
 
       {clients.length === 0 ? (
         u.role === "associate" ? <Empty><p>You haven&apos;t been assigned any clients yet. Ask your firm administrator.</p></Empty> :
         archived ? <Empty><p>No archived clients.</p></Empty> :
+        u.plan === "solo" ? <Empty><p>No clients yet.</p></Empty> :
         <Empty>
           <p>Add your first client to start their compliance file.</p>
           <div className="row" style={{ justifyContent: "center" }}>
             <Link className="btn" href="/app/clients/new">Add client</Link>
-            {isAdmin(u) && u.plan !== "solo" && <Link className="btn secondary" href="/app/import">Import existing clients</Link>}
+            {isAdmin(u) && <Link className="btn secondary" href="/app/import">Import existing clients</Link>}
           </div>
         </Empty>
       ) : (
