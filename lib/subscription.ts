@@ -88,8 +88,48 @@ const REMINDER: Record<string, (end: string, grace: string, fee: string) => stri
   locked: (e) => `Your DPO Copilot subscription ended on ${fmtDate(e)} and your workspace is now locked. Nothing has been deleted; renew to unlock it straight away.`,
 };
 
-/** Daily: the renewal notice, reminders and lockout notice to each DPCO's Firm Admins, each sent once per end date. */
+/** Daily: renewal notices, reminders and lockout notices for DPCO subscriptions (to Firm Admins) and client subscriptions, each sent once per end date. */
 export async function sendSubscriptionReminders(now = new Date()) {
+  return { ...(await dpcoReminders(now)), clients: await clientReminders(now) };
+}
+
+const CLIENT_REMINDER: Record<string, (client: string, end: string, grace: string) => string> = {
+  d30: (c, e) => `Renewal notice: ${c}'s DPO Copilot subscription ends on ${fmtDate(e)}. Renew it to keep their portal open.`,
+  d7: (c, e) => `Reminder: ${c}'s subscription ends on ${fmtDate(e)}, in a week.`,
+  d1: (c, e) => `${c}'s subscription ends on ${fmtDate(e)}. Renew it to avoid interrupting their portal.`,
+  grace: (c, e, g) => `${c}'s subscription ended on ${fmtDate(e)}. Their portal is read-only, and pauses on ${fmtDate(addDays(g, 1))} unless it is renewed.`,
+  locked: (c, e) => `${c}'s subscription ended on ${fmtDate(e)} and their portal is paused. Renew it to restore access.`,
+};
+
+async function clientReminders(now: Date) {
+  const today = todayWAT(now);
+  const clients = await q<{ id: string; firm_id: string; name: string; e: string }>(`select id, firm_id, name, subscription_ends::text as e from clients
+    where archived_at is null and subscription_ends is not null and subscription_ends <= $1::date + 30`, [today]);
+  let sent = 0;
+  for (const c of clients) {
+    const stage = reminderStage(c.e, today);
+    if (!stage) continue;
+    const claimed = await q("insert into client_subscription_reminders (client_id, period_end, stage) values ($1,$2,$3) on conflict do nothing returning 1", [c.id, c.e, stage]);
+    if (!claimed.length) continue;
+    const msg = CLIENT_REMINDER[stage](c.name, c.e, addDays(c.e, GRACE_DAYS)), link = `/app/clients/${c.id}/subscription`;
+    const team = await q<{ user_id: string; email: string }>("select m.user_id, u.email from memberships m join users u on u.id = m.user_id where m.firm_id = $1 and m.status = 'active' and m.role in ('firm_admin','lead_consultant')", [c.firm_id]);
+    for (const t of team) {
+      await q("insert into notifications (firm_id, recipient_user_id, kind, message, link) values ($1,$2,'subscription',$3,$4)", [c.firm_id, t.user_id, msg, link]);
+      await send("email", t.email, "client_subscription", `${msg} Renew at ${BASE()}${link}`);
+    }
+    if (stage === "grace" || stage === "locked") { // the client's own contacts hear when their access changes
+      const contacts = await q<{ email: string }>("select email from client_contacts where client_id = $1 and status = 'active'", [c.id]);
+      const f = (await one<{ name: string }>("select name from firms where id = $1", [c.firm_id]))!;
+      for (const k of contacts) await send("email", k.email, "client_subscription", stage === "grace"
+        ? `${c.name}'s DPO Copilot subscription has ended. Your portal is read-only for now. Ask ${f.name} to renew it.`
+        : `${c.name}'s DPO Copilot portal access is paused because the subscription has ended. Ask ${f.name} to renew it. Nothing has been deleted.`);
+    }
+    sent++;
+  }
+  return { sent };
+}
+
+async function dpcoReminders(now: Date) {
   const fee = await annualFee();
   if (!fee) return { sent: 0, note: "no subscription fee" };
   const today = todayWAT(now);

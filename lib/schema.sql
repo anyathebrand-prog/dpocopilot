@@ -1045,3 +1045,25 @@ do $$ begin
     insert into platform_settings (key, published_value) values ('migr_dpco_pilot_year', 'done');
   end if;
 end $$;
+
+-- Client annual subscription: starts when the client's onboarding fee is paid and runs a year; the client's DPCO (Admin or Lead
+-- Consultant) renews it through Paystack at the fee for the client's size, or the Secretary renews it by hand. After the end date the
+-- client portal is read-only for 7 days, then paused until renewed. subscription_ends null = no subscription (no fee when added).
+alter table clients add column if not exists subscription_ends date;
+alter table client_payments add column if not exists period_end date;
+create table if not exists client_subscription_reminders (
+  client_id uuid not null references clients on delete cascade,
+  period_end date not null,
+  stage text not null,
+  sent_at timestamptz not null default now(),
+  primary key (client_id, period_end, stage)
+);
+-- Once: clients already onboarded (paid, or added before checkout existed) start with a year from now.
+do $$ begin
+  if not exists (select 1 from platform_settings where key = 'migr_client_sub_year') then
+    update clients c set subscription_ends = ((now() + interval '1 hour')::date + interval '1 year')::date
+      where c.subscription_ends is null and c.archived_at is null
+        and (c.checkout_amount is null or exists (select 1 from client_payments p where p.client_id = c.id and p.status = 'paid'));
+    insert into platform_settings (key, published_value) values ('migr_client_sub_year', 'done');
+  end if;
+end $$;

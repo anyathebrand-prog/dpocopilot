@@ -3,9 +3,12 @@ import { countryOf } from "@/lib/country";
 import type { ReactNode } from "react";
 import { requireClient } from "@/lib/auth";
 import { one } from "@/lib/db";
-import { todayWAT } from "@/lib/rules";
+import { todayWAT, fmtDate, daysUntil } from "@/lib/rules";
+import { subState, GRACE_DAYS } from "@/lib/subscription-math";
 import { Chip, Banner } from "@/components/ui";
 import { NavLink, SectionSelect } from "@/components/client";
+
+const addDays = (d: string, n: number) => { const x = new Date(d + "T00:00:00Z"); x.setUTCDate(x.getUTCDate() + n); return x.toISOString().slice(0, 10); };
 
 export default async function ClientLayout({ children, params }: { children: ReactNode; params: Promise<{ clientId: string }> }) {
   const { clientId } = await params;
@@ -20,6 +23,7 @@ export default async function ClientLayout({ children, params }: { children: Rea
       (select count(*)::int from evidence_requests where client_id = $1 and status = 'submitted') as evidence_waiting,
       (select count(*)::int from trainings where client_id = $1 and status = 'scheduled' and starts_on < $2) as training_due,
       (select count(*)::int from remediation_actions where client_id = $1 and status <> 'completed' and audit_year = (select car_audit_year from clients where id = $1)) as remediation_open`, [clientId, todayWAT()]);
+  const subEnds: string | null = client.sub_ends ?? null, sub = subEnds ? subState(subEnds, todayWAT()) : "active";
   const b = `/app/clients/${clientId}`, cc = countryOf(client.country), car = cc.car;
   const groups: [string | null, [string, string, number?][]][] = [
     [null, [["", "Overview"]]],
@@ -29,7 +33,7 @@ export default async function ClientLayout({ children, params }: { children: Rea
     ["Respond", [["/breaches", "Breaches", s!.breaches]]],
     [null, [["/settings", "Settings"]]],
     ["Capacity building", [["/training", "Training plan", s!.training_due]]],
-    ["Billing", [["/billing", "Invoices"]]],
+    ["Billing", [["/billing", "Invoices"], ...(client.sub_ends ? [["/subscription", "Subscription"] as [string, string]] : [])]],
   ];
   return (
     <>
@@ -44,6 +48,8 @@ export default async function ClientLayout({ children, params }: { children: Rea
         </div>
         {car ? <div className="meta">CAR readiness <b className="num" style={{ fontSize: 22, color: "var(--ink-900)" }}>{s!.readiness}%</b></div> : <div className="meta">{cc.name} · {cc.law.short} · {cc.regulator.short}</div>}
       </div>
+      {subEnds && sub !== "active" && <Banner kind="warn">{client.name}&apos;s subscription ended on {fmtDate(subEnds)}. {sub === "grace" ? `Their portal is read-only until ${fmtDate(addDays(subEnds, GRACE_DAYS))}, then it pauses.` : "Their portal is paused."} <Link href={`${b}/subscription`}>Renew</Link></Banner>}
+      {subEnds && sub === "active" && daysUntil(subEnds, todayWAT()) <= 30 && <Banner kind="info">{client.name}&apos;s subscription ends on {fmtDate(subEnds)}. <Link href={`${b}/subscription`}>Renew</Link></Banner>}
       {client.archived_at && <Banner kind="warn">This client is archived. Everything is read-only.</Banner>}
       {/* shortcut: templates, checklists and reports still cite the NDPA; Ghana versions are step 2 */}
       {!car && <Banner kind="warn">{cc.name} client ({cc.law.name}; regulator: {cc.regulator.name}). Invoices use {cc.currency.code} and {cc.name} VAT, and the NDPC CAR is switched off. Templates, reports and checklists still cite Nigerian law, so review every document before sending it.</Banner>}

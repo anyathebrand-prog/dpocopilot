@@ -66,6 +66,9 @@ export const mfaRequired = (u: User) =>
 
 export const home = (u: User) => (u.kind === "firm" ? "/app" : u.kind === "contact" ? "/portal" : "/secretary");
 
+/** A server action request: the next-action header (with JS) or a form post (without). Page loads are GETs. */
+const isAction = (h: Headers) => !!h.get("next-action") || /multipart\/form-data|x-www-form-urlencoded/.test(h.get("content-type") ?? "");
+
 async function need(kind: User["kind"]) {
   const u = await getUser();
   if (!u) redirect("/sign-in");
@@ -78,8 +81,16 @@ async function need(kind: User["kind"]) {
     const { subscriptionOf } = await import("./subscription");
     const s = await subscriptionOf(u);
     if (s.state === "unpaid" || s.state === "locked") redirect("/subscription");
-    const h = await headers(); // a server action: the next-action header (with JS) or a multipart form post (without)
-    if (s.state === "grace" && (h.get("next-action") || /multipart\/form-data|x-www-form-urlencoded/.test(h.get("content-type") ?? ""))) redirect("/subscription?error=" + encodeURIComponent("Your subscription has ended, so the workspace is read-only. Renew to make changes."));
+    const h = await headers();
+    if (s.state === "grace" && isAction(h)) redirect("/subscription?error=" + encodeURIComponent("Your subscription has ended, so the workspace is read-only. Renew to make changes."));
+  }
+  // Client's own annual subscription: 7 days' read-only grace after the end date, then the portal is paused until the DPCO renews.
+  if (kind === "contact") {
+    const { subState } = await import("./subscription-math");
+    const { todayWAT } = await import("./rules");
+    const c = await one<{ e: string | null }>("select subscription_ends::text as e from clients where id = $1", [u.client_id]);
+    const s = c?.e ? subState(c.e, todayWAT()) : "active";
+    if (s === "locked" || (s === "grace" && isAction(await headers()))) redirect("/portal-paused");
   }
   return u;
 }
@@ -115,7 +126,7 @@ export const scopeArgs = (u: User) => [u.firm_id, u.membership_id];
 export async function requireClient(clientId: string, opts: { write?: boolean; unpaid?: boolean } = {}) {
   const u = await requireFirm();
   if (!/^[0-9a-f-]{36}$/i.test(clientId)) redirect("/forbidden");
-  const client = await one(`select c.*, (c.checkout_amount is not null and not exists (select 1 from client_payments p where p.client_id = c.id and p.status = 'paid')) as unpaid
+  const client = await one(`select c.*, c.subscription_ends::text as sub_ends, (c.checkout_amount is not null and not exists (select 1 from client_payments p where p.client_id = c.id and p.status = 'paid')) as unpaid
     from clients c where c.id = $3 and ${clientScope(u)}`, [...scopeArgs(u), clientId]);
   if (!client) redirect("/forbidden");
   if (client.unpaid && !opts.unpaid) redirect(`/app/clients/${client.id}/checkout`);
