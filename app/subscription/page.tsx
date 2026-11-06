@@ -7,6 +7,7 @@ import { money } from "@/lib/country";
 import { fmtDate } from "@/lib/rules";
 import { annualFee, subscriptionOf, startSubscription, confirmSubscription } from "@/lib/subscription";
 import { signOut } from "@/lib/auth-actions";
+import { leaveDpco } from "@/lib/solo";
 import { Flash, Banner } from "@/components/ui";
 import { Submit } from "@/components/client";
 import "@/components/console.css";
@@ -30,6 +31,18 @@ async function pay() {
   catch (e) { console.error("[paystack]", e); redirect(flash("/subscription", "Payment could not be started. Try again shortly.", "error")); }
   await audit(u, "create", "subscription_payment", u.firm_id);
   redirect(url);
+}
+
+/** Solo DPO whose DPCO is no longer available: clear the work tied to it and choose a new DPCO. */
+async function chooseNew() {
+  "use server";
+  const u = await firmUser();
+  if (u.plan !== "solo") redirect("/subscription");
+  const s = await subscriptionOf(u);
+  if (s.state !== "locked" && s.state !== "unpaid") redirect("/subscription");
+  const r = await leaveDpco(u.firm_id);
+  await audit(u, "update", "firm", u.firm_id, { firm_id: u.firm_id, details: { left_dpco: u.dpco_firm_id, tasks_cleared: r.tasks } });
+  redirect("/choose-dpco");
 }
 
 /** The DPCO's annual subscription: first payment after sign-up, renewals, and where a lapsed workspace is sent. Paystack returns here with ?reference=…, verified server-side. */
@@ -65,7 +78,12 @@ export default async function Subscription({ searchParams }: { searchParams: Pro
             <Submit>{s.state === "unpaid" ? "Pay" : "Renew for"} {money(fee)}</Submit>
           </form>
         ) : !open && (
-          <p className="meta">{u.plan === "solo" ? `Your workspace opens again when ${u.dpco_name ?? "your DPCO"} renews.` : "Ask your Firm Admin to pay the subscription."}</p>
+          u.plan === "solo" ? (
+            <form action={chooseNew} style={{ marginTop: 12 }}>
+              <p className="meta">Your workspace opens again when {u.dpco_name ?? "your DPCO"} renews. Or choose a new DPCO: your tasks from {u.dpco_name ?? "this DPCO"} are cleared, and your proposals go to the new DPCO for review. Your clients, proposals and wallet stay.</p>
+              <Submit className="btn secondary">Choose a new DPCO</Submit>
+            </form>
+          ) : <p className="meta">Ask your Firm Admin to pay the subscription.</p>
         ))}
       </div>
       <div className="row" style={{ marginTop: 16, gap: 16 }}>

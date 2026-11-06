@@ -13,3 +13,29 @@ export async function notifyFirm(firmId: string, kind: string, message: string, 
   }
 }
 export const REVIEWERS = ["firm_admin", "lead_consultant"];
+
+/**
+ * A Solo DPO leaves a DPCO that is no longer available (its subscription has lapsed past grace, or was never paid) to choose a new one.
+ * The work tied to the old DPCO is cleared: every task in the Solo DPO's workspace is deleted, and proposal reviews are reset so the new
+ * DPCO reviews them afresh. Clients, proposals and wallet history (money already earned) are kept.
+ */
+export async function leaveDpco(soloFirmId: string) {
+  const { tx } = await import("./db");
+  return tx(async (t) => {
+    const tasks = await t.query("delete from tasks where firm_id = $1 returning id", [soloFirmId]);
+    await t.query("update proposals set review_status = null, review_note = null, reviewed_by = null, reviewed_at = null where firm_id = $1 and review_status is not null", [soloFirmId]);
+    await t.query("update firms set dpco_firm_id = null, dpco_status = null where id = $1", [soloFirmId]);
+    return { tasks: tasks.rows.length };
+  });
+}
+
+/** DPCO firms a Solo DPO can choose: those whose workspace is open (subscription active or in grace, or no subscription fee applies). */
+export async function availableDpcos(excludeFirmId: string) {
+  const { annualFee } = await import("./subscription");
+  const { subState } = await import("./subscription-math");
+  const { todayWAT } = await import("./rules");
+  const firms = await q<{ id: string; name: string; e: string | null }>("select id, name, subscription_ends::text as e from firms where plan = 'firm' and id <> $1 order by name", [excludeFirmId]);
+  if (!(await annualFee())) return firms;
+  const today = todayWAT();
+  return firms.filter((f) => ["active", "grace"].includes(subState(f.e, today)));
+}
