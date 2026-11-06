@@ -993,7 +993,7 @@ create table if not exists withdrawals (
 -- The one notifications kind list. When adding a new notification kind, edit this one list; never add another drop/add pair below it.
 -- (schema.sql re-runs on every start: an older, shorter list re-added later fails on existing rows and stops the app.)
 alter table notifications drop constraint if exists notifications_kind_check;
-alter table notifications add constraint notifications_kind_check check (kind in ('breach_reported','dsar_logged','evidence_submitted','signed_off','questionnaire_completed','car_due','renewal_notices','solo_request','solo_decision','proposal_review','proposal_decision','withdrawal_request','withdrawal_decision'));
+alter table notifications add constraint notifications_kind_check check (kind in ('breach_reported','dsar_logged','evidence_submitted','signed_off','questionnaire_completed','car_due','renewal_notices','solo_request','solo_decision','proposal_review','proposal_decision','withdrawal_request','withdrawal_decision','subscription'));
 
 -- The firm identity printed on documents. A Solo DPO approved by a DPCO prints the DPCO's branding (name, logo, address,
 -- website, NDPC licence, RC number) with their own signatory and contact details (set on My details); everyone else, as is.
@@ -1014,3 +1014,34 @@ select f.id, f.created_by, f.created_at, f.plan, f.dpco_firm_id, f.dpco_status, 
   f.signatory_name, f.signatory_credentials, f.signatory_title
 from firms f left join firms d on d.id = f.dpco_firm_id
 cross join lateral (select f.plan = 'solo' and f.dpco_status = 'approved' and d.id is not null as s) x;
+
+-- DPCO annual subscription (Paystack). subscription_ends null = not paid yet: the firm can sign in but only reaches /subscription.
+-- After the end date: 7 days' read-only grace, then locked until renewed. Solo DPOs follow their DPCO's subscription.
+alter table firms add column if not exists subscription_ends date;
+create table if not exists firm_subscription_payments (
+  id uuid primary key default gen_random_uuid(),
+  firm_id uuid not null references firms,
+  reference text not null unique,
+  amount numeric(14,2) not null,
+  status text not null default 'pending' check (status in ('pending','paid','failed')),
+  period_end date,
+  paid_at timestamptz,
+  created_by uuid references users,
+  created_at timestamptz not null default now()
+);
+-- One row per reminder sent, so the daily job never repeats one.
+create table if not exists firm_subscription_reminders (
+  firm_id uuid not null references firms,
+  period_end date not null,
+  stage text not null,
+  sent_at timestamptz not null default now(),
+  primary key (firm_id, period_end, stage)
+);
+insert into platform_settings (key, published_value) values ('dpco_annual_fee', '500000') on conflict do nothing;
+-- Once: DPCO firms that existed before subscriptions (the pilot firms) get their first year free.
+do $$ begin
+  if not exists (select 1 from platform_settings where key = 'migr_dpco_pilot_year') then
+    update firms set subscription_ends = ((now() + interval '1 hour')::date + interval '1 year')::date where plan = 'firm' and subscription_ends is null;
+    insert into platform_settings (key, published_value) values ('migr_dpco_pilot_year', 'done');
+  end if;
+end $$;

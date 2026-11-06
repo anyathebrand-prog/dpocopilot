@@ -8,10 +8,15 @@ import { signOut } from "@/lib/auth-actions";
 import { NavLink } from "@/components/client";
 import "@/components/console.css";
 import { INSTALL } from "@/lib/install";
+import { Banner } from "@/components/ui";
+import { subscriptionOf } from "@/lib/subscription";
+import { fmtDate, daysUntil, todayWAT } from "@/lib/rules";
+import { CreditCard } from "lucide-react";
 
 export default async function FirmLayout({ children }: { children: ReactNode }) {
   const u = await requireFirm();
   const n = await one<{ n: number }>("select count(*)::int as n from notifications where recipient_user_id = $1 and read_at is null", [u.id]);
+  const sub = await subscriptionOf(u), left = sub.ends ? daysUntil(sub.ends, todayWAT()) : null;
   return (
     <div className="shell cx">
       {/* Inter, as on the public site. React hoists this into <head>. */}
@@ -44,6 +49,7 @@ export default async function FirmLayout({ children }: { children: ReactNode }) 
             {isAdmin(u) && u.plan !== "solo" && <NavLink href="/app/settings/firm"><Building2 aria-hidden />Firm profile</NavLink>}
             {u.plan === "solo" && <NavLink href="/app/settings/me"><Building2 aria-hidden />My details</NavLink>}
             {isAdmin(u) && u.plan !== "solo" && <NavLink href="/app/settings/team"><Users aria-hidden />Team</NavLink>}
+            {isAdmin(u) && u.plan !== "solo" && sub.ends && <NavLink href="/subscription"><CreditCard aria-hidden />Subscription</NavLink>}
             {isAdmin(u) && <NavLink href="/app/settings/activity"><Settings aria-hidden />Activity log</NavLink>}
           </nav>
         </details>
@@ -57,7 +63,11 @@ export default async function FirmLayout({ children }: { children: ReactNode }) 
           <Link href="/account" className="cx-user">{u.name} · {ROLE_LABEL[u.role!]}</Link>
           <form action={signOut}><button className="cx-signout"><LogOut aria-hidden />Sign out</button></form>
         </header>
-        <main id="main" className="content">{children}</main>
+        <main id="main" className="content">
+          {sub.state === "grace" && <Banner kind="warn">Your subscription ended on {fmtDate(sub.ends!)}. The workspace is read-only and locks after {fmtDate(sub.graceEnds!)}. {sub.own ? <Link href="/subscription">Renew now</Link> : "Ask your DPCO to renew."}</Banner>}
+          {sub.state === "active" && sub.own && left !== null && left <= 30 && isAdmin(u) && <Banner kind="info">Your subscription ends on {fmtDate(sub.ends!)}. <Link href="/subscription">Renew now</Link></Banner>}
+          {children}
+        </main>
       </div>
     </div>
   );

@@ -73,6 +73,14 @@ async function need(kind: User["kind"]) {
   if (mfaRequired(u)) redirect("/setup/mfa");
   // A Solo DPO picks the DPCO firm they work under, and waits for its approval, before using the workspace (only while there is one to pick).
   if (u.plan === "solo" && u.dpco_status !== "approved" && (await one("select 1 from firms where plan = 'firm' and id <> $1 limit 1", [u.firm_id]))) redirect("/choose-dpco");
+  // DPCO annual subscription (lib/subscription.ts): unpaid or locked → only /subscription; in the 7-day grace, read-only (no server actions).
+  if (kind === "firm") {
+    const { subscriptionOf } = await import("./subscription");
+    const s = await subscriptionOf(u);
+    if (s.state === "unpaid" || s.state === "locked") redirect("/subscription");
+    const h = await headers(); // a server action: the next-action header (with JS) or a multipart form post (without)
+    if (s.state === "grace" && (h.get("next-action") || /multipart\/form-data|x-www-form-urlencoded/.test(h.get("content-type") ?? ""))) redirect("/subscription?error=" + encodeURIComponent("Your subscription has ended, so the workspace is read-only. Renew to make changes."));
+  }
   return u;
 }
 export const requireFirm = () => need("firm");
