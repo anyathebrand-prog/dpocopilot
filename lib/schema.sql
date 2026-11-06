@@ -1067,3 +1067,8 @@ do $$ begin
     insert into platform_settings (key, published_value) values ('migr_client_sub_year', 'done');
   end if;
 end $$;
+
+-- A client a DPCO added to a Solo DPO's workspace (Solo DPOs page). If the Solo DPO leaves that DPCO, the client goes back to it.
+alter table clients add column if not exists added_by_dpco uuid references firms;
+update clients c set added_by_dpco = (e.details->>'added_by_dpco')::uuid from audit_events e
+  where c.added_by_dpco is null and e.entity_type = 'client' and e.action = 'create' and e.entity_id = c.id::text and e.details ? 'added_by_dpco';

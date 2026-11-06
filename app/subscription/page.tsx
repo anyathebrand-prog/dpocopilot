@@ -41,7 +41,7 @@ async function chooseNew() {
   const s = await subscriptionOf(u);
   if (s.state !== "locked" && s.state !== "unpaid") redirect("/subscription");
   const r = await leaveDpco(u.firm_id);
-  await audit(u, "update", "firm", u.firm_id, { firm_id: u.firm_id, details: { left_dpco: u.dpco_firm_id, tasks_cleared: r.tasks } });
+  await audit(u, "update", "firm", u.firm_id, { firm_id: u.firm_id, details: { left_dpco: u.dpco_firm_id, tasks_cleared: r.tasks, clients_returned: r.clients } });
   redirect("/choose-dpco");
 }
 
@@ -80,7 +80,7 @@ export default async function Subscription({ searchParams }: { searchParams: Pro
         ) : !open && (
           u.plan === "solo" ? (
             <form action={chooseNew} style={{ marginTop: 12 }}>
-              <p className="meta">Your workspace opens again when {u.dpco_name ?? "your DPCO"} renews. Or choose a new DPCO: your tasks from {u.dpco_name ?? "this DPCO"} are cleared, and your proposals go to the new DPCO for review. Your clients, proposals and wallet stay.</p>
+              <p className="meta">Your workspace opens again when {u.dpco_name ?? "your DPCO"} renews. Or choose a new DPCO: your tasks are cleared, clients {u.dpco_name ?? "this DPCO"} added go back to them, and your proposals go to the new DPCO for review. Clients from your own proposals, and your wallet, stay.</p>
               <Submit className="btn secondary">Choose a new DPCO</Submit>
             </form>
           ) : <p className="meta">Ask your Firm Admin to pay the subscription.</p>
