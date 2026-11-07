@@ -177,7 +177,7 @@ export default async function Home() {
           </div>
           <Reveal delay={0.2}>
             <div className="hp-actions">
-              <Link href="/sign-up?plan=solo" className="btn-cta">Join as a Solo DPO</Link>
+              <Link href="/sign-up?plan=solo" className="btn-cta btn-dark">Join as a Solo DPO</Link>
             </div>
           </Reveal>
         </div>
