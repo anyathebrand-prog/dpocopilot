@@ -4,6 +4,8 @@ import { randomUUID } from "node:crypto";
 import { q, one } from "./db";
 import { setting } from "./data";
 import { invite } from "./invites";
+import { nextEnd } from "./subscription-math";
+import { todayWAT } from "./rules";
 
 const PAYSTACK = process.env.PAYSTACK_BASE_URL ?? "https://api.paystack.co"; // override only for tests
 const KEY = () => process.env.PAYSTACK_SECRET_KEY;
@@ -27,14 +29,19 @@ export async function invitesHeld(clientId: string) {
 }
 
 /** Starts a Paystack transaction and returns its payment page URL. Throws with Paystack's message on failure. */
-export async function startCheckout(c: { id: string; firm_id: string; name: string; checkout_amount: string | number }, payer: { id: string; email: string; name: string }) {
+/** The fee to renew a client's subscription for a year: today's fee for its size, else what it paid when added. */
+export async function renewalFee(c: { size?: string | null; checkout_amount?: string | number | null }) {
+  return (await feeFor(c.size)) || (paymentsOn() ? Number(c.checkout_amount ?? 0) : 0);
+}
+
+export async function startCheckout(c: { id: string; firm_id: string; name: string; checkout_amount: string | number }, payer: { id: string; email: string; name: string }, page = "checkout") {
   const reference = `DPOC-${randomUUID()}`, amount = Number(c.checkout_amount);
   await q("insert into client_payments (firm_id, client_id, reference, amount, created_by) values ($1,$2,$3,$4,$5)", [c.firm_id, c.id, reference, amount, payer.id]);
   const r = await fetch(`${PAYSTACK}/transaction/initialize`, {
     method: "POST", headers: { Authorization: `Bearer ${KEY()}`, "Content-Type": "application/json" },
     body: JSON.stringify({
       email: payer.email, amount: Math.round(amount * 100), currency: "NGN", reference, // amount in kobo
-      callback_url: `${BASE()}/app/clients/${c.id}/checkout`, metadata: { client_id: c.id, client: c.name },
+      callback_url: `${BASE()}/app/clients/${c.id}/${page}`, metadata: { client_id: c.id, client: c.name },
     }),
   });
   const j = await r.json().catch(() => ({}));
@@ -57,7 +64,13 @@ export async function confirmPayment(reference: string): Promise<"paid" | "pendi
   if (d.status !== "success" || d.currency !== "NGN" || Number(d.amount) < Math.round(Number(p.amount) * 100)) return "pending";
   // Only the request that flips it to paid sends the invitations (redirect and webhook can race).
   const won = await one("update client_payments set status = 'paid', paid_at = now() where id = $1 and status <> 'paid' returning id", [p.id]);
-  if (won) await releaseInvites(p.client_id, p.created_by);
+  if (won) {
+    const c = (await one<{ e: string | null }>("select subscription_ends::text as e from clients where id = $1", [p.client_id]))!;
+    const end = nextEnd(c.e, todayWAT()); // first payment: a year from today; renewal: a year on from the end date (or from today after it lapsed)
+    await q("update clients set subscription_ends = $2 where id = $1", [p.client_id, end]);
+    await q("update client_payments set period_end = $2 where id = $1", [p.id, end]);
+    await releaseInvites(p.client_id, p.created_by);
+  }
   return "paid";
 }
 

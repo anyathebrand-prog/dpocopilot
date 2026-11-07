@@ -1,5 +1,6 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { confirmPayment } from "@/lib/checkout";
+import { confirmSubscription } from "@/lib/subscription";
 
 /** Paystack webhook. Signature: HMAC-SHA512 of the raw body with the secret key, hex, in x-paystack-signature. */
 export async function POST(req: Request) {
@@ -12,6 +13,7 @@ export async function POST(req: Request) {
   const body = JSON.parse(raw);
   const ref = String(body?.data?.reference ?? "");
   // Status is re-checked with Paystack's verify API before anything is released.
-  if (body?.event === "charge.success" && /^DPOC-[0-9a-f-]{36}$/.test(ref)) await confirmPayment(ref);
+  if (body?.event === "charge.success" && /^DPOC-[0-9a-f-]{36}$/.test(ref)) await confirmPayment(ref); // client checkout
+  if (body?.event === "charge.success" && /^DPOS-[0-9a-f-]{36}$/.test(ref)) await confirmSubscription(ref); // DPCO subscription
   return new Response("ok");
 }

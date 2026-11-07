@@ -7,10 +7,14 @@ import { signOut } from "@/lib/auth-actions";
 import { NavLink } from "@/components/client";
 import "@/components/console.css";
 import { INSTALL } from "@/lib/install";
+import { Banner } from "@/components/ui";
+import { fmtDate, todayWAT } from "@/lib/rules";
 
 /** Client portal in the same frame as the firm workspace: navy sidebar with icon nav, top bar with account and sign out. */
 export default async function PortalLayout({ children }: { children: ReactNode }) {
   const u = await requireContact();
+  const subEnds = (await one<{ e: string | null }>("select subscription_ends::text as e from clients where id = $1", [u.client_id]))?.e ?? null;
+  const inGrace = !!subEnds && subEnds < todayWAT(); // past the end date but not paused yet (requireContact pauses after 7 days)
   const c = await one(`select c.name,
       (select count(*)::int from evidence_requests e where e.client_id = c.id and e.status in ('open','rejected')) as evidence,
       (select count(*)::int from signoff_requests s where s.client_id = c.id and s.status = 'pending') as signoffs,
@@ -55,7 +59,7 @@ export default async function PortalLayout({ children }: { children: ReactNode }
           <Link href="/account" className="cx-user">{u.name} · Client contact</Link>
           <form action={signOut}><button className="cx-signout"><LogOut aria-hidden />Sign out</button></form>
         </header>
-        <main id="main" className="content">{children}</main>
+        <main id="main" className="content">{inGrace && <Banner kind="warn">Your organisation&apos;s subscription ended on {fmtDate(subEnds!)}. The portal is read-only until {u.firm_name} renews it.</Banner>}{children}</main>
       </div>
     </div>
   );

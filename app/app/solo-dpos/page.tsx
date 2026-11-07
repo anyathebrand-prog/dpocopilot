@@ -66,6 +66,7 @@ async function addClientFor(fd: FormData) {
   if (why) redirect(flash(BACK, why, "error"));
   const c = await addSoloClient(f.id, u.id, { name, subjects, departments: depts });
   if (!c.created) redirect(flash(BACK, `${f.name} already has a client called ${name}.`, "error"));
+  await q("update clients set added_by_dpco = $2 where id = $1", [c.id, u.firm_id]);
   await audit(u, "create", "client", c.id, { client_id: c.id, firm_id: f.id, details: { added_by_dpco: u.firm_id } });
   await notifyFirm(f.id, "solo_decision", `${u.firm_name} added ${name} as a client in your workspace.`, `/app/clients/${c.id}`);
   redirect(flash(BACK, `${name} added to ${f.name}'s clients.`));

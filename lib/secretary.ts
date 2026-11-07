@@ -67,6 +67,16 @@ export async function saveClientFees(fd: FormData) {
   redirect(flash("/secretary/settings", "Client fees saved. They apply to clients added from now on."));
 }
 
+/** The DPCO annual subscription fee (naira). Applies to payments started from now on. */
+export async function saveAnnualFee(fd: FormData) {
+  await requireSecretary();
+  const n = Number(str(fd, "fee").replace(/,/g, "") || 0);
+  if (!Number.isFinite(n) || n < 0 || n > 100_000_000) redirect(flash("/secretary/settings", "Enter the fee as an amount in naira (0 for no subscription).", "error"));
+  await q("update platform_settings set published_value = $2 where key = $1", ["dpco_annual_fee", String(Math.round(n * 100) / 100)]);
+  await log("update", "platform_setting", "dpco_annual_fee", { fee: n });
+  redirect(flash("/secretary/settings", "DPCO subscription fee saved."));
+}
+
 export async function addCarItem(fd: FormData) {
   await requireSecretary();
   const cat = str(fd, "category_key"), text = str(fd, "text"), priority = str(fd, "priority") || "high";

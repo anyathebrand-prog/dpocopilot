@@ -29,11 +29,23 @@ async function setDpco(fd: FormData) {
   redirect(flash("/secretary/firms", d ? `${f.name} now works with ${d.name}` : `${f.name} will choose its DPCO at next sign-in`));
 }
 
+/** Set a DPCO's subscription end date by hand (a payment made outside Paystack, or an extension). Empty = not paid. */
+async function setSubEnd(fd: FormData) {
+  "use server";
+  const u = await requireSecretary();
+  const f = await one("select id, name from firms where id = $1 and plan = 'firm'", [/^[0-9a-f-]{36}$/.test(str(fd, "firm_id")) ? str(fd, "firm_id") : null]);
+  const end = str(fd, "ends");
+  if (!f || (end && !/^\d{4}-\d{2}-\d{2}$/.test(end))) redirect("/secretary/firms");
+  await q("update firms set subscription_ends = $2 where id = $1", [f.id, end || null]);
+  await audit(u, "update", "firm", f.id, { firm_id: f.id, details: { subscription_ends: end || null } });
+  redirect(flash("/secretary/firms", end ? `${f.name}'s subscription now ends on ${end}` : `${f.name} must pay before using its workspace`));
+}
+
 /** Every firm on the platform and its plan. Solo DPO: one seat, no spreadsheet import. DPCO Firm: everything. */
 export default async function Firms({ searchParams }: { searchParams: Promise<Record<string, string>> }) {
   await requireSecretary();
   const sp = await searchParams;
-  const firms = await q(`select f.id, f.name, f.plan, f.created_at, f.dpco_firm_id,
+  const firms = await q(`select f.id, f.name, f.plan, f.created_at, f.dpco_firm_id, f.subscription_ends::text as sub_ends,
       (select count(*)::int from memberships m where m.firm_id = f.id and m.status = 'active') as seats,
       (select count(*)::int from clients c where c.firm_id = f.id and c.archived_at is null) as clients
     from firms f order by f.name`);
@@ -42,7 +54,7 @@ export default async function Firms({ searchParams }: { searchParams: Promise<Re
       <PageHead title="Firms and plans" sub="Solo DPO: one seat, no team invitations or spreadsheet import. DPCO Firm: every feature." />
       <Flash sp={sp} />
       <table className="register">
-        <thead><tr><th>Firm</th><th className="num">Active seats</th><th className="num">Clients</th><th>Joined</th><th>Plan</th><th>Solo DPO works with</th></tr></thead>
+        <thead><tr><th>Firm</th><th className="num">Active seats</th><th className="num">Clients</th><th>Joined</th><th>Plan</th><th>Solo DPO works with</th><th>Subscription ends</th></tr></thead>
         <tbody>{firms.map((f) => (
           <tr key={f.id}>
             <td>{f.name}</td>
@@ -64,6 +76,12 @@ export default async function Firms({ searchParams }: { searchParams: Promise<Re
                   <option value="">Not chosen yet</option>
                   {firms.filter((d) => d.plan === "firm").map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
                 </select>
+                <Submit className="btn secondary">Save</Submit>
+              </form>)}</td>
+            <td data-label="Subscription ends">{f.plan === "solo" ? <span className="meta">Follows its DPCO</span> : (
+              <form action={setSubEnd} className="row">
+                <Hidden values={{ firm_id: f.id }} />
+                <input type="date" name="ends" defaultValue={f.sub_ends ?? ""} aria-label={`Subscription end for ${f.name}`} style={{ width: "auto" }} />
                 <Submit className="btn secondary">Save</Submit>
               </form>)}</td>
           </tr>

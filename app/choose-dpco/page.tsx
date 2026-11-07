@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { getUser, audit } from "@/lib/auth";
 import { q, one } from "@/lib/db";
 import { str, flash } from "@/lib/form";
-import { notifyFirm, REVIEWERS } from "@/lib/solo";
+import { notifyFirm, REVIEWERS, availableDpcos } from "@/lib/solo";
 import { Flash, Field, Banner } from "@/components/ui";
 import { Submit } from "@/components/client";
 
@@ -19,7 +19,7 @@ async function choose(fd: FormData) {
   const u = await soloNotApproved();
   if (u.dpco_status === "pending") redirect("/choose-dpco");
   const id = str(fd, "dpco_firm_id");
-  const d = /^[0-9a-f-]{36}$/.test(id) ? await one("select id, name from firms where id = $1 and plan = 'firm' and id <> $2", [id, u.firm_id]) : null;
+  const d = /^[0-9a-f-]{36}$/.test(id) ? (await availableDpcos(u.firm_id)).find((f) => f.id === id) ?? null : null;
   if (!d) redirect(flash("/choose-dpco", "Choose a DPCO firm from the list.", "error"));
   // One request at a time; a declined Solo DPO may choose again.
   const set = await q("update firms set dpco_firm_id = $2, dpco_status = 'pending' where id = $1 and (dpco_firm_id is null or dpco_status = 'declined') returning 1", [u.firm_id, d.id]);
@@ -39,7 +39,7 @@ export default async function ChooseDpco({ searchParams }: { searchParams: Promi
       <Banner kind="info">You asked to work under <b>{u.dpco_name}</b>. They have been notified and need to approve you before you can use your workspace. You&apos;ll get an email as soon as they do.</Banner>
     </main>
   );
-  const firms = await q("select id, name from firms where plan = 'firm' and id <> $1 order by name", [u.firm_id]);
+  const firms = await availableDpcos(u.firm_id);
   return (
     <main id="main" className="auth" style={{ maxWidth: 520 }}>
       <h1>Choose your DPCO</h1>
