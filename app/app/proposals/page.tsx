@@ -13,10 +13,10 @@ export default async function Proposals({ searchParams }: { searchParams: Promis
   const u = await requireFirm();
   const sp = await searchParams;
   const rows = await q("select * from proposals where firm_id = $1 order by created_at desc", [u.firm_id]);
-  // Solo DPO: verify the client against last year's NDPC audit filings before the proposal form opens.
+  // Verify the client against last year's NDPC audit filings before the proposal form opens.
   const check = (sp.check ?? "").trim().slice(0, 200), year = new Date().getFullYear() - 1;
-  const blocked = u.plan === "solo" && check ? await ndpcBlock(u.firm_id, check) : null;
-  const verified = u.plan !== "solo" || (!!check && !blocked);
+  const blocked = check ? await ndpcBlock(u.firm_id, check) : null;
+  const verified = !!check && !blocked;
   return (
     <>
       <PageHead title="Proposals" sub="Data protection compliance proposals and service agreements for prospective clients, with a cover letter." />
@@ -37,18 +37,16 @@ export default async function Proposals({ searchParams }: { searchParams: Promis
       )}
       <details className="group" open={!!sp.new || rows.length === 0} style={{ marginTop: 24 }}>
         <summary>New proposal</summary>
-        {u.plan === "solo" && (
-          <form className="panel row" style={{ maxWidth: 720, alignItems: "flex-end", marginBottom: 12 }}>
+        <form className="panel row" style={{ maxWidth: 720, alignItems: "flex-end", marginBottom: 12 }}>
             <input type="hidden" name="new" value="1" />
             <Field label="Name of the client" help={`Checked against the NDPC's ${year} audit filings before you continue.`} required>
               <input name="check" defaultValue={check} required minLength={3} style={{ width: 380 }} />
             </Field>
             <button className="btn">Verify</button>
-          </form>
-        )}
+        </form>
         {blocked && <Banner kind="error">{blocked}</Banner>}
-        {u.plan === "solo" && check && !blocked && <Banner kind="ok"><b>{check}</b> is not on the NDPC&apos;s {year} audit list. You can go ahead with the proposal.</Banner>}
-        {verified && <ProposalForm name={u.plan === "solo" ? check : undefined} />}
+        {check && !blocked && <Banner kind="ok"><b>{check}</b> is not on the NDPC&apos;s {year} audit list. You can go ahead with the proposal.</Banner>}
+        {verified && <ProposalForm name={check} />}
       </details>
     </>
   );
