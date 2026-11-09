@@ -1,10 +1,7 @@
 import Link from "next/link";
 import { ndpcBlock } from "@/lib/ndpc-guard";
 import { requireFirm, canApprove } from "@/lib/auth";
-import { createClient } from "@/app/app/clients/new/actions";
 import { units } from "@/lib/proposal";
-import { Hidden } from "@/components/ui";
-import { Submit } from "@/components/client";
 import { q } from "@/lib/db";
 import { naira } from "@/lib/invoice";
 import { money } from "@/lib/proposal";
@@ -38,10 +35,7 @@ export default async function Proposals({ searchParams }: { searchParams: Promis
               <td data-label="Total" className="num">{naira(money(r as any).total)}</td>
               <td data-label="Status" className="small">{r.status}</td>
               {canAdd && <td data-label="Action">{r.client_id ? <Link href={`/app/clients/${r.client_id}`}>Open client</Link> : (
-                <form action={createClient}>
-                  <Hidden values={{ from: "proposals", name: r.client_name, sector: r.sector ?? "", data_subjects_count: String(r.subjects_count ?? 0), departments_count: String(units(r.departments).length), contact_name: r.contact_name ?? "", contact_email: r.email ?? "", team: u.membership_id ?? "" }} />
-                  <Submit className="btn secondary">Add client</Submit>
-                </form>)}</td>}
+                <Link className="btn secondary" href={`/app/clients/new?${new URLSearchParams({ name: r.client_name, sector: r.sector ?? "", subjects: String(r.subjects_count ?? ""), departments: String(units(r.departments).length || ""), contact_name: r.contact_name ?? "", contact_email: r.email ?? "" })}`}>Add client</Link>)}</td>}
             </tr>
           ))}</tbody>
         </table>
