@@ -20,6 +20,10 @@ export default async function ProposalPage({ params, searchParams }: { params: P
   const solo = u.plan === "solo", locked = solo && p.review_status !== "approved";
   const dl = (doc: string) => locked ? <span className="meta">Available once {u.dpco_name} approves it</span>
     : <div className="row" style={{ marginTop: 8 }}><a className="btn" href={exp(doc, "pdf")} target="_blank">PDF</a>{!solo && <a className="btn secondary" href={exp(doc, "doc")}>Word</a>}</div>; // Solo DPO: PDF only
+  // DPCO: invoice the proposal's client (prefilled from the proposal); if the client doesn't exist yet, add it first.
+  const client = solo ? null : await one<{ id: string }>("select id from clients where firm_id = $1 and lower(name) = lower($2) and archived_at is null limit 1", [u.firm_id, p.client_name]);
+  const invoiceHref = solo ? undefined : client ? `/app/clients/${client.id}/billing?from_proposal=${p.id}#new-invoice`
+    : `/app/clients/new?${new URLSearchParams({ name: p.client_name, sector: p.sector ?? "", subjects: String(p.subjects_count ?? ""), departments: String(units(p.departments).length || ""), contact_name: p.contact_name ?? "", contact_email: p.email ?? "", note: "Add the client first, then create the invoice from its Billing page." })}`;
   return (
     <>
       <nav className="meta" aria-label="Breadcrumb"><Link href="/app/proposals">Proposals</Link> / {p.number}</nav>
@@ -50,7 +54,7 @@ export default async function ProposalPage({ params, searchParams }: { params: P
           </div>
         </form>
       </div>
-      <ProposalForm p={p} />
+      <ProposalForm p={p} invoiceHref={invoiceHref} />
     </>
   );
 }
