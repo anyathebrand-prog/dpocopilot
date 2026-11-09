@@ -1,6 +1,10 @@
 import Link from "next/link";
 import { ndpcBlock } from "@/lib/ndpc-guard";
-import { requireFirm } from "@/lib/auth";
+import { requireFirm, canApprove } from "@/lib/auth";
+import { createClient } from "@/app/app/clients/new/actions";
+import { units } from "@/lib/proposal";
+import { Hidden } from "@/components/ui";
+import { Submit } from "@/components/client";
 import { q } from "@/lib/db";
 import { naira } from "@/lib/invoice";
 import { money } from "@/lib/proposal";
@@ -12,7 +16,9 @@ import { ProposalForm } from "./form";
 export default async function Proposals({ searchParams }: { searchParams: Promise<Record<string, string>> }) {
   const u = await requireFirm();
   const sp = await searchParams;
-  const rows = await q("select * from proposals where firm_id = $1 order by created_at desc", [u.firm_id]);
+  const rows = await q(`select p.*, (select c.id from clients c where c.firm_id = p.firm_id and lower(c.name) = lower(p.client_name) and c.archived_at is null limit 1) as client_id
+    from proposals p where p.firm_id = $1 order by p.created_at desc`, [u.firm_id]);
+  const canAdd = u.plan !== "solo" && canApprove(u); // Firm Admins and Lead Consultants add clients; Solo DPOs get them on acceptance
   // Verify the client against last year's NDPC audit filings before the proposal form opens.
   const check = (sp.check ?? "").trim().slice(0, 200), year = new Date().getFullYear() - 1;
   const blocked = check ? await ndpcBlock(u.firm_id, check) : null;
@@ -23,7 +29,7 @@ export default async function Proposals({ searchParams }: { searchParams: Promis
       <Flash sp={sp} />
       {rows.length === 0 ? <Empty><p>No proposals yet.</p></Empty> : (
         <table className="register">
-          <thead><tr><th>Proposal</th><th>Client</th><th>Date</th><th className="num">Total</th><th>Status</th></tr></thead>
+          <thead><tr><th>Proposal</th><th>Client</th><th>Date</th><th className="num">Total</th><th>Status</th>{canAdd && <th>Action</th>}</tr></thead>
           <tbody>{rows.map((r) => (
             <tr key={r.id}>
               <td><Link href={`/app/proposals/${r.id}`}>{r.number}</Link></td>
@@ -31,6 +37,11 @@ export default async function Proposals({ searchParams }: { searchParams: Promis
               <td data-label="Date" className="small">{fmtDate(String(r.created_at instanceof Date ? r.created_at.toISOString() : r.created_at).slice(0, 10))}</td>
               <td data-label="Total" className="num">{naira(money(r as any).total)}</td>
               <td data-label="Status" className="small">{r.status}</td>
+              {canAdd && <td data-label="Action">{r.client_id ? <Link href={`/app/clients/${r.client_id}`}>Open client</Link> : (
+                <form action={createClient}>
+                  <Hidden values={{ from: "proposals", name: r.client_name, sector: r.sector ?? "", data_subjects_count: String(r.subjects_count ?? 0), departments_count: String(units(r.departments).length), contact_name: r.contact_name ?? "", contact_email: r.email ?? "", team: u.membership_id ?? "" }} />
+                  <Submit className="btn secondary">Add client</Submit>
+                </form>)}</td>}
             </tr>
           ))}</tbody>
         </table>

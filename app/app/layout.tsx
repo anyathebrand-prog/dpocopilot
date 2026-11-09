@@ -37,8 +37,8 @@ export default async function FirmLayout({ children }: { children: ReactNode }) 
             <NavLink href="/app/tasks"><ListChecks aria-hidden />Tasks</NavLink>
             <NavLink href="/app/calendar"><Calendar aria-hidden />Calendar</NavLink>
             <NavLink href="/app/proposals"><FileSignature aria-hidden />Proposals</NavLink>
+            <NavLink href="/app/billing"><Receipt aria-hidden />Invoices</NavLink>
             {u.plan !== "solo" && canApprove(u) && <NavLink href="/app/solo-dpos"><UserCheck aria-hidden />Solo DPOs</NavLink>}
-            <NavLink href="/app/billing"><Receipt aria-hidden />Billing</NavLink>
             <NavLink href="/app/wallet"><Wallet aria-hidden />Wallet</NavLink>
             {u.plan !== "solo" && isAdmin(u) && <NavLink href="/app/payouts"><Banknote aria-hidden />Payouts</NavLink>}
             {u.plan !== "solo" && <NavLink href="/app/audit-notices"><Mail aria-hidden />Audit notices</NavLink>}
