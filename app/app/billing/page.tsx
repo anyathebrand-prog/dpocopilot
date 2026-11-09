@@ -6,7 +6,7 @@ import { str } from "@/lib/form";
 import { totals, sumMoney, type Line } from "@/lib/invoice";
 import { moneyIn } from "@/lib/country";
 import { fmtDate, todayWAT } from "@/lib/rules";
-import { PageHead, Empty, Field } from "@/components/ui";
+import { PageHead, Empty, Field, Flash } from "@/components/ui";
 
 /** Pick a client, then create the invoice on its billing page. */
 async function newInvoice(fd: FormData) {
@@ -33,6 +33,7 @@ export default async function FirmBilling({ searchParams }: { searchParams: Prom
   return (
     <>
       <PageHead title="Invoices" sub="Invoices across all your clients." />
+      <Flash sp={sp} />
       {clients.length > 0 && (
         <form action={newInvoice} className="panel row" style={{ alignItems: "flex-end", marginBottom: 16, maxWidth: 640 }}>
           <Field label="New invoice for"><select name="client_id" required defaultValue=""><option value="" disabled>Choose a client</option>{clients.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></Field>

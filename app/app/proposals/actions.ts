@@ -1,9 +1,12 @@
-"use server";
+﻿"use server";
 import { redirect } from "next/navigation";
-import { addSoloClient } from "@/lib/clients";
+import { addSoloClient, insertClient } from "@/lib/clients";
 import { ndpcBlock } from "@/lib/ndpc-guard";
 import { requireFirm, audit, send } from "@/lib/auth";
-import { q, one } from "@/lib/db";
+import { q, one, tx } from "@/lib/db";
+import { feeFor } from "@/lib/checkout";
+import { sizeFor } from "@/lib/client-size";
+import { countryOf } from "@/lib/country";
 import { str, opt, flash } from "@/lib/form";
 import { imageSize } from "@/lib/files";
 import { PROPOSAL_SECTORS, TIERS, type Fin, proposalHtml, coverLetterHtml, units } from "@/lib/proposal";
@@ -34,7 +37,7 @@ export async function saveProposal(fd: FormData) {
   if ((sector && !PROPOSAL_SECTORS.includes(sector)) || !(tier in TIERS)) fail("Choose the sector and tier from the lists.");
   const staff = int(str(fd, "staff_count"), 0, 10_000_000), subjects = int(str(fd, "subjects_count"), 0, 1_000_000_000);
   const months = int(str(fd, "duration_months") || "12", 1, 36), validity = int(str(fd, "validity_days") || "90", 1, 365), dpias = int(str(fd, "dpias") || "5", 0, 100);
-  if ([staff, subjects, months, validity, dpias].some(Number.isNaN)) fail("Check the numbers: staff, data subjects, duration (1–36 months), validity (1–365 days) and DPIAs.");
+  if ([staff, subjects, months, validity, dpias].some(Number.isNaN)) fail("Check the numbers: staff, data subjects, duration (1â€“36 months), validity (1â€“365 days) and DPIAs.");
 
   const lines: Line[] = [];
   for (const [i, service] of SERVICES.entries()) {
@@ -136,4 +139,35 @@ ${firm.name}`,
   await q("update proposals set status = 'sent', updated_at = now() where id = $1", [p.id]);
   await audit(u, "update", "proposal", p.id, { details: { emailed_to: p.email } });
   redirect(flash(`/app/proposals/${p.id}`, `Proposal and cover letter emailed to ${p.email}.`));
+}
+
+/** DPCO: turn a saved proposal straight into an invoice for its client. The client is created from the proposal if it
+ *  doesn't exist yet (its onboarding fee, if any, still applies and the portal invitation waits for that payment). */
+export async function invoiceFromProposal(fd: FormData) {
+  const u = await requireFirm();
+  if (u.plan === "solo" || !(u.role === "firm_admin" || u.role === "lead_consultant")) redirect("/forbidden");
+  const p = await one("select * from proposals where id = $1 and firm_id = $2", [/^[0-9a-f-]{36}$/.test(str(fd, "id")) ? str(fd, "id") : null, u.firm_id]);
+  if (!p) redirect("/forbidden");
+  const lines: Line[] = p.lines ?? [];
+  if (!lines.length) redirect(flash(`/app/proposals/${p.id}`, "Add at least one service with a fee and save the proposal first.", "error"));
+  const r = await tx(async (t) => {
+    let c = (await t.query<{ id: string; country: string }>("select id, country from clients where firm_id = $1 and lower(name) = lower($2) and archived_at is null order by created_at limit 1", [u.firm_id, p.client_name])).rows[0];
+    if (!c) {
+      const depts = units(p.departments).length, size = sizeFor(Number(p.subjects_count ?? 0), depts), fee = await feeFor(size);
+      const id = await insertClient(t, u.firm_id, u.id, { name: p.client_name, sector: p.sector ?? null, size });
+      await t.query("update clients set data_subjects_count = $2, departments_count = $3, checkout_amount = $4 where id = $1", [id, p.subjects_count ?? null, depts, fee || null]);
+      if (u.membership_id) await t.query("insert into client_assignments (client_id, membership_id) values ($1,$2) on conflict do nothing", [id, u.membership_id]);
+      if (p.email) await t.query("insert into client_contacts (firm_id, client_id, name, email) values ($1,$2,$3,$4)", [u.firm_id, id, p.contact_name || p.email, String(p.email).toLowerCase()]);
+      await audit(u, "create", "client", id, { client_id: id, details: { from_proposal: p.id } }, t);
+      c = { id, country: "NG" };
+    }
+    const cc = countryOf(c.country), issued = todayWAT(), year = issued.slice(0, 4);
+    const n = (await t.query<{ n: number }>("select count(*)::int as n from invoices where firm_id = $1 and number like $2", [u.firm_id, `INV-${year}-%`])).rows[0].n;
+    const number = `INV-${year}-${String(n + 1).padStart(3, "0")}`;
+    const inv = (await t.query<{ id: string }>("insert into invoices (firm_id, client_id, number, issued_on, due_on, lines, vat_rate, notes, created_by, currency) values ($1,$2,$3,$4,null,$5,$6,$7,$8,$9) returning id",
+      [u.firm_id, c.id, number, issued, JSON.stringify(lines), Number(p.vat_rate) > 0 ? cc.vatRate : 0, [p.payment_terms, p.notes].filter(Boolean).join("\n") || null, u.id, cc.currency.code])).rows[0];
+    await audit(u, "create", "invoice", inv.id, { client_id: c.id, details: { from_proposal: p.id } }, t);
+    return { number, id: inv.id };
+  });
+  redirect(flash("/app/billing", `Invoice ${r.number} created from proposal ${p.number}. Click its number below to open the PDF.`));
 }
