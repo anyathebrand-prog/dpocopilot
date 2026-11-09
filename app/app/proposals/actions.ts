@@ -1,4 +1,4 @@
-﻿"use server";
+"use server";
 import { redirect } from "next/navigation";
 import { addSoloClient, insertClient } from "@/lib/clients";
 import { ndpcBlock } from "@/lib/ndpc-guard";
