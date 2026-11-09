@@ -27,7 +27,7 @@ export default async function SiteLayout({ children }: { children: ReactNode }) 
       <footer className="site-footer">
         <div className="site-inner spread">
           <span>DPO Copilot · NDPA 2023 compliance workspace for Nigerian DPCOs</span>
-          <nav aria-label="Legal" className="row"><Link href="/privacy">Privacy notice</Link><Link href="/terms">Terms</Link></nav>
+          <nav aria-label="Legal" className="row"><a href="/downloads/dpo-copilot-brochure.pdf" download>Brochure (PDF)</a><Link href="/privacy">Privacy notice</Link><Link href="/terms">Terms</Link></nav>
         </div>
       </footer>
     </div>
