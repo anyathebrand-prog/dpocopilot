@@ -21,6 +21,14 @@ async function create(fd: FormData) {
     if (!Number.isFinite(amount) || amount <= 0) redirect(flash(back, `Enter an amount for ${service}.`, "error"));
     lines.push({ service, description: str(fd, `d${i}`), amount: Math.round(amount * 100) / 100 });
   }
+  const xs = fd.getAll("xs").map(String), xd = fd.getAll("xd").map(String), xa = fd.getAll("xa").map(String);
+  for (const [k, raw] of xs.entries()) {
+    const service = raw.trim().slice(0, 200);
+    if (!service || fd.get(`xon${k}`) !== "on") continue;
+    const amount = parseAmount(xa[k] ?? "");
+    if (!Number.isFinite(amount) || amount <= 0) redirect(flash(back, `Enter an amount for ${service}.`, "error"));
+    lines.push({ service, description: (xd[k] ?? "").trim().slice(0, 500), amount: Math.round(amount * 100) / 100 });
+  }
   if (!lines.length) redirect(flash(back, "Select at least one service.", "error"));
   const issued = opt(fd, "issued_on") ?? todayWAT(), year = issued.slice(0, 4);
   const n = (await one<{ n: number }>("select count(*)::int as n from invoices where firm_id = $1 and number like $2", [client.firm_id, `INV-${year}-%`]))!.n;
@@ -79,6 +87,10 @@ export default async function Billing({ params, searchParams }: { params: Promis
   const { client } = await requireClient(clientId);
   const rows = await q("select * from invoices where client_id = $1 order by issued_on desc, created_at desc", [clientId]);
   const ro = !!client.archived_at;
+  // Prefill from a proposal of this firm ("Create invoice" on the proposal page)
+  const prop = /^[0-9a-f-]{36}$/.test(sp.from_proposal ?? "") ? await one<{ number: string; lines: Line[]; vat_rate: string }>("select number, lines, vat_rate from proposals where id = $1 and firm_id = $2", [sp.from_proposal, client.firm_id]) : null;
+  const pl = (s: string) => prop?.lines.find((l) => l.service === s);
+  const extra = (prop?.lines ?? []).filter((l) => !(SERVICES as readonly string[]).includes(l.service));
   const outstanding = sumMoney(rows.filter((r) => r.status === "unpaid")), cc = countryOf(client.country);
   const exp = (id: string, f: string) => `/export?kind=invoice&id=${id}&format=${f}`;
   const act = (id: string, status: string, label: string) => (
@@ -111,24 +123,32 @@ export default async function Billing({ params, searchParams }: { params: Promis
         </table>
       )}
       {!ro && (
-        <form action={create} className="panel" style={{ marginTop: 24 }}>
+        <form action={create} className="panel" id="new-invoice" style={{ marginTop: 24 }}>
           <Hidden values={{ client_id: clientId }} />
           <h3 style={{ marginTop: 0 }}>New invoice</h3>
+          {prop && <p className="banner ok" role="status">Filled in from proposal <b>{prop.number}</b>. Check the amounts before creating the invoice.</p>}
           <p className="meta">Tick the services to bill and enter each amount in {cc.currency.code} ({cc.name} client).</p>
           <table className="register">
             <thead><tr><th>Service</th><th>Description (optional)</th><th>Amount ({cc.currency.symbol})</th></tr></thead>
             <tbody>{SERVICES.map((s, i) => (
               <tr key={s}>
-                <td><label className="check"><input type="checkbox" name={`s${i}`} />{i + 1}. {s}</label></td>
-                <td><input name={`d${i}`} placeholder="e.g. scope, period" /></td>
-                <td><input name={`a${i}`} inputMode="decimal" placeholder="0.00" style={{ width: 140 }} /></td>
+                <td><label className="check"><input type="checkbox" name={`s${i}`} defaultChecked={!!pl(s)} />{i + 1}. {s}</label></td>
+                <td><input name={`d${i}`} placeholder="e.g. scope, period" defaultValue={pl(s)?.description ?? ""} /></td>
+                <td style={{ textAlign: "right" }}><input name={`a${i}`} inputMode="decimal" placeholder="0.00" style={{ width: 140, textAlign: "right" }} defaultValue={pl(s)?.amount ?? ""} /></td>
+              </tr>
+            ))}
+            {extra.map((l, k) => (
+              <tr key={`x${k}`}>
+                <td><label className="check"><input type="checkbox" name={`xon${k}`} defaultChecked />{l.service}</label><input type="hidden" name="xs" value={l.service} /></td>
+                <td><input name="xd" defaultValue={l.description ?? ""} placeholder="e.g. scope, period" /></td>
+                <td style={{ textAlign: "right" }}><input name="xa" inputMode="decimal" defaultValue={l.amount} style={{ width: 140, textAlign: "right" }} /></td>
               </tr>
             ))}</tbody>
           </table>
           <div className="row" style={{ alignItems: "flex-end", marginTop: 12 }}>
             <Field label="Invoice date"><input type="date" name="issued_on" defaultValue={todayWAT()} /></Field>
             <Field label="Due date"><input type="date" name="due_on" /></Field>
-            <label className="check"><input type="checkbox" name="vat" />Add VAT ({cc.vatRate}%)</label>
+            <label className="check"><input type="checkbox" name="vat" defaultChecked={!!prop && Number(prop.vat_rate) > 0} />Add VAT ({cc.vatRate}%)</label>
           </div>
           <Field label="Notes and payment details" help="e.g. bank name, account name and number."><textarea name="notes" rows={3} /></Field>
           <Submit>Create invoice</Submit>

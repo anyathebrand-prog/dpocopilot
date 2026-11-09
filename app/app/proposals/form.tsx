@@ -7,7 +7,7 @@ import { COUNTRY } from "@/lib/country";
 import { ProposalTotal, ExtraItems } from "@/components/proposal-total";
 
 /** The proposal form, empty for a new proposal or filled from an existing one. */
-export function ProposalForm({ p, name }: { p?: Record<string, any>; name?: string }) {
+export function ProposalForm({ p, name, invoiceHref }: { p?: Record<string, any>; name?: string; invoiceHref?: string }) {
   const f: Fin = p?.fin ?? {}, lines: Line[] = p?.lines ?? [], line = (s: string) => lines.find((l) => l.service === s);
   return (
     <form action={saveProposal} className="panel" style={{ maxWidth: 920 }}>
@@ -63,7 +63,7 @@ export function ProposalForm({ p, name }: { p?: Record<string, any>; name?: stri
       <Field label="Payment terms"><input name="payment_terms" defaultValue={p?.payment_terms ?? "50% mobilisation on acceptance; 50% on delivery of the final reports."} /></Field>
       <label className="check" style={{ marginTop: 8 }}><input type="checkbox" name="vat" defaultChecked={p ? Number(p.vat_rate) > 0 : true} />Add VAT ({COUNTRY.vatRate}%)</label>
       <Field label="Additional payment notes"><textarea name="notes" rows={2} defaultValue={p?.notes ?? ""} /></Field>
-      <Submit>{p ? "Save proposal" : "Create proposal"}</Submit>
+      <div className="row" style={{ gap: 12 }}><Submit>{p ? "Save proposal" : "Create proposal"}</Submit>{invoiceHref && <a className="btn secondary" href={invoiceHref}>Create invoice</a>}</div>
     </form>
   );
 }

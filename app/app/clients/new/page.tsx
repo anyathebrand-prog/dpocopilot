@@ -19,6 +19,7 @@ export default async function NewClient({ searchParams }: { searchParams: Promis
     <>
       <PageHead title="Add client" />
       {sp.error && <div className="banner error" role="alert">{sp.error}</div>}
+      {pre("note") && <div className="banner info" role="status">{pre("note")}</div>}
       <form action={createClient} style={{ maxWidth: 640 }}>
         <Field label="Client name" required><input name="name" defaultValue={pre("name")} required /></Field>
         <Field label="Country" help="Sets the law and regulator, invoice currency and VAT, and whether the NDPC CAR applies." required>
