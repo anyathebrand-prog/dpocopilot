@@ -33,7 +33,7 @@ export default async function ClientLayout({ children, params }: { children: Rea
     ["Respond", [["/breaches", "Breaches", s!.breaches]]],
     [null, [["/settings", "Settings"]]],
     ["Capacity building", [["/training", "Training plan", s!.training_due]]],
-    ["Billing", [["/billing", "Invoices"], ...(client.sub_ends ? [["/subscription", "Subscription"] as [string, string]] : [])]],
+    ...(client.sub_ends ? [["Billing", [["/subscription", "Subscription"]]] as [string, [string, string][]]] : []),
   ];
   return (
     <>
