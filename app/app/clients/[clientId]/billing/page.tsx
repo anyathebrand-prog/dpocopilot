@@ -1,5 +1,4 @@
 import { redirect } from "next/navigation";
-import { syncInvoiceEarnings } from "@/lib/wallet";
 import { requireClient, audit, send } from "@/lib/auth";
 import { q, one } from "@/lib/db";
 import { str, opt, flash } from "@/lib/form";
@@ -7,8 +6,8 @@ import { SERVICES, totals, sumMoney, type Line } from "@/lib/invoice";
 import { fmtDate, fmtWAT, todayWAT } from "@/lib/rules";
 import { Flash, Field, Hidden, Chip, Empty } from "@/components/ui";
 import { Submit } from "@/components/client";
-import { draftReadinessLetter } from "@/lib/readiness-letter";
-import { countryOf, moneyIn, CAR_COUNTRIES, parseAmount } from "@/lib/country";
+import { setInvoiceStatus as setStatus } from "@/app/app/billing/actions";
+import { countryOf, moneyIn, parseAmount } from "@/lib/country";
 
 async function create(fd: FormData) {
   "use server";
@@ -36,34 +35,6 @@ async function create(fd: FormData) {
     [client.firm_id, client.id, `INV-${year}-${String(n + 1).padStart(3, "0")}`, issued, opt(fd, "due_on"), JSON.stringify(lines), fd.get("vat") === "on" ? countryOf(client.country).vatRate : 0, opt(fd, "notes"), user.id, countryOf(client.country).currency.code]);
   await audit(user, "create", "invoice", r!.id, { client_id: client.id });
   redirect(flash(back, "Invoice created"));
-}
-
-async function setStatus(fd: FormData) {
-  "use server";
-  const inv = await one("select * from invoices where id = $1", [/^[0-9a-f-]{36}$/.test(str(fd, "id")) ? str(fd, "id") : null]);
-  if (!inv) redirect("/forbidden");
-  const { user } = await requireClient(inv.client_id, { write: true });
-  const status = str(fd, "status");
-  if (!["unpaid", "paid", "cancelled"].includes(status)) redirect("/forbidden");
-  await q("update invoices set status = $2, paid_on = $3 where id = $1", [inv.id, status, status === "paid" ? todayWAT() : null]);
-  await syncInvoiceEarnings(inv.id); // paid → team / Solo DPO shares; unpaid or cancelled → shares removed
-  if (status === "paid") { // Receipt generated automatically; the client is told it's in the portal.
-    let receipt = inv.receipt_no;
-    if (!receipt) {
-      const year = todayWAT().slice(0, 4);
-      const n = (await one<{ n: number }>("select count(*)::int as n from invoices where firm_id = $1 and receipt_no like $2", [inv.firm_id, `RCT-${year}-%`]))!.n;
-      receipt = `RCT-${year}-${String(n + 1).padStart(3, "0")}`;
-      await q("update invoices set receipt_no = $2 where id = $1", [inv.id, receipt]);
-    }
-    const contacts = await q<{ email: string }>("select email from client_contacts where client_id = $1 and status = 'active'", [inv.client_id]);
-    for (const c of contacts) await send("email", c.email, "receipt_issued", `${user.firm_name} has received your payment for invoice ${inv.number}. Your receipt ${receipt} is ready. Log in to download it: ${process.env.APP_URL ?? "http://localhost:3000"}/portal/invoices`);
-    const car = CAR_COUNTRIES.includes(countryOf((await one("select country from clients where id = $1", [inv.client_id]))?.country).code);
-    if (car) await draftReadinessLetter(inv.id, user.id); // the CAR audit can start: draft the readiness letter for the client
-    await audit(user, "update", "invoice", inv.id, { client_id: inv.client_id, details: { status, receipt } });
-    redirect(flash(`/app/clients/${inv.client_id}/billing`, `Marked as paid. Receipt ${receipt} generated${contacts.length ? " and the client notified" : ""}. ${car ? " Audit readiness letter drafted under Documents." : ""}`));
-  }
-  await audit(user, "update", "invoice", inv.id, { client_id: inv.client_id, details: { status } });
-  redirect(flash(`/app/clients/${inv.client_id}/billing`, status === "paid" ? "Marked as paid" : status === "cancelled" ? "Invoice cancelled" : "Marked as unpaid"));
 }
 
 async function email(fd: FormData) {

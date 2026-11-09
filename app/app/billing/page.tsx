@@ -6,7 +6,9 @@ import { str } from "@/lib/form";
 import { totals, sumMoney, type Line } from "@/lib/invoice";
 import { moneyIn } from "@/lib/country";
 import { fmtDate, todayWAT } from "@/lib/rules";
-import { PageHead, Empty, Field, Flash } from "@/components/ui";
+import { PageHead, Empty, Field, Flash, Hidden } from "@/components/ui";
+import { Submit } from "@/components/client";
+import { setInvoiceStatus } from "./actions";
 
 /** Pick a client, then create the invoice on its billing page. */
 async function newInvoice(fd: FormData) {
@@ -50,7 +52,7 @@ export default async function FirmBilling({ searchParams }: { searchParams: Prom
       </nav>
       {rows.length === 0 ? <Empty><p>No invoices here. Choose a client above to create one.</p></Empty> : (
         <table className="register">
-          <thead><tr><th>Invoice</th><th>Client</th><th>Date</th><th>Services</th><th className="num">Total</th><th>Status</th></tr></thead>
+          <thead><tr><th>Invoice</th><th>Client</th><th>Date</th><th>Services</th><th className="num">Total</th><th>Status</th><th>Action</th></tr></thead>
           <tbody>{rows.map((r) => (
             <tr key={r.id}>
               <td><a href={`/export?kind=invoice&id=${r.id}&format=pdf`} target="_blank">{r.number}</a></td>
@@ -59,6 +61,10 @@ export default async function FirmBilling({ searchParams }: { searchParams: Prom
               <td data-label="Services" className="small">{(r.lines as Line[]).map((l) => l.service).join(", ")}</td>
               <td data-label="Total" className="num">{moneyIn(r.currency, total(r))}</td>
               <td data-label="Status" className="small">{overdue(r) ? <b>overdue</b> : r.status}{r.status === "paid" && r.receipt_no && <><br /><a href={`/export?kind=receipt&id=${r.id}&format=pdf`} target="_blank">{r.receipt_no}</a></>}</td>
+              <td data-label="Action"><div className="row" style={{ gap: 6 }}>
+                {r.status === "unpaid" && <form action={setInvoiceStatus}><Hidden values={{ id: r.id, status: "paid", back: "invoices" }} /><Submit className="btn">Confirm payment</Submit></form>}
+                {r.status === "paid" && r.receipt_no && <><a className="btn secondary" href={`/export?kind=receipt&id=${r.id}&format=pdf`} target="_blank">Receipt PDF</a><a className="btn secondary" href={`/export?kind=receipt&id=${r.id}&format=doc`}>Word</a></>}
+              </div></td>
             </tr>
           ))}</tbody>
         </table>
