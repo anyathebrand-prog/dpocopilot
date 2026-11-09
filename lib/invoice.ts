@@ -33,10 +33,19 @@ export function totals(lines: Line[], vatRate: number) {
 const esc = (s: unknown) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!);
 const lines2 = (...xs: unknown[]) => xs.filter((x) => x && String(x).trim()).map(esc).join("<br>");
 
+export type Payment = { id: string; receipt_no: string; percent: number; paid_on: string; amount?: number };
+/** SQL column (invoice aliased i): the invoice's instalment payments, oldest first. */
+export const PAYMENTS_SQL = "coalesce((select json_agg(json_build_object('id', p.id, 'receipt_no', p.receipt_no, 'percent', p.percent, 'paid_on', p.paid_on) order by p.created_at) from invoice_payments p where p.invoice_id = i.id), '[]'::json) as payments";
+/** Percent of the invoice paid so far. */
+export const paidPct = (payments: Payment[] | undefined) => Math.min(100, (payments ?? []).reduce((s, p) => s + Number(p.percent), 0));
+
 /** Invoice, or with receipt = true the payment receipt for a paid invoice (same layout, "RECEIPT", amount paid). */
-export function invoiceHtml(inv: any, firm: any, client: { name: string; address?: string | null; email?: string | null; phone?: string | null }, receipt = false) {
+export function invoiceHtml(inv: any, firm: any, client: { name: string; address?: string | null; email?: string | null; phone?: string | null }, receipt = false,
+  pay?: { receipt_no: string; paid_on: string; percent: number; paidPct: number }) {
   const m = (n: number) => moneyIn(inv.currency, n);
   const vatRate = Number(inv.vat_rate), t = totals(inv.lines, vatRate), doc = receipt ? "RECEIPT" : "INVOICE";
+  const rno = pay?.receipt_no ?? inv.receipt_no, pct = pay ? Number(pay.percent) : 100, part = Math.round(t.total * pct) / 100;
+  const balance = pay ? Math.max(0, Math.round(t.total * (100 - pay.paidPct)) / 100) : 0;
   const body = `
 ${firm.logo ? `<p><img src="${firm.logo}" width="${Math.round(firm.logo_w * 60 / firm.logo_h)}" height="60" alt="${esc(firm.name)}" style="height:60px;width:auto"></p>` : ""}
 <table><tr><td style="background:#0d1f4a;color:#FFFFFF;padding:14px"><p style="margin:0;color:#FFFFFF;font-size:18pt"><b>${esc(firm.name)}</b></p>
@@ -44,7 +53,7 @@ ${firm.logo ? `<p><img src="${firm.logo}" width="${Math.round(firm.logo_w * 60 /
   <td style="background:#0d1f4a;color:#FFFFFF;text-align:right;width:35%"><p style="margin:0;color:#FFFFFF;font-size:22pt"><b>${doc}</b></p></td></tr></table>
 <table>
   <tr><td class="k">${receipt ? "Received from" : "Bill to"}</td><td><b>${esc(client.name)}</b>${client.address || client.email || client.phone ? "<br>" + lines2(client.address, [client.phone, client.email].filter(Boolean).join(" · ")) : ""}</td></tr>
-  ${receipt ? `<tr><td class="k">Receipt number</td><td>${esc(inv.receipt_no)}</td></tr><tr><td class="k">Payment date</td><td>${fmtDate(inv.paid_on)}</td></tr>` : ""}
+  ${receipt ? `<tr><td class="k">Receipt number</td><td>${esc(rno)}</td></tr><tr><td class="k">Payment date</td><td>${fmtDate(pay?.paid_on ?? inv.paid_on)}</td></tr>` : ""}
   <tr><td class="k">Invoice number</td><td>${esc(inv.number)}</td></tr>
   <tr><td class="k">Invoice date</td><td>${fmtDate(inv.issued_on)}</td></tr>
   ${inv.due_on && !receipt ? `<tr><td class="k">Due date</td><td>${fmtDate(inv.due_on)}</td></tr>` : ""}
@@ -54,10 +63,12 @@ ${firm.logo ? `<p><img src="${firm.logo}" width="${Math.round(firm.logo_w * 60 /
   ${inv.lines.map((l: Line, i: number) => `<tr><td>${i + 1}</td><td><b>${esc(l.service)}</b>${l.description ? `<br>${esc(l.description)}` : ""}</td><td style="text-align:right">${m(l.amount)}</td></tr>`).join("")}
   <tr class="sub"><td></td><td>Subtotal</td><td style="text-align:right">${m(t.subtotal)}</td></tr>
   ${vatRate ? `<tr class="sub"><td></td><td>VAT (${vatRate}%)</td><td style="text-align:right">${m(t.vat)}</td></tr>` : ""}
-  <tr class="sub"><td></td><td><b>${receipt ? "Amount paid" : "Total due"}</b></td><td style="text-align:right"><b>${m(t.total)}</b></td></tr></table>
-${receipt ? `<p><b>Payment of ${m(t.total)} received in full, with thanks.</b></p>` : ""}
+  <tr class="sub"><td></td><td><b>Total${receipt ? "" : " due"}</b></td><td style="text-align:right"><b>${m(t.total)}</b></td></tr>
+  ${receipt ? `<tr class="sub"><td></td><td><b>Amount paid${pct < 100 ? ` (${pct}%)` : ""}</b></td><td style="text-align:right"><b>${m(part)}</b></td></tr>` : ""}
+  ${receipt && balance > 0 ? `<tr class="sub"><td></td><td>Balance outstanding</td><td style="text-align:right">${m(balance)}</td></tr>` : ""}</table>
+${receipt ? `<p><b>${pct < 100 ? `Payment of ${m(part)} (${pct}% of the invoice total) received, with thanks.${balance > 0 ? ` Balance outstanding: ${m(balance)}.` : " The invoice is now paid in full."}` : `Payment of ${m(t.total)} received in full, with thanks.`}</b></p>` : ""}
 ${inv.notes && !receipt ? `<h3>Notes and payment details</h3><p>${esc(inv.notes).replace(/\n/g, "<br>")}</p>` : ""}
 <p style="margin-top:28px">${lines2(firm.signatory_name, firm.signatory_title)}<br>For: ${esc(firm.name)}</p>`;
-  const name = receipt ? `Receipt ${inv.receipt_no}` : `Invoice ${inv.number}`;
+  const name = receipt ? `Receipt ${rno}` : `Invoice ${inv.number}`;
   return { title: `${name} - ${client.name}`, css: CSS(`${firm.name} · ${name}`), body };
 }

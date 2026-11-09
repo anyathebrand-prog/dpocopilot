@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { requireContact } from "@/lib/auth";
 import { q } from "@/lib/db";
-import { totals, sumMoney, type Line } from "@/lib/invoice";
+import { totals, sumMoney, paidPct, PAYMENTS_SQL, type Line } from "@/lib/invoice";
+import { Receipts } from "@/components/payments";
 import { moneyIn } from "@/lib/country";
 import { fmtDate } from "@/lib/rules";
 import { Empty } from "@/components/ui";
@@ -9,7 +10,7 @@ import { Empty } from "@/components/ui";
 /** The client's invoices from their DPCO (cancelled ones hidden), each downloadable as PDF or Word. */
 export default async function PortalInvoices() {
   const u = await requireContact();
-  const rows = await q("select * from invoices where client_id = $1 and status <> 'cancelled' order by issued_on desc, created_at desc", [u.client_id]);
+  const rows = await q(`select i.*, ${PAYMENTS_SQL} from invoices i where i.client_id = $1 and i.status <> 'cancelled' order by i.issued_on desc, i.created_at desc`, [u.client_id]);
   const notices = await q("select n.id, n.audit_year, n.sent_at, i.number from audit_notices n left join invoices i on i.id = n.invoice_id where n.client_id = $1 and n.sent_at is not null order by n.audit_year desc", [u.client_id]);
   const due = sumMoney(rows.filter((r) => r.status === "unpaid"));
   const exp = (id: string, f: string) => `/export?kind=invoice&id=${id}&format=${f}`;
@@ -36,8 +37,8 @@ export default async function PortalInvoices() {
               <td data-label="Date" className="small">{fmtDate(r.issued_on)}{r.due_on && r.status === "unpaid" && <span className="meta"><br />Due {fmtDate(r.due_on)}</span>}</td>
               <td data-label="Services" className="small">{(r.lines as Line[]).map((l) => l.service).join(", ")}</td>
               <td data-label="Total" className="num">{moneyIn(r.currency, totals(r.lines, Number(r.vat_rate)).total)}</td>
-              <td data-label="Status">{r.status === "paid" ? "Paid" : "Unpaid"}</td>
-              <td><div className="row" style={{ gap: 6, flexWrap: "wrap" }}>{r.status === "paid" && r.receipt_no && <a className="btn" href={`/export?kind=receipt&id=${r.id}&format=pdf`} target="_blank">Receipt</a>}<a className="btn secondary" href={exp(r.id, "pdf")} target="_blank">PDF</a><a className="btn secondary" href={exp(r.id, "doc")}>Word</a></div></td>
+              <td data-label="Status">{r.status === "paid" ? "Paid" : paidPct(r.payments) > 0 ? `Part paid (${paidPct(r.payments)}%)` : "Unpaid"}<Receipts id={r.id} payments={r.payments} /></td>
+              <td><div className="row" style={{ gap: 6, flexWrap: "wrap" }}><a className="btn secondary" href={exp(r.id, "pdf")} target="_blank">PDF</a><a className="btn secondary" href={exp(r.id, "doc")}>Word</a></div></td>
             </tr>
           ))}</tbody>
         </table>

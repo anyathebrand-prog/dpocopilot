@@ -148,11 +148,17 @@ export async function GET(req: Request) {
     const inv = /^[0-9a-f-]{36}$/.test(id) ? await one("select * from invoices where id = $1", [id]) : null;
     const contactOk = !!inv && u.kind === "contact" && u.client_id === inv.client_id && inv.status !== "cancelled";
     if (!inv || !(contactOk || (u.kind === "firm" && (await canSeeClient(inv.client_id))))) return denied();
-    if (kind === "receipt" && (inv.status !== "paid" || !inv.receipt_no)) return denied();
+    let pay: { receipt_no: string; paid_on: string; percent: number; paidPct: number } | undefined;
+    if (kind === "receipt") { // one instalment's receipt (?pay=), or the latest one
+      const pid = url.searchParams.get("pay") ?? "";
+      const p = await one("select * from invoice_payments where invoice_id = $1" + (/^[0-9a-f-]{36}$/.test(pid) ? " and id = $2" : " order by created_at desc limit 1"), /^[0-9a-f-]{36}$/.test(pid) ? [inv.id, pid] : [inv.id]);
+      if (p) pay = { receipt_no: p.receipt_no, paid_on: p.paid_on, percent: Number(p.percent), paidPct: Number((await one("select coalesce(sum(percent),0) as s from invoice_payments where invoice_id = $1 and created_at <= $2", [inv.id, p.created_at]))!.s) };
+      else if (inv.status !== "paid" || !inv.receipt_no) return denied();
+    }
     const firm = (await one("select * from doc_firms where id = $1", [inv.firm_id]))!;
     const ans = Object.fromEntries((await q("select question_key, answer from answers where client_id = $1 and question_key in ('org_legal_name','org_address','org_email','org_phone')", [inv.client_id])).map((r) => [r.question_key, r.answer]));
     const c = (await one("select name from clients where id = $1", [inv.client_id]))!;
-    const r = invoiceHtml(inv, firm, { name: String(ans.org_legal_name || c.name), address: ans.org_address, email: ans.org_email, phone: ans.org_phone }, kind === "receipt");
+    const r = invoiceHtml(inv, firm, { name: String(ans.org_legal_name || c.name), address: ans.org_address, email: ans.org_email, phone: ans.org_phone }, kind === "receipt", pay);
     await audit(u, "export", kind, id, { client_id: inv.client_id, details: { format } });
     return page(r.title, r.body, format, slug(r.title), r.css);
   }

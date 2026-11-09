@@ -2,7 +2,8 @@ import { redirect } from "next/navigation";
 import { requireClient, audit, send } from "@/lib/auth";
 import { q, one } from "@/lib/db";
 import { str, opt, flash } from "@/lib/form";
-import { SERVICES, totals, sumMoney, type Line } from "@/lib/invoice";
+import { SERVICES, totals, sumMoney, paidPct, PAYMENTS_SQL, type Line } from "@/lib/invoice";
+import { Receipts, ConfirmPayment } from "@/components/payments";
 import { fmtDate, fmtWAT, todayWAT } from "@/lib/rules";
 import { Flash, Field, Hidden, Chip, Empty } from "@/components/ui";
 import { Submit } from "@/components/client";
@@ -56,7 +57,7 @@ export default async function Billing({ params, searchParams }: { params: Promis
   const { clientId } = await params;
   const sp = await searchParams;
   const { client } = await requireClient(clientId);
-  const rows = await q("select * from invoices where client_id = $1 order by issued_on desc, created_at desc", [clientId]);
+  const rows = await q(`select i.*, ${PAYMENTS_SQL} from invoices i where i.client_id = $1 order by i.issued_on desc, i.created_at desc`, [clientId]);
   const ro = !!client.archived_at;
   // Prefill from a proposal of this firm ("Create invoice" on the proposal page)
   const prop = /^[0-9a-f-]{36}$/.test(sp.from_proposal ?? "") ? await one<{ number: string; lines: Line[]; vat_rate: string }>("select number, lines, vat_rate from proposals where id = $1 and firm_id = $2", [sp.from_proposal, client.firm_id]) : null;
@@ -81,12 +82,11 @@ export default async function Billing({ params, searchParams }: { params: Promis
               <td data-label="Date" className="small">{fmtDate(r.issued_on)}{r.due_on && <span className="meta"><br />Due {fmtDate(r.due_on)}</span>}{r.sent_at && <span className="meta"><br />Emailed {fmtWAT(r.sent_at)}</span>}</td>
               <td data-label="Services" className="small">{(r.lines as Line[]).map((l) => l.service).join(", ")}</td>
               <td data-label="Total" className="num">{moneyIn(r.currency, totals(r.lines, Number(r.vat_rate)).total)}</td>
-              <td data-label="Status"><Chip status={r.status === "paid" ? "complete" : r.status === "cancelled" ? "archived" : "open"} /> <span className="small">{r.status}{r.status === "paid" && r.paid_on && <> {fmtDate(r.paid_on)}{r.receipt_no && <><br />{r.receipt_no}</>}</>}</span></td>
+              <td data-label="Status"><Chip status={r.status === "paid" ? "complete" : r.status === "cancelled" ? "archived" : "open"} /> <span className="small">{r.status === "unpaid" && paidPct(r.payments) > 0 ? `part paid (${paidPct(r.payments)}%)` : r.status}{r.status === "paid" && r.paid_on && <> {fmtDate(r.paid_on)}</>}<Receipts id={r.id} payments={r.payments} word /></span></td>
               <td><div className="row" style={{ gap: 6, flexWrap: "wrap" }}>
                 <a className="btn secondary" href={exp(r.id, "pdf")} target="_blank">PDF</a><a className="btn secondary" href={exp(r.id, "doc")}>Word</a>
-                {r.status === "paid" && r.receipt_no && <><a className="btn" href={`/export?kind=receipt&id=${r.id}&format=pdf`} target="_blank">Receipt</a><a className="btn secondary" href={`/export?kind=receipt&id=${r.id}&format=doc`}>Receipt (Word)</a></>}
                 {!ro && r.status === "unpaid" && <form action={email} style={{ display: "inline" }}><Hidden values={{ id: r.id }} /><Submit className="btn secondary">{r.sent_at ? "Email again" : "Email to client"}</Submit></form>}
-                {!ro && r.status === "unpaid" && <>{act(r.id, "paid", "Mark paid")}{act(r.id, "cancelled", "Cancel")}</>}
+                {!ro && r.status === "unpaid" && <><ConfirmPayment id={r.id} payments={r.payments} action={setStatus} />{act(r.id, "cancelled", "Cancel")}</>}
                 {!ro && r.status !== "unpaid" && act(r.id, "unpaid", "Reopen")}
               </div></td>
             </tr>
