@@ -9,9 +9,9 @@ import { str, opt, all } from "@/lib/form";
 import { feeFor, startCheckout } from "@/lib/checkout";
 import { sizeFor } from "@/lib/client-size";
 
-/** Create a client (from the Add client page, or from a proposal on the Proposals page). */
+/** Create a client from the Add client page. */
 export async function createClient(fd: FormData) {
-  const back = str(fd, "from") === "proposals" ? "/app/proposals" : "/app/clients/new";
+  const back = "/app/clients/new";
   const u = await requireFirmRole("firm_admin", "lead_consultant");
   if (u.plan === "solo") redirect("/app"); // Solo DPOs get clients from accepted proposals or their DPCO
   const name = str(fd, "name");
