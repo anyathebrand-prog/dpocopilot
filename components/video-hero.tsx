@@ -41,6 +41,7 @@ export function VideoHero({ dashboard }: { dashboard?: string }) {
             <motion.div className="vx-btns" initial={{ y: 16, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ duration: 0.8, delay: 1, ease }}>
               <Link href="/pilot" className="vx-btn vx-dark">Get Started</Link>
               <Link href="/pricing" className="vx-btn vx-line">See pricing</Link>
+              <a href="/downloads/dpo-copilot-brochure.pdf" className="vx-btn vx-line" download>Download brochure</a>
             </motion.div>
           </div>
           <ul className="vx-tags" aria-label="Covers">

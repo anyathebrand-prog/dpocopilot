@@ -5,6 +5,7 @@ import { str, flash } from "@/lib/form";
 import { fmtWAT } from "@/lib/rules";
 import { Flash, Hidden, PageHead } from "@/components/ui";
 import { Submit } from "@/components/client";
+import { fillDemo } from "@/lib/demo";
 
 async function setPlan(fd: FormData) {
   "use server";
@@ -39,6 +40,18 @@ async function setSubEnd(fd: FormData) {
   await q("update firms set subscription_ends = $2 where id = $1", [f.id, end || null]);
   await audit(u, "update", "firm", f.id, { firm_id: f.id, details: { subscription_ends: end || null } });
   redirect(flash("/secretary/firms", end ? `${f.name}'s subscription now ends on ${end}` : `${f.name} must pay before using its workspace`));
+}
+
+/** Load sample clients and records into a DPCO for a sales demo; opens its subscription for 30 days if it has none. */
+async function demoData(fd: FormData) {
+  "use server";
+  const u = await requireSecretary();
+  const f = await one("select id, name, subscription_ends from firms where id = $1 and plan = 'firm'", [/^[0-9a-f-]{36}$/.test(str(fd, "firm_id")) ? str(fd, "firm_id") : null]);
+  if (!f) redirect("/secretary/firms");
+  const n = await fillDemo(f.id);
+  if (!f.subscription_ends) await q("update firms set subscription_ends = ((now() + interval '1 hour')::date + 30) where id = $1", [f.id]);
+  await audit(u, "update", "firm", f.id, { firm_id: f.id, details: { demo_clients: n } });
+  redirect(flash("/secretary/firms", n ? `Added ${n} demo clients to ${f.name}` : `${f.name} already has the demo clients`));
 }
 
 /** Every firm on the platform and its plan. Solo DPO: one seat, no spreadsheet import. DPCO Firm: everything. */
@@ -83,7 +96,8 @@ export default async function Firms({ searchParams }: { searchParams: Promise<Re
                 <Hidden values={{ firm_id: f.id }} />
                 <input type="date" name="ends" defaultValue={f.sub_ends ?? ""} aria-label={`Subscription end for ${f.name}`} style={{ width: "auto" }} />
                 <Submit className="btn secondary">Save</Submit>
-              </form>)}</td>
+              </form>)}
+              {f.plan === "firm" && <form action={demoData} style={{ marginTop: 6 }}><Hidden values={{ firm_id: f.id }} /><Submit className="btn secondary">Fill with demo data</Submit></form>}</td>
           </tr>
         ))}</tbody>
       </table>

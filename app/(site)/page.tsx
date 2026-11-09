@@ -177,7 +177,7 @@ export default async function Home() {
           </div>
           <Reveal delay={0.2}>
             <div className="hp-actions">
-              <Link href="/sign-up?plan=solo" className="btn-cta">Join as a Solo DPO</Link>
+              <Link href="/sign-up?plan=solo" className="btn-cta btn-dark">Join as a Solo DPO</Link>
             </div>
           </Reveal>
         </div>
@@ -193,6 +193,7 @@ export default async function Home() {
             <div className="hp-actions">
               <Link href="/pilot" className="btn-cta">Get Started</Link>
               <Link href="/pricing" className="hp-ghost">See pricing <ArrowRight aria-hidden /></Link>
+              <a href="/downloads/dpo-copilot-brochure.pdf" className="hp-ghost" download>Download brochure <ArrowRight aria-hidden /></a>
             </div>
           </Reveal>
         </div>
