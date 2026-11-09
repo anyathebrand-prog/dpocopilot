@@ -43,6 +43,14 @@ export async function saveProposal(fd: FormData) {
     if (!amount) fail(`Enter a fee for ${service}.`);
     lines.push({ service, description: str(fd, `d${i}`), amount });
   }
+  const xs = fd.getAll("xs").map(String), xd = fd.getAll("xd").map(String), xa = fd.getAll("xa").map(String);
+  for (const [k, raw] of xs.entries()) {
+    const service = raw.trim().slice(0, 200);
+    if (!service) continue;
+    const amount = naira(xa[k] ?? "");
+    if (!amount) fail(`Enter a fee for ${service}.`);
+    lines.push({ service, description: (xd[k] ?? "").trim().slice(0, 500), amount });
+  }
   if (!lines.length) fail("Select at least one service.");
   const fin: Fin = { dpias: dpias ?? 5 };
 

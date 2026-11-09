@@ -4,7 +4,7 @@ import { Field, Hidden } from "@/components/ui";
 import { Submit } from "@/components/client";
 import { saveProposal } from "./actions";
 import { COUNTRY } from "@/lib/country";
-import { ProposalTotal } from "@/components/proposal-total";
+import { ProposalTotal, ExtraItems } from "@/components/proposal-total";
 
 /** The proposal form, empty for a new proposal or filled from an existing one. */
 export function ProposalForm({ p, name }: { p?: Record<string, any>; name?: string }) {
@@ -49,18 +49,19 @@ export function ProposalForm({ p, name }: { p?: Record<string, any>; name?: stri
 
       <h3>Services and fees</h3>
       <table className="register">
-        <thead><tr><th>Service</th><th>Detail (optional)</th><th>Fee ({COUNTRY.currency.symbol})</th></tr></thead>
+        <thead><tr><th>Service</th><th>Detail (optional)</th><th style={{ textAlign: "right" }}>Fee ({COUNTRY.currency.symbol})</th></tr></thead>
         <tbody>{SERVICES.map((s, i) => (
           <tr key={s}>
             <td><label className="check"><input type="checkbox" name={`s${i}`} defaultChecked={!!line(s)} />{s}</label></td>
             <td><input name={`d${i}`} defaultValue={line(s)?.description ?? ""} placeholder="e.g. up to 3 DPIAs" /></td>
-            <td><input name={`a${i}`} inputMode="decimal" defaultValue={line(s)?.amount ?? ""} placeholder="0.00" style={{ width: 140 }} /></td>
+            <td style={{ textAlign: "right" }}><input name={`a${i}`} inputMode="decimal" defaultValue={line(s)?.amount ?? ""} placeholder="0.00" style={{ width: 140, textAlign: "right" }} /></td>
           </tr>
         ))}</tbody>
+        <ExtraItems initial={(p?.lines ?? []).filter((l: Line) => !(SERVICES as readonly string[]).includes(l.service))} />
+        <ProposalTotal vatRate={COUNTRY.vatRate} symbol={COUNTRY.currency.symbol} locale={COUNTRY.locale} />
       </table>
       <Field label="Payment terms"><input name="payment_terms" defaultValue={p?.payment_terms ?? "50% mobilisation on acceptance; 50% on delivery of the final reports."} /></Field>
       <label className="check" style={{ marginTop: 8 }}><input type="checkbox" name="vat" defaultChecked={p ? Number(p.vat_rate) > 0 : true} />Add VAT ({COUNTRY.vatRate}%)</label>
-      <ProposalTotal vatRate={COUNTRY.vatRate} symbol={COUNTRY.currency.symbol} locale={COUNTRY.locale} />
       <Field label="Additional payment notes"><textarea name="notes" rows={2} defaultValue={p?.notes ?? ""} /></Field>
       <Submit>{p ? "Save proposal" : "Create proposal"}</Submit>
     </form>
