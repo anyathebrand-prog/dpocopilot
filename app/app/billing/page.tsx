@@ -3,11 +3,11 @@ import { redirect } from "next/navigation";
 import { requireFirm, clientScope, scopeArgs } from "@/lib/auth";
 import { q, one } from "@/lib/db";
 import { str } from "@/lib/form";
-import { totals, sumMoney, type Line } from "@/lib/invoice";
+import { totals, sumMoney, paidPct, PAYMENTS_SQL, type Line } from "@/lib/invoice";
+import { Receipts, ConfirmPayment } from "@/components/payments";
 import { moneyIn } from "@/lib/country";
 import { fmtDate, todayWAT } from "@/lib/rules";
-import { PageHead, Empty, Field, Flash, Hidden } from "@/components/ui";
-import { Submit } from "@/components/client";
+import { PageHead, Empty, Field, Flash } from "@/components/ui";
 import { setInvoiceStatus } from "./actions";
 
 /** Pick a client, then create the invoice on its billing page. */
@@ -26,7 +26,7 @@ export default async function FirmBilling({ searchParams }: { searchParams: Prom
   const u = await requireFirm();
   const sp = await searchParams;
   const status = STATUSES.includes(sp.status) ? sp.status : "all", today = todayWAT(), year = today.slice(0, 4);
-  const all = await q(`select i.*, c.name as client from invoices i join clients c on c.id = i.client_id where ${clientScope(u)} order by i.issued_on desc, i.created_at desc`, scopeArgs(u));
+  const all = await q(`select i.*, c.name as client, ${PAYMENTS_SQL} from invoices i join clients c on c.id = i.client_id where ${clientScope(u)} order by i.issued_on desc, i.created_at desc`, scopeArgs(u));
   const clients = await q<{ id: string; name: string }>(`select c.id, c.name from clients c where c.archived_at is null and ${clientScope(u)} order by c.name`, scopeArgs(u));
   const total = (r: any) => totals(r.lines, Number(r.vat_rate)).total;
   const overdue = (r: any) => r.status === "unpaid" && r.due_on && r.due_on < today;
@@ -60,11 +60,8 @@ export default async function FirmBilling({ searchParams }: { searchParams: Prom
               <td data-label="Date" className="small">{fmtDate(r.issued_on)}{r.due_on && <span className="meta"><br />Due {fmtDate(r.due_on)}</span>}</td>
               <td data-label="Services" className="small">{(r.lines as Line[]).map((l) => l.service).join(", ")}</td>
               <td data-label="Total" className="num">{moneyIn(r.currency, total(r))}</td>
-              <td data-label="Status" className="small">{overdue(r) ? <b>overdue</b> : r.status}{r.status === "paid" && r.receipt_no && <><br /><a href={`/export?kind=receipt&id=${r.id}&format=pdf`} target="_blank">{r.receipt_no}</a></>}</td>
-              <td data-label="Action"><div className="row" style={{ gap: 6 }}>
-                {r.status === "unpaid" && <form action={setInvoiceStatus}><Hidden values={{ id: r.id, status: "paid", back: "invoices" }} /><Submit className="btn">Confirm payment</Submit></form>}
-                {r.status === "paid" && r.receipt_no && <><a className="btn secondary" href={`/export?kind=receipt&id=${r.id}&format=pdf`} target="_blank">Receipt PDF</a><a className="btn secondary" href={`/export?kind=receipt&id=${r.id}&format=doc`}>Word</a></>}
-              </div></td>
+              <td data-label="Status" className="small">{overdue(r) ? <b>overdue</b> : r.status === "unpaid" && paidPct(r.payments) > 0 ? `part paid (${paidPct(r.payments)}%)` : r.status}<Receipts id={r.id} payments={r.payments} /></td>
+              <td data-label="Action">{r.status === "unpaid" && <ConfirmPayment id={r.id} payments={r.payments} action={setInvoiceStatus} back="invoices" />}</td>
             </tr>
           ))}</tbody>
         </table>

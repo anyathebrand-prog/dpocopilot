@@ -1072,3 +1072,21 @@ end $$;
 alter table clients add column if not exists added_by_dpco uuid references firms;
 update clients c set added_by_dpco = (e.details->>'added_by_dpco')::uuid from audit_events e
   where c.added_by_dpco is null and e.entity_type = 'client' and e.action = 'create' and e.entity_id = c.id::text and e.details ? 'added_by_dpco';
+
+-- Instalment payments on an invoice: each confirmed payment (a % of the invoice total) gets its own receipt.
+-- The invoice becomes 'paid' when the payments reach 100%. Paid invoices from before this table get one 100% payment.
+create table if not exists invoice_payments (
+  id uuid primary key default gen_random_uuid(),
+  invoice_id uuid not null references invoices on delete cascade,
+  firm_id uuid not null references firms,
+  percent numeric not null check (percent > 0 and percent <= 100),
+  amount numeric not null,
+  receipt_no text not null,
+  paid_on date not null,
+  created_by uuid references users,
+  created_at timestamptz not null default now()
+);
+create index if not exists invoice_payments_invoice on invoice_payments (invoice_id);
+insert into invoice_payments (invoice_id, firm_id, percent, amount, receipt_no, paid_on, created_by)
+  select i.id, i.firm_id, 100, 0, i.receipt_no, coalesce(i.paid_on, i.issued_on), i.created_by from invoices i
+  where i.status = 'paid' and i.receipt_no is not null and not exists (select 1 from invoice_payments p where p.invoice_id = i.id);
