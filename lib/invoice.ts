@@ -14,6 +14,7 @@ export const SERVICES = [
   "Policy Development",
   "Data Protection Officer (DPO) Training and Certification",
   "Employee Data Protection Training",
+  "DPO Copilot - Data Protection Compliance Software Deployment",
 ];
 export type Line = { service: string; description: string; amount: number };
 
