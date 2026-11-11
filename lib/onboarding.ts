@@ -10,12 +10,10 @@ import { evaluateMI, type Criterion } from "./rules";
 import { str, flash } from "./form";
 import { COUNTRY } from "./country";
 
-/** Firm users (assigned) or the client's own contact, while the questionnaire is open. */
+/** Firm users (assigned) or the client's own contact (who can keep updating answers after submitting). */
 async function actor(fd: FormData): Promise<{ u: User; clientId: string; base: string }> {
   const u = await getUser();
   if (u?.kind === "contact") {
-    const qn = await one("select status from questionnaires where client_id = $1", [u.client_id]);
-    if (qn?.status === "completed") redirect(flash("/portal", "This questionnaire has already been submitted."));
     return { u, clientId: u.client_id!, base: "/portal/questionnaire" };
   }
   const { user, client } = await requireClient(str(fd, "client_id"), { write: true });
@@ -79,6 +77,7 @@ export async function completeQuestionnaire(fd: FormData) {
   const a = await answersOf(clientId);
   if (missingRequired(a).length) redirect(flash(base, "Answer all required questions first.", "error"));
   const client = await one("select firm_id, name from clients where id = $1", [clientId]);
+  const again = (await one("select status from questionnaires where client_id = $1", [clientId]))?.status === "completed";
   const { items, ropa } = buildInventory(a);
   const criteria = await q<Criterion>("select description, question_key, op, value, source_ref from mi_criteria where status = 'published' order by position");
   const version = (await one(`select to_char(max(published_at) at time zone '${COUNTRY.timeZone}', 'YYYY-MM-DD HH24:MI') as v from publish_events`))?.v ?? "v0-seed";
@@ -96,8 +95,8 @@ export async function completeQuestionnaire(fd: FormData) {
     await audit(u, "update", "questionnaire", clientId, { client_id: clientId, details: { completed: true, inventory_items: items.length, proposed_ropa: ropa.length } }, t);
   });
   if (u.kind === "contact") {
-    await notifyTeam(client!.firm_id, clientId, "questionnaire_completed", `${client!.name} completed the onboarding questionnaire`, `/app/clients/${clientId}/data-inventory`);
-    redirect(flash("/portal", "Thank you. Your answers have been sent to your DPCO."));
+    await notifyTeam(client!.firm_id, clientId, "questionnaire_completed", `${client!.name} ${again ? "updated their" : "completed the"} onboarding questionnaire`, `/app/clients/${clientId}/onboarding`);
+    redirect(flash("/portal", again ? "Thank you. Your updated answers have been sent to your DPCO." : "Thank you. Your answers have been sent to your DPCO."));
   }
   redirect(flash(`/app/clients/${clientId}/data-inventory`, "Data inventory created from the questionnaire"));
 }

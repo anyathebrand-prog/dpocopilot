@@ -9,6 +9,8 @@ import { answersOf } from "@/lib/data";
 import { list } from "@/lib/questionnaire";
 import { Flash, Field, Hidden, Chip, Banner } from "@/components/ui";
 import { Submit, Confirm } from "@/components/client";
+import { departmentOptions } from "@/lib/ropa-fields";
+import { DeptInput } from "@/components/ropa-dept";
 
 const TEXT: [string, string, string?][] = [
   ["data_subjects", "Data subject categories", "Whose data. Separate with commas."],
@@ -27,7 +29,7 @@ async function save(fd: FormData) {
   const b = `/app/clients/${client.id}/ropa`;
   if (!purpose) redirect(flash(`${b}/${id || "new"}`, "Enter the purpose.", "error"));
   const lb = str(fd, "lawful_basis");
-  const vals = [purpose, LAWFUL_BASIS[lb] ? lb : null, ...TEXT.map(([k]) => opt(fd, k)), fd.get("has_transfer") === "on", opt(fd, "transfer_safeguard"), fd.get("involves_sensitive") === "on", fd.get("is_high_risk") === "on", opt(fd, "department")];
+  const vals = [purpose, LAWFUL_BASIS[lb] ? lb : null, ...TEXT.map(([k]) => opt(fd, k)), fd.get("has_transfer") === "on", opt(fd, "transfer_safeguard"), fd.get("involves_sensitive") === "on", fd.get("is_high_risk") === "on", (opt(fd, "department") ?? "").trim().slice(0, 120) || null];
   let entryId = id;
   if (id) {
     const r = await one(`update ropa_entries set purpose=$3, lawful_basis=$4, data_subjects=$5, data_categories=$6, recipients=$7, retention_period=$8, security_measures=$9, system_owner=$10,
@@ -41,7 +43,7 @@ async function save(fd: FormData) {
     entryId = r!.id;
     await audit(user, "create", "ropa_entry", entryId, { client_id: client.id });
   }
-  redirect(flash(`${b}?tab=active`, "Entry saved"));
+  redirect(flash(`${b}?tab=active${vals[vals.length - 1] ? `&dept=${encodeURIComponent(String(vals[vals.length - 1]))}` : ""}`, "Entry saved"));
 }
 
 async function archive(fd: FormData) {
@@ -64,7 +66,9 @@ export default async function Entry({ params, searchParams }: { params: Promise<
   const history = e ? await q("select a.occurred_at, a.action, u.name from audit_events a left join users u on u.id = a.actor_user_id where a.entity_type = 'ropa_entry' and a.entity_id = $1 order by a.occurred_at desc limit 20", [e.id]) : [];
   const ro = !!client.archived_at || e?.state === "archived";
   // Departments come from the client's onboarding answers; keep a saved value even if it was later removed from that list.
-  const depts = [...new Set([...list((await answersOf(clientId)).org_departments), ...(e?.department ? [e.department] : [])])];
+  const used = (await q<{ department: string }>("select distinct department from ropa_entries where client_id = $1 and department is not null", [clientId])).map((r) => r.department);
+  const depts = departmentOptions(list((await answersOf(clientId)).org_departments), used);
+  const preDept = isNew && typeof sp.dept === "string" ? sp.dept.slice(0, 120) : null;
   const h = <Hidden values={{ client_id: clientId, id: e?.id }} />;
   return (
     <>
@@ -77,10 +81,8 @@ export default async function Entry({ params, searchParams }: { params: Promise<
           {dpias.some((d) => d.status !== "draft") && <Banner kind="warn">This entry is used by an approved or in-review DPIA. Changes here won&apos;t alter that DPIA.</Banner>}
           <fieldset disabled={ro}>
             <Field label="Purpose" required><input name="purpose" defaultValue={e?.purpose ?? ""} required /></Field>
-            <Field label="Department" help={depts.length ? "Which department carries out this activity." : undefined}>
-              {depts.length
-                ? <select name="department" defaultValue={e?.department ?? ""}><option value="">Not yet chosen</option>{depts.map((d) => <option key={d}>{d}</option>)}</select>
-                : <p className="meta">No departments listed yet. Add them under <Link href={`/app/clients/${clientId}/onboarding`}>Onboarding · Organisation details</Link>.</p>}
+            <Field label="Department" help="Which department carries out this activity. Pick one or type any department.">
+              <DeptInput options={depts} value={e?.department ?? preDept} />
             </Field>
             <Field label="Lawful basis" help="NDPA 2023 s.25. Empty entries are flagged as gaps.">
               <select name="lawful_basis" defaultValue={e?.lawful_basis ?? ""}><option value="">Not yet chosen</option>{Object.entries(LAWFUL_BASIS).map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select>

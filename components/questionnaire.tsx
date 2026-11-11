@@ -5,8 +5,8 @@ import { Field, Hidden } from "./ui";
 import { Submit } from "./client";
 
 /** One section per view, numbered; save-and-resume (FR3.2). Shared by firm view (F05) and portal (P02). */
-export function Questionnaire({ answers, s, base, clientId, readOnly, portal, updatedByFirm = [] }: {
-  answers: Answers; s: number; base: string; clientId?: string; readOnly?: boolean; portal?: boolean; updatedByFirm?: string[];
+export function Questionnaire({ answers, s, base, clientId, readOnly, portal, resubmit, updatedByFirm = [] }: {
+  answers: Answers; s: number; base: string; clientId?: string; readOnly?: boolean; portal?: boolean; resubmit?: boolean; updatedByFirm?: string[];
 }) {
   const i = Math.max(0, Math.min(SECTIONS.length - 1, s || 0));
   const section = SECTIONS[i];
@@ -73,7 +73,7 @@ export function Questionnaire({ answers, s, base, clientId, readOnly, portal, up
       {!readOnly && i === SECTIONS.length - 1 && (
         <form action={completeQuestionnaire} className="panel" style={{ gridColumn: portal ? undefined : "2", marginTop: 24 }}>
           {h}
-          <h3>{portal ? "Send your answers" : "Mark complete"}</h3>
+          <h3>{portal ? (resubmit ? "Send updated answers" : "Send your answers") : "Mark complete"}</h3>
           {missing.length ? (
             <>
               <p className="why">These required questions still need an answer:</p>
@@ -83,7 +83,7 @@ export function Questionnaire({ answers, s, base, clientId, readOnly, portal, up
           ) : (
             <>
               <p>{portal ? "Your DPCO will review your answers." : "This builds the data inventory, proposes RoPA entries and checks major-importance status."}</p>
-              <Submit>{portal ? "Submit answers" : "Mark complete"}</Submit>
+              <Submit>{portal ? (resubmit ? "Send updated answers" : "Submit answers") : "Mark complete"}</Submit>
             </>
           )}
         </form>

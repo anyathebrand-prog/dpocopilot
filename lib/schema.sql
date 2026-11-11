@@ -993,7 +993,7 @@ create table if not exists withdrawals (
 -- The one notifications kind list. When adding a new notification kind, edit this one list; never add another drop/add pair below it.
 -- (schema.sql re-runs on every start: an older, shorter list re-added later fails on existing rows and stops the app.)
 alter table notifications drop constraint if exists notifications_kind_check;
-alter table notifications add constraint notifications_kind_check check (kind in ('breach_reported','dsar_logged','evidence_submitted','signed_off','questionnaire_completed','car_due','renewal_notices','solo_request','solo_decision','proposal_review','proposal_decision','withdrawal_request','withdrawal_decision','subscription'));
+alter table notifications add constraint notifications_kind_check check (kind in ('breach_reported','dsar_logged','evidence_submitted','signed_off','questionnaire_completed','car_due','renewal_notices','solo_request','solo_decision','proposal_review','proposal_decision','withdrawal_request','withdrawal_decision','subscription','ropa_updated'));
 
 -- The firm identity printed on documents. A Solo DPO approved by a DPCO prints the DPCO's branding (name, logo, address,
 -- website, NDPC licence, RC number) with their own signatory and contact details (set on My details); everyone else, as is.

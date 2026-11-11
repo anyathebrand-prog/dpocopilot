@@ -15,9 +15,9 @@ export default async function PortalQuestionnaire({ searchParams }: { searchPara
       <p><Link href="/portal">Back to home</Link></p>
       <h1 style={{ fontSize: 24 }}>Onboarding questions</h1>
       <Flash sp={sp} />
-      {qn!.status === "completed" ? <Banner kind="ok">You&apos;ve sent your answers. Your DPCO will contact you if they need anything else.</Banner> :
+      {qn!.status === "completed" ? <Banner kind="ok">You&apos;ve sent your answers. You can still change them: save each section, then press <b>Send updated answers</b> on the last section so your DPCO is told.</Banner> :
         <p className="meta">Your answers save each time you continue. You can stop and come back later.</p>}
-      <Questionnaire answers={await answersOf(u.client_id!)} s={Number(sp.s ?? 0)} base="/portal/questionnaire" readOnly={qn!.status === "completed"} portal updatedByFirm={byFirm} />
+      <Questionnaire answers={await answersOf(u.client_id!)} s={Number(sp.s ?? 0)} base="/portal/questionnaire" resubmit={qn!.status === "completed"} portal updatedByFirm={byFirm} />
     </>
   );
 }
