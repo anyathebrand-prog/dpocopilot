@@ -12,6 +12,8 @@ import { assessmentHtml } from "@/lib/assessments";
 import { loadLiaReport, liaReportHtml } from "@/lib/lia-report";
 import { invoiceHtml } from "@/lib/invoice";
 import { ropaHtml } from "@/lib/ropa-report";
+import { dpiaReadinessHtml } from "@/lib/dpia-readiness";
+import { docType } from "@/lib/dpia-docs";
 import { loadFramework, frameworkHtml } from "@/lib/framework";
 import { planHtml } from "@/lib/training";
 import { projectPlanHtml } from "@/lib/project-plan";
@@ -95,6 +97,26 @@ export async function GET(req: Request) {
     const seal = `<div class="seal"><b>${sig ? "Signed by client" : "Approved"}</b><br>${esc(client!.name)} · Version ${v.version_no}, approved by ${esc(v.approved_by_name)}<br>${fmtWAT(v.approved_at!)}${sig ? `<br>Signed by ${esc(sig.typed_name)} (${esc(sig.contact_name)}) on ${fmtWAT(sig.signed_at)}. Code sent by ${sig.otp_channel}. Document fingerprint (SHA-256): ${sig.content_sha256}` : ""}</div>`;
     await audit(u, "export", v.parent_type, v.parent_id, { client_id: v.client_id, details: { version: v.version_no, format } });
     return page(title, seal + docHtml(body), format, slug(`${client!.name}-${title}-v${v.version_no}`), CSS, await cover(v.client_id, "version", title));
+  }
+
+  if (kind === "dpia-readiness") {
+    // DPIA Readiness Document: s.28(4) NDPA and the documents the client must provide (with received/outstanding status for a DPIA).
+    const id = url.searchParams.get("id") ?? "", cid = url.searchParams.get("client") ?? "";
+    const dp = /^[0-9a-f-]{36}$/.test(id) ? await one("select * from dpias where id = $1", [id]) : null;
+    const clientId = dp?.client_id ?? (/^[0-9a-f-]{36}$/.test(cid) ? cid : null);
+    if (!clientId || !(await canSeeClient(clientId))) return denied();
+    const ans = await answersOf(clientId), c = (await one("select name from clients where id = $1", [clientId]))!;
+    let received: Map<string, string[]> | undefined, department: string | null = null;
+    if (dp) {
+      received = new Map();
+      for (const f of await q<{ name: string; text: string }>("select original_name as name, coalesce(text_content, '') as text from files where dpia_id = $1 order by created_at", [dp.id])) {
+        const t = docType(f); if (t) received.set(t, [...(received.get(t) ?? []), f.name]);
+      }
+      department = (await one<{ d: string }>("select string_agg(distinct r.department, ', ') as d from dpia_ropa dr join ropa_entries r on r.id = dr.ropa_entry_id where dr.dpia_id = $1", [dp.id]))?.d ?? null;
+    }
+    const r = dpiaReadinessHtml({ org: String(ans.org_legal_name || c.name), received, dpia: dp ? { title: dp.title, system: dp.system_name, department, year: dp.assessment_year } : undefined });
+    await audit(u, "export", "dpia_readiness", dp?.id ?? clientId, { client_id: clientId, details: { format } });
+    return page(r.title, r.body, format, slug(r.title), r.css);
   }
 
   if (kind === "dpia-report") {

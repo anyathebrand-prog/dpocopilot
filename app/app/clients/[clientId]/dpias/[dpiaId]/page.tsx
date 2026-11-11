@@ -162,6 +162,7 @@ export default async function Dpia({ params, searchParams }: { params: Promise<{
         <div className="row" style={{ marginTop: 8 }}>
           <a className="btn" href={`/export?kind=dpia-report&id=${d.id}&format=pdf`} target="_blank">Generate DPIA report (PDF)</a>
           <a className="btn secondary" href={`/export?kind=dpia-report&id=${d.id}&format=doc`}>Word</a>
+          <a className="btn secondary" href={`/export?kind=dpia-readiness&id=${d.id}&format=pdf`} target="_blank">Generate DPIA Readiness Document</a><a className="btn secondary" href={`/export?kind=dpia-readiness&id=${d.id}&format=doc`}>Readiness (Word)</a>
           <a className="btn secondary" href={`/export?kind=dpia-report&id=${d.id}&format=pdf` + "&cover=only"} target="_blank">Cover letter (PDF)</a><a className="btn secondary" href={`/export?kind=dpia-report&id=${d.id}&format=doc` + "&cover=only"}>Cover letter (Word)</a>
         </div>
       </div>
