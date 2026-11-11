@@ -5,6 +5,7 @@ import { q, one } from "@/lib/db";
 import { str, flash } from "@/lib/form";
 import { KINDS, RATED, ATTACH, LIA_DOCS, nextNo, type Kind } from "@/lib/assessments";
 import { documentText } from "@/lib/dpia-docs";
+import { analyseLiaInto } from "@/lib/lia-docs";
 import { riskLevel } from "@/lib/rules";
 import { Flash, Hidden, Chip } from "@/components/ui";
 import { Submit } from "@/components/client";
@@ -32,13 +33,16 @@ async function save(fd: FormData) {
     [a.id, JSON.stringify(answers), n("likelihood"), n("impact"), outcome]);
   await audit(user, "update", `assessment_${a.kind}`, a.id, { client_id: a.client_id });
   const client = (await one<{ id: string; firm_id: string }>("select id, firm_id from clients where id = $1", [a.client_id]))!;
+  let added = 0;
   for (const f of fd.getAll("evidence_files")) {
     if (!(f instanceof File) || !f.size) continue;
+    added++;
     const r = await storeFile(user, client, f, null);
     if ("error" in r) redirect(flash(back, `Answers saved, but the attachment failed: ${r.error}`, "error"));
     await q("update files set assessment_id = $2, text_content = $3 where id = $1", [r.id, a.id, (await documentText(f)) || null]);
   }
-  redirect(flash(back, a.status === "approved" ? "Saved. It's back to draft and needs approving again." : "Saved"));
+  const an = a.kind === "lia" && (added || str(fd, "analyse")) ? (await analyseLiaInto(a.id)).msg : ""; // read the documents into the answers
+  redirect(flash(back, `${a.status === "approved" ? "Saved. It's back to draft and needs approving again." : "Saved."}${an ? ` ${an}` : ""}`));
 }
 
 async function approve(fd: FormData) {
@@ -81,6 +85,8 @@ export default async function Assessment({ params, searchParams }: { params: Pro
               <label className="field" style={{ marginTop: 8 }}><span>Upload documents</span>
                 <span className="help">Upload these documents: {LIA_DOCS.join("; ")}. PDF, Word, Excel or images, up to 25 MB each. They upload when you save.</span>
                 <input type="file" name="evidence_files" multiple accept={ACCEPT} /></label>
+              {!ro && <div style={{ marginTop: 8 }}><Submit className="btn secondary" name="analyse" value="1">Save and analyse documents</Submit>
+                <p className="meta" style={{ marginTop: 4 }}>Reads the documents and adds a &quot;[From the uploaded documents]&quot; part to each answer it has evidence for. New uploads are analysed automatically. Your own text is kept.</p></div>}
             </section>
           )}
           {k.sections.map((s) => (

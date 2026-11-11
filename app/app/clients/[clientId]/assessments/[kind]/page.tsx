@@ -8,6 +8,7 @@ import { list } from "@/lib/questionnaire";
 import { KINDS, RATED, LIA_DOCS, prefill, type Kind } from "@/lib/assessments";
 import { storeFile, ACCEPT } from "@/lib/files";
 import { documentText } from "@/lib/dpia-docs";
+import { analyseLiaInto } from "@/lib/lia-docs";
 import { riskLevel } from "@/lib/rules";
 import { Flash, Field, Hidden, Chip, Empty } from "@/components/ui";
 import { Submit } from "@/components/client";
@@ -33,7 +34,8 @@ async function create(fd: FormData) {
     if ("error" in up) redirect(flash(`${base}/${r!.id}`, `Started, but a document failed to upload: ${up.error}`, "error"));
     await q("update files set assessment_id = $2, text_content = $3 where id = $1", [up.id, r!.id, (await documentText(f)) || null]); n++;
   }
-  redirect(flash(`${base}/${r!.id}`, `Started. Pre-filled from the linked activity${n ? ` with ${n} document${n > 1 ? "s" : ""} attached` : ""}; complete the rest.`));
+  const an = kind === "lia" && n ? (await analyseLiaInto(r!.id)).msg : "";
+  redirect(flash(`${base}/${r!.id}`, `Started. Pre-filled from the linked activity${n ? ` and ${n} uploaded document${n > 1 ? "s" : ""}` : ""}; complete the rest.${an ? ` ${an}` : ""}`));
 }
 
 export default async function Assessments({ params, searchParams }: { params: Promise<{ clientId: string; kind: string }>; searchParams: Promise<Record<string, string>> }) {

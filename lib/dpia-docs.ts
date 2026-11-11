@@ -44,41 +44,41 @@ export function docType(d: Doc) {
   return TYPES.find(([, re]) => re.test(d.name))?.[0] ?? TYPES.find(([, re]) => re.test(d.text.slice(0, 600)))?.[0] ?? null;
 }
 
-type Term = [label: string, re: RegExp];
-const T = (label: string, re: string): Term => [label, new RegExp(re, "i")];
-const DATA: Term[] = [T("Full name", "\\b(full[\\s_-]?name|first[\\s_-]?name|surname|last[\\s_-]?name)\\b"), T("Email address", "\\be-?mail\\b"), T("Phone number", "\\b(phone|mobile|msisdn|telephone)\\b"),
+export type Term = [label: string, re: RegExp];
+export const T = (label: string, re: string): Term => [label, new RegExp(re, "i")];
+export const DATA: Term[] = [T("Full name", "\\b(full[\\s_-]?name|first[\\s_-]?name|surname|last[\\s_-]?name)\\b"), T("Email address", "\\be-?mail\\b"), T("Phone number", "\\b(phone|mobile|msisdn|telephone)\\b"),
   T("Home address", "\\b(home|residential|postal|street)[\\s_-]?address\\b"), T("Date of birth", "\\b(date[\\s_-]of[\\s_-]birth|dob|birth[\\s_-]?date)\\b"), T("BVN", "\\bbvn\\b|bank verification number"),
   T("NIN", "\\bnin\\b|national identification number"), T("Passport or ID document", "\\b(passport|driver'?s licen[cs]e|voter'?s card|id card)\\b"), T("Bank account details", "\\b(account[\\s_-]?number|iban|bank[\\s_-]?account|sort code)\\b"),
   T("Payment card data", "\\b(card[\\s_-]?number|pan\\b|cvv|card[\\s_-]?holder)"), T("Salary or payroll data", "\\b(salary|payroll|pension|tax[\\s_-]?id|tin)\\b"), T("Location data", "\\b(gps|geo-?location|latitude|longitude)\\b"),
   T("IP address / device identifiers", "\\b(ip[\\s_-]?address|device[\\s_-]?id|imei|cookie id)\\b"), T("Photographs or CCTV footage", "\\b(photo(graph)?|cctv|video footage|selfie)\\b")];
-const SENSITIVE: Term[] = [T("Health or medical data", "\\b(health|medical|diagnos|patient|clinical|prescription)"), T("Biometric data", "\\b(biometric|fingerprint|facial recognition|face id|iris)\\b"),
+export const SENSITIVE: Term[] = [T("Health or medical data", "\\b(health|medical|diagnos|patient|clinical|prescription)"), T("Biometric data", "\\b(biometric|fingerprint|facial recognition|face id|iris)\\b"),
   T("Religious or philosophical beliefs", "\\breligio"), T("Ethnic origin", "\\b(ethnic|tribe)\\b"), T("Political opinions", "\\bpolitical (opinion|affiliation)"), T("Sex life or sexual orientation", "\\bsexual orientation\\b"), T("Children's data", "\\b(child(ren)?|minor|under 18|pupil)\\b")];
-const DBS: Term[] = ["PostgreSQL|postgres", "MySQL", "MariaDB", "Oracle( Database| DB)?", "SQL Server|MSSQL", "MongoDB", "Redis", "Firebase|Firestore", "DynamoDB", "Elasticsearch", "Cassandra", "SQLite"].map((x) => T(x.split("|")[0].replace(/\(.*\)\??/, ""), `\\b(${x})\\b`));
-const HOSTS: Term[] = [T("Amazon Web Services (AWS)", "\\b(aws|amazon web services|ec2|s3 bucket|rds)\\b"), T("Microsoft Azure", "\\bazure\\b"), T("Google Cloud", "\\b(google cloud|gcp|bigquery)\\b"), T("Oracle Cloud", "\\boracle cloud|\\boci\\b"),
+export const DBS: Term[] = ["PostgreSQL|postgres", "MySQL", "MariaDB", "Oracle( Database| DB)?", "SQL Server|MSSQL", "MongoDB", "Redis", "Firebase|Firestore", "DynamoDB", "Elasticsearch", "Cassandra", "SQLite"].map((x) => T(x.split("|")[0].replace(/\(.*\)\??/, ""), `\\b(${x})\\b`));
+export const HOSTS: Term[] = [T("Amazon Web Services (AWS)", "\\b(aws|amazon web services|ec2|s3 bucket|rds)\\b"), T("Microsoft Azure", "\\bazure\\b"), T("Google Cloud", "\\b(google cloud|gcp|bigquery)\\b"), T("Oracle Cloud", "\\boracle cloud|\\boci\\b"),
   T("DigitalOcean", "\\bdigitalocean\\b"), T("Huawei Cloud", "\\bhuawei cloud\\b"), T("Heroku", "\\bheroku\\b"), T("Vercel", "\\bvercel\\b"), T("Cloudflare", "\\bcloudflare\\b")];
-const LOCAL: Term[] = [T("Hosted in Nigeria", "\\b(hosted in nigeria|nigeria(n)? data cent|rack centre|mainone|md(x)?i|galaxy backbone|cloudvantage|kasi|digital realty lagos|lagos data cent)")];
-const ABROAD: Term[] = ["United States|USA|U\\.S\\.", "United Kingdom|UK", "Ireland", "Germany", "Netherlands", "France", "South Africa", "India", "Singapore", "Canada", "United Arab Emirates|UAE|Dubai", "Kenya", "Ghana", "China", "Brazil", "Japan", "Australia", "Belgium", "Sweden", "Switzerland"]
+export const LOCAL: Term[] = [T("Hosted in Nigeria", "\\b(hosted in nigeria|nigeria(n)? data cent|rack centre|mainone|md(x)?i|galaxy backbone|cloudvantage|kasi|digital realty lagos|lagos data cent)")];
+export const ABROAD: Term[] = ["United States|USA|U\\.S\\.", "United Kingdom|UK", "Ireland", "Germany", "Netherlands", "France", "South Africa", "India", "Singapore", "Canada", "United Arab Emirates|UAE|Dubai", "Kenya", "Ghana", "China", "Brazil", "Japan", "Australia", "Belgium", "Sweden", "Switzerland"]
   .map((x) => T(x.split("|")[0], `\\b(${x})\\b`)).concat([T("Cloud region abroad", "\\b(us|eu|ap|af|me|ca|sa)-(east|west|north|south|central|southeast|northeast)-\\d\\b")]);
-const PARTIES: Term[] = ["Paystack", "Flutterwave", "Interswitch", "Remita", "Stripe", "PayPal", "Monnify", "Opay", "Moniepoint", "Twilio", "Termii", "Africa's Talking", "SendGrid", "Mailchimp", "Mailgun", "Resend", "Google Analytics", "Google Workspace", "Microsoft 365|Office 365",
+export const PARTIES: Term[] = ["Paystack", "Flutterwave", "Interswitch", "Remita", "Stripe", "PayPal", "Monnify", "Opay", "Moniepoint", "Twilio", "Termii", "Africa's Talking", "SendGrid", "Mailchimp", "Mailgun", "Resend", "Google Analytics", "Google Workspace", "Microsoft 365|Office 365",
   "Salesforce", "HubSpot", "Zendesk", "Freshdesk", "Intercom", "Slack", "Zoho", "SAP", "Oracle EBS", "Sage", "QuickBooks", "Dojah", "Smile ID|SmileID", "Youverify", "Prembly|IdentityPass", "Mono", "Okra", "Firebase", "OneSignal", "WhatsApp", "Meta Pixel|Facebook Pixel", "Hotjar", "Sentry", "Datadog", "Auth0", "Okta"]
   .map((x) => T(x.split("|")[0], `\\b(${x})\\b`));
-const CONTROLS: Term[] = [T("Encryption at rest", "encrypt\\w*[^.\\n]{0,40}\\bat rest|at[- ]rest encrypt|\\baes[- ]?(128|256)\\b|transparent data encryption|\\btde\\b"), T("Encryption in transit (TLS/HTTPS)", "\\btls\\s?1\\.[23]|\\bhttps\\b|in transit|\\bssl\\b"),
+export const CONTROLS: Term[] = [T("Encryption at rest", "encrypt\\w*[^.\\n]{0,40}\\bat rest|at[- ]rest encrypt|\\baes[- ]?(128|256)\\b|transparent data encryption|\\btde\\b"), T("Encryption in transit (TLS/HTTPS)", "\\btls\\s?1\\.[23]|\\bhttps\\b|in transit|\\bssl\\b"),
   T("Multi-factor authentication", "\\b(mfa|2fa|multi[- ]factor|two[- ]factor|otp)\\b"), T("Role-based access control", "\\b(rbac|role[- ]based|least privilege|access control)"), T("Single sign-on", "\\b(sso|single sign[- ]on|saml|oauth|openid)\\b"),
   T("Audit logging and monitoring", "\\b(audit (log|trail)|logging|siem|monitoring)\\b"), T("Backups", "\\bbackups?\\b"), T("Disaster recovery (RPO/RTO)", "\\b(disaster recovery|rpo|rto|failover)\\b"),
   T("Penetration testing / vulnerability scanning", "\\b(penetration test|pen[- ]?test|vulnerability (scan|assessment))"), T("Firewall / WAF", "\\b(firewall|waf)\\b"), T("Data masking / pseudonymisation", "\\b(mask(ing|ed)|pseudonym|anonymi[sz]|tokeni[sz])"),
   T("Key management", "\\b(kms|key management|hsm|key vault)\\b"), T("Staff training", "\\b(security awareness|staff training|training programme)\\b")];
-const AUTOMATED: Term[] = [T("Automated decision-making or scoring", "\\b(automated decision|credit scor|risk scor|auto[- ]?approv|auto[- ]?reject|eligibility engine)"), T("Profiling", "\\bprofiling\\b"),
+export const AUTOMATED: Term[] = [T("Automated decision-making or scoring", "\\b(automated decision|credit scor|risk scor|auto[- ]?approv|auto[- ]?reject|eligibility engine)"), T("Profiling", "\\bprofiling\\b"),
   T("Machine learning / AI", "\\b(machine learning|\\bml model|artificial intelligence|\\bai model|neural|predictive model)"), T("Batch or scheduled jobs", "\\b(cron|batch job|scheduled job|etl)\\b")];
-const CHANNELS: Term[] = [T("Web forms / website", "\\b(web form|website|web portal|landing page)\\b"), T("Mobile app", "\\b(mobile app|android|ios app)\\b"), T("APIs", "\\b(rest api|api endpoint|graphql|webhook)\\b"),
+export const CHANNELS: Term[] = [T("Web forms / website", "\\b(web form|website|web portal|landing page)\\b"), T("Mobile app", "\\b(mobile app|android|ios app)\\b"), T("APIs", "\\b(rest api|api endpoint|graphql|webhook)\\b"),
   T("USSD", "\\bussd\\b"), T("Paper forms", "\\bpaper form"), T("Call centre / phone", "\\b(call cent(re|er)|ivr)\\b"), T("Email", "\\bvia email|by email\\b"), T("Branch / walk-in", "\\b(branch|walk-in|front desk)\\b")];
-const ROLES: Term[] = ["Super ?admin", "Administrator|Admin", "Supervisor", "Manager", "Agent", "Operator", "Auditor", "Analyst", "Developer", "Support", "Finance", "Customer|End user", "Read[- ]only|Viewer"]
+export const ROLES: Term[] = ["Super ?admin", "Administrator|Admin", "Supervisor", "Manager", "Agent", "Operator", "Auditor", "Analyst", "Developer", "Support", "Finance", "Customer|End user", "Read[- ]only|Viewer"]
   .map((x) => T(x.split("|")[0].replace(" ?", " ").replace("[- ]", "-"), `\\b(${x})\\b`));
 
-const found = (terms: Term[], docs: Doc[]) => terms.map(([label, re]) => ({ label, in: docs.filter((d) => re.test(d.text)).map((d) => d.name) })).filter((x) => x.in.length);
+export const found = (terms: Term[], docs: Doc[]) => terms.map(([label, re]) => ({ label, in: docs.filter((d) => re.test(d.text)).map((d) => d.name) })).filter((x) => x.in.length);
 const src = (names: string[]) => ` (${[...new Set(names)].slice(0, 3).join("; ")}${names.length > 3 ? "; …" : ""})`;
-const line = (x: { label: string; in: string[] }) => `${x.label}${src(x.in)}`;
+export const line = (x: { label: string; in: string[] }) => `${x.label}${src(x.in)}`;
 /** Up to `n` short sentences matching `re`, with their source. */
-function quotes(docs: Doc[], re: RegExp, n = 3) {
+export function quotes(docs: Doc[], re: RegExp, n = 3) {
   const out: string[] = [];
   for (const d of docs) for (const s of d.text.replace(/\s+/g, " ").split(/(?<=[.!?])\s+/)) {
     if (out.length >= n) return out;
