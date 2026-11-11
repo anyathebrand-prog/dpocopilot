@@ -21,7 +21,7 @@ export default async function PortalRopa({ searchParams }: { searchParams: Promi
           <thead><tr><th>Purpose</th><th>Department</th><th>Lawful basis</th><th>Whose data</th><th>What data</th><th>Shared with</th><th>Sent outside Nigeria</th><th>Kept for</th><th></th></tr></thead>
           <tbody>{rows.map((r) => (
             <tr key={r.id}>
-              <td><b>{r.purpose}</b>{r.state === "proposed" && <div className="meta">Awaiting {u.firm_name}&apos;s review</div>}{r.involves_sensitive && <div className="meta">Includes sensitive data</div>}</td>
+              <td><b>{r.purpose}</b>{r.involves_sensitive && <div className="meta">Includes sensitive data</div>}</td>
               <td data-label="Department">{r.department ?? "—"}</td>
               <td data-label="Lawful basis">{r.lawful_basis ? LAWFUL_BASIS[r.lawful_basis] : "—"}</td>
               <td data-label="Whose data" className="small">{r.data_subjects ?? "—"}</td>

@@ -6,7 +6,7 @@ import { LAWFUL_BASIS } from "@/lib/templates";
 import { answersOf } from "@/lib/data";
 import { list } from "@/lib/questionnaire";
 import { ROPA_TEXT } from "@/lib/ropa-fields";
-import { Flash, Field, Hidden, Banner } from "@/components/ui";
+import { Flash, Field, Hidden } from "@/components/ui";
 import { Submit } from "@/components/client";
 import { saveClientRopa } from "../actions";
 
@@ -24,8 +24,7 @@ export default async function PortalRopaEntry({ params, searchParams }: { params
       <p><Link href="/portal/ropa">Back to data inventory</Link></p>
       <h1 style={{ fontSize: 24 }}>{isNew ? "Add a processing activity" : e!.purpose}</h1>
       <Flash sp={sp} />
-      {isNew ? <Banner>{u.firm_name} will review new activities before they become part of your record.</Banner>
-        : <p className="meta">Changes save straight to your record and {u.firm_name} is told.</p>}
+      <p className="meta">{isNew ? "It is added" : "Changes save"} straight to your record and {u.firm_name} is told.</p>
       <form action={saveClientRopa} className="panel" style={{ maxWidth: 760 }}>
         <Hidden values={{ id: e?.id }} />
         <Field label="Purpose" required help="What the data is used for, e.g. Payroll."><input name="purpose" defaultValue={e?.purpose ?? ""} required /></Field>
