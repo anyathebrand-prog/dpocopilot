@@ -15,10 +15,14 @@ export async function loadCtx(clientId: string, ropaIds?: string[]): Promise<Ctx
     ? await q<Ropa>("select * from ropa_entries where id = any($1::uuid[]) and client_id = $2 order by created_at", [ropaIds, clientId])
     : await q<Ropa>("select * from ropa_entries where client_id = $1 and state = 'active' order by created_at", [clientId]);
   const text = (k: string) => (typeof a[k] === "string" && (a[k] as string).trim() ? (a[k] as string).trim() : undefined);
+  const profileText = (a.org_profile_file as { text?: string } | undefined)?.text; // company profile attached at onboarding
   return {
     orgName: String(a.org_legal_name || c?.name || ""), address: text("org_address"), ropa,
     sector: text("org_sector"), dpoName: text("dpo_name"), departments: list(a.org_departments), transferCountries: list(a.transfer_countries),
     subjects6mo: a.subjects_6mo !== undefined && a.subjects_6mo !== "" ? String(a.subjects_6mo) : undefined,
+    profileOverview: profileText ? (await import("./framework")).profileExtract(profileText).overview ?? undefined : undefined,
+    systems: list(a.systems), recipientsList: list(a.recipients), retentionDefault: text("retention_default"),
+    security: [...(Array.isArray(a.security) ? (a.security as string[]) : []), ...(text("security_other") ? [text("security_other")!] : [])],
   };
 }
 
