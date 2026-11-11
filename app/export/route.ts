@@ -254,13 +254,18 @@ export async function GET(req: Request) {
       const hr = ws.addRow(cols.map(([h]) => h));
       hr.eachCell((c) => { c.font = { bold: true, color: { argb: "FFFFFFFF" } }; c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF0D1F4A" } }; c.alignment = { wrapText: true, vertical: "middle" }; });
       for (const r of rows) ws.addRow(cols.map(([, f]) => f(r) ?? "")).alignment = { wrapText: true, vertical: "top" };
+      ws.addRow([]); ws.addRow([]);
+      ws.addRow(["Prepared by:", "______________________________", "", "Approved by:", "______________________________"]);
+      ws.addRow([]);
+      ws.addRow(["Date:", "______________________", "", "Date:", "______________________"]);
       cols.forEach((_, i) => { ws.getColumn(i + 1).width = 26; });
       return new Response(new Uint8Array(await wb.xlsx.writeBuffer()), { headers: {
         "content-type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         "content-disposition": `attachment; filename="${slug(`${client!.name}-ropa${dept ? `-${dept}` : ""}`)}.xlsx"` } });
     }
     await audit(u, "export", "ropa", clientId, { client_id: clientId, details: { format, dept: dept || undefined } });
-    return page(`${client!.name} - ${TITLE}`, `<h1>${esc(client!.name)}</h1><h2>${TITLE}</h2>${stamp}<table><tr>${cols.map(([h]) => `<th>${h}</th>`).join("")}</tr>${rows.map((r) => `<tr>${cols.map(([, f]) => `<td>${esc(f(r))}</td>`).join("")}</tr>`).join("")}</table>${rows.length ? "" : `<p>No processing activities recorded${dept ? ` for ${esc(dept)}` : ""} yet.</p>`}`, format, slug(`${client!.name}-ropa${dept ? `-${dept}` : ""}`), CSS, await cover(clientId, "ropa", "Record of Processing Activities"));
+    return page(`${client!.name} - ${TITLE}`, `<h1>${esc(client!.name)}</h1><h2>${TITLE}</h2>${stamp}<table><tr>${cols.map(([h]) => `<th>${h}</th>`).join("")}</tr>${rows.map((r) => `<tr>${cols.map(([, f]) => `<td>${esc(f(r))}</td>`).join("")}</tr>`).join("")}</table>${rows.length ? "" : `<p>No processing activities recorded${dept ? ` for ${esc(dept)}` : ""} yet.</p>`}
+      <table style="margin-top:40px;border:none"><tr><td style="border:none;width:50%;padding:24px 12px 8px 0">Prepared by: ______________________________<br><br>Date: ______________________</td><td style="border:none;width:50%;padding:24px 0 8px 12px">Approved by: ______________________________<br><br>Date: ______________________</td></tr></table>`, format, slug(`${client!.name}-ropa${dept ? `-${dept}` : ""}`), CSS, await cover(clientId, "ropa", "Record of Processing Activities"));
   }
 
   if (kind === "car-report" || kind === "car-plan" || kind === "car-tracker") {
