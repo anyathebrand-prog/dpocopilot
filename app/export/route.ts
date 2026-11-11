@@ -2,7 +2,7 @@ import { getUser, clientScope, scopeArgs, audit } from "@/lib/auth";
 import { q, one } from "@/lib/db";
 import { getVersion, signatureFor } from "@/lib/data";
 import { dpiaText, LAWFUL_BASIS } from "@/lib/templates";
-import { fmtWAT, riskLevel, readiness, CAR_CATEGORIES, carItemRisk, carRisk } from "@/lib/rules";
+import { todayWAT, fmtWAT, riskLevel, readiness, CAR_CATEGORIES, carItemRisk, carRisk } from "@/lib/rules";
 import { TODO } from "@/lib/templates";
 import { loadCarReport, carReportHtml } from "@/lib/car-report";
 import { buildTracker, loadTracker, trackerHtml, trackerXlsx } from "@/lib/remediation";
@@ -14,6 +14,9 @@ import { invoiceHtml } from "@/lib/invoice";
 import { ropaHtml } from "@/lib/ropa-report";
 import { dpiaReadinessHtml } from "@/lib/dpia-readiness";
 import { liaReadinessHtml } from "@/lib/lia-readiness";
+import { tpraReportHtml, tpraRequestHtml } from "@/lib/tpra-report";
+import { loadTpra, evidenceState, firmModel } from "@/lib/tpra";
+import { asModel, score, FACTORS, DOMAINS } from "@/lib/tpra-model";
 import { liaType } from "@/lib/lia-docs";
 import { docType } from "@/lib/dpia-docs";
 import { loadFramework, frameworkHtml } from "@/lib/framework";
@@ -218,6 +221,21 @@ export async function GET(req: Request) {
     await audit(u, "export", "proposal", id, { details: { format, doc: url.searchParams.get("doc") ?? "proposal" } });
     return page(r.title, r.body, format, slug(r.title), r.css);
   }
+  if (kind === "tpra-request" || (kind === "assessment" && /^[0-9a-f-]{36}$/.test(url.searchParams.get("id") ?? "") && (await one("select 1 from assessments where id = $1 and kind = 'tpra'", [url.searchParams.get("id")])))) {
+    // Third-party risk: the Processor Risk Assessment report, or the evidence request. Contacts may open their own client's.
+    const d = await loadTpra(url.searchParams.get("id") ?? "");
+    if (!d || !((u.kind === "contact" && u.client_id === d.a.client_id) || (await canSeeClient(d.a.client_id)))) return denied();
+    const c = (await one("select name, firm_id from clients where id = $1", [d.a.client_id]))!;
+    const ans = await answersOf(d.a.client_id);
+    const org = String(ans.org_legal_name || c.name);
+    const model = d.a.model ? asModel(d.a.model) : await firmModel(c.firm_id);
+    const ev = evidenceState({ answers: d.a.answers, model }, d.rows, d.files, todayWAT());
+    const r = kind === "tpra-request"
+      ? tpraRequestHtml({ org, by: u.name, answers: d.a.answers, model, ev, year: d.a.assessment_year })
+      : tpraReportHtml({ org, by: u.name, a: { ...d.a, model } as any, ev, tasks: d.tasks, ropa: d.ropa.map((x) => x.purpose) });
+    await audit(u, "export", kind === "tpra-request" ? "tpra_request" : "assessment_tpra", d.a.id, { client_id: d.a.client_id, details: { format } });
+    return page(r.title, r.body, format, slug(r.title), r.css, kind === "tpra-request" ? "" : await cover(d.a.client_id, "tpra", "Data Processor Third Party Risk Assessment"));
+  }
   if (kind === "assessment") {
     const id = url.searchParams.get("id") ?? "";
     const a = /^[0-9a-f-]{36}$/.test(id) ? await one("select a.*, u.name as approver from assessments a left join users u on u.id = a.approved_by where a.id = $1", [id]) : null;
@@ -240,6 +258,28 @@ export async function GET(req: Request) {
   if (!/^[0-9a-f-]{36}$/.test(clientId) || !(ownRopa || (await canSeeClient(clientId)))) return denied();
   const client = await one("select name, car_audit_year from clients where id = $1", [clientId]);
   const stamp = `<p class="meta">${esc(client!.name)} · exported ${fmtWAT(new Date())} by ${esc(u.name)}</p>`;
+
+  if (kind === "tpra-register") { // processor register as Excel
+    const rows = await q("select a.*, to_char(a.next_review, 'YYYY-MM-DD') as nr, a.client_signed_at from assessments a where a.client_id = $1 and a.kind = 'tpra' order by a.answers->>'vendor'", [clientId]);
+    await audit(u, "export", "tpra_register", clientId, { client_id: clientId, details: { format: "xlsx" } });
+    const ExcelJS = (await import("exceljs")).default;
+    const wb = new ExcelJS.Workbook(), ws = wb.addWorksheet("Processor register", { views: [{ state: "frozen", ySplit: 4 }] });
+    ws.addRow([client!.name]).font = { bold: true, size: 16, color: { argb: "FF0D1F4A" } };
+    ws.addRow(["Processor register (Third-Party Risk Assessments)"]).font = { bold: true, size: 13 };
+    ws.addRow([`Exported ${fmtWAT(new Date())} by ${u.name}`]).font = { italic: true, size: 9 };
+    const cols = ["Processor", "Service", "Hosting", "Data leaves Nigeria", "Sub-processors", "DCPMI", ...FACTORS.map((f) => f.label), "Impact", ...DOMAINS.map((d) => d.label), "Control %", "Likelihood", "Residual", "Rating", "Decision", "DPA", "Next review", "Status"];
+    const hr = ws.addRow(cols);
+    hr.eachCell((c) => { c.font = { bold: true, color: { argb: "FFFFFFFF" } }; c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF0D1F4A" } }; c.alignment = { wrapText: true, vertical: "middle" }; });
+    for (const a of rows) {
+      const A = a.answers, r = score(A, asModel(a.model));
+      ws.addRow([A.vendor || a.title, A.service, A.location, A.leaves_nigeria, A.subprocessors, A.dcpmi, ...r.factors.map((x) => x ?? ""), r.impact ?? "", ...r.domains.map((x) => x ?? ""), r.controlPct ?? "", r.likelihood ?? "", r.residual ?? "",
+        a.rating ?? r.rating ?? "", r.decision ?? "", A.dpa_status || "Not started", a.nr ?? "", a.client_signed_at ? "Client signed" : a.status === "approved" ? "Approved" : "Draft"].map((x) => x ?? "")).alignment = { wrapText: true, vertical: "top" };
+    }
+    cols.forEach((_, i) => { ws.getColumn(i + 1).width = i < 6 ? 24 : 12; });
+    return new Response(new Uint8Array(await wb.xlsx.writeBuffer()), { headers: {
+      "content-type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      "content-disposition": `attachment; filename="${slug(`${client!.name}-processor-register`)}.xlsx"` } });
+  }
 
   if (kind === "project-plan") {
     const rows = await q(`select t.*, us.name as assignee from tasks t left join memberships m on m.id = t.assignee_membership_id left join users us on us.id = m.user_id

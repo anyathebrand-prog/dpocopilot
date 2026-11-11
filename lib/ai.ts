@@ -79,3 +79,17 @@ export async function ask(u: User, question: string): Promise<{ text: string | n
 // Natural-language questions rarely match every word; retrieve on any significant term, then require MIN_TERMS of them.
 const STOP = new Set(["what", "when", "which", "does", "the", "are", "for", "how", "must", "should", "can", "our", "and", "with", "under", "about", "have", "has", "who", "why", "need", "long", "there", "this", "that", "from", "into", "they", "their", "you", "your"]);
 const terms = (s: string) => [...new Set(s.toLowerCase().replace(/[^a-z0-9\s]/g, " ").split(/\s+/).filter((w) => w.length > 2 && !STOP.has(w)))];
+
+/** A structured suggestion from the model (TPRA gap analysis). Returns null when no model is configured or the reply is not JSON. */
+export async function aiJson<T>(u: User, clientId: string, system: string, prompt: string): Promise<T | null> {
+  if (!BASE) return null;
+  try {
+    const text = await chat(system, prompt);
+    await log(u, clientId, "draft", "done");
+    const m = text.match(/\{[\s\S]*\}/);
+    return m ? (JSON.parse(m[0]) as T) : null;
+  } catch {
+    await log(u, clientId, "draft", "failed");
+    return null;
+  }
+}

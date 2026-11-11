@@ -198,6 +198,11 @@ export default async function Car({ params, searchParams }: { params: Promise<{ 
   const risk = carRisk(items as It[]);
   const oldTemplate = items.length > 0 && items.every((i) => !i.priority);
   const findings = await q("select * from car_findings where client_id = $1 and audit_year = $2 order by status, created_at", [clientId, year]);
+  // Data processors (CAR Part 5) come from the processor register (Third-party risk), not checklist items.
+  const proc = await one<{ n: number; approved: number; signed: number; dpa: number; high: number; due: number }>(`select count(*)::int as n, count(*) filter (where status = 'approved')::int as approved,
+      count(*) filter (where client_signed_at is not null)::int as signed, count(*) filter (where answers->>'dpa_status' = 'Signed')::int as dpa,
+      count(*) filter (where rating in ('High','Critical'))::int as high, count(*) filter (where next_review <= current_date)::int as due
+    from assessments where client_id = $1 and kind = 'tpra'`, [clientId]);
   const openHigh = findings.filter((f) => f.status === "open" && f.risk === "high").length;
   const rep = (await one("select * from car_reports where client_id = $1 and audit_year = $2", [clientId, year])) ?? {};
   const firm = (await one("select ndpc_licence_no, signatory_name from firms where id = $1", [client.firm_id]))!;
@@ -254,6 +259,11 @@ export default async function Car({ params, searchParams }: { params: Promise<{ 
             body={`The ${year} checklist is replaced by the 69 Schedule 2 questions, all set to Missing. Statuses, answers, recommendations and Not applicable reasons on the current items are removed. Evidence requests stay, but are no longer linked to an item.`}>{h}</Confirm></div>}
         </Banner>
       )}
+      <section className="panel" style={{ marginBottom: 16 }}>
+        <div className="spread"><b>Data processors</b><Link href={`/app/clients/${clientId}/assessments/tpra`}>Processor register</Link></div>
+        {proc!.n ? <p style={{ margin: "6px 0 0" }}><span className="num">{proc!.approved} of {proc!.n}</span> processors assessed and approved · <span className="num">{proc!.signed}</span> signed off by the client · <span className="num">{proc!.dpa}</span> with a signed DPA{proc!.high ? <> · <b>{proc!.high} rated High or Critical</b></> : null}{proc!.due ? <> · <b>{proc!.due} review{proc!.due > 1 ? "s" : ""} due</b></> : null}</p>
+          : <p className="meta" style={{ margin: "6px 0 0" }}>No processors assessed yet. The CAR asks about processor contracts, due diligence and post-termination measures (NDPA s.29): assess each processor in the register.</p>}
+      </section>
       <section className="panel" style={{ marginBottom: 24 }}>
         <p style={{ fontSize: 22, margin: "0 0 8px" }}><b className="num">{r.overall.pct}%</b> ready · <span className="num">{r.overall.complete} of {r.overall.applicable}</span> applicable items complete</p>
         <Bar pct={r.overall.pct} />

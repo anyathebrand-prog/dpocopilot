@@ -260,3 +260,45 @@
 .cx .cx-hscroll::-webkit-scrollbar-track { background: rgba(255, 255, 255, 0.06); border-radius: 999px; }
 .cx .cx-hscroll::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.35); border-radius: 999px; }
 .cx .cx-hscroll::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.55); }
+
+/* ---------- Third-party risk (TPRA) wizard ---------- */
+.tpra-grid { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 20px; align-items: start; }
+.tpra-grid [hidden] { display: none !important; }
+.tpra-summary { position: sticky; top: 16px; }
+.tpra-summary .kv { display: grid; grid-template-columns: auto 1fr; gap: 4px 10px; margin: 8px 0 14px; font-size: 14px; }
+.tpra-summary .kv dt { color: var(--cx-light-muted); } .tpra-summary .kv dd { margin: 0; }
+.tpra-steps { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+.tpra-steps button { border: 1px solid var(--line, #d7dce5); background: #fff; border-radius: 999px; padding: 6px 12px; font-size: 13px; cursor: pointer; color: #1b2433; }
+.tpra-steps button b { display: inline-grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; background: #e6e8f0; margin-right: 4px; font-size: 12px; }
+.tpra-steps button.on { background: #0d1f4a; color: #fff; border-color: #0d1f4a; } .tpra-steps button.on b { background: var(--cx-blue); color: #0d1f4a; }
+.tpra-two { display: grid; grid-template-columns: 1fr 1fr; gap: 0 16px; }
+.tpra-factor { border: 0; padding: 0; margin: 0 0 14px; min-width: 0; }
+.tpra-factor legend { font-weight: 600; color: var(--cx-light); margin-bottom: 6px; }
+.tpra-opts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.tpra-opt { display: flex; gap: 6px; align-items: flex-start; border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 10px; padding: 8px 10px; font-size: 13px; cursor: pointer; color: var(--cx-light); }
+.tpra-opt.on { border-color: var(--cx-blue); background: rgba(168, 220, 255, 0.12); }
+.tpra-opt input { width: auto; margin-top: 2px; }
+.tpra-ev { display: grid; gap: 8px; }
+.tpra-ev-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; padding: 10px 0; border-top: 1px solid rgba(255, 255, 255, 0.12); }
+.tpra-ev-row.off { opacity: 0.5; }
+.tpra-ev-ctl { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; align-content: start; min-width: 0; }
+.tpra-ev-ctl select, .tpra-ev-ctl input { width: 100%; min-width: 0; }
+.tpra-ev-ctl label { display: flex; align-items: center; gap: 6px; } .tpra-ev-ctl label input { flex: 1; }
+.tpra-ev-ctl input[type="file"] { font-size: 12px; grid-column: 1 / -1; }
+.tpra-ev-ctl label { grid-column: 1 / -1; }
+.tpra-domain { padding: 10px 0; border-top: 1px solid rgba(255, 255, 255, 0.12); }
+.tpra-domain textarea { margin-top: 6px; }
+.tpra-sg { margin: 6px 0 0; padding: 8px 10px; border-left: 3px solid var(--cx-blue); background: rgba(168, 220, 255, 0.08); }
+.tpra-copilot { margin-top: 12px; padding: 12px 14px; border: 1px dashed rgba(168, 220, 255, 0.5); border-radius: 12px; }
+.tpra-alert { padding: 8px 10px; border-left: 3px solid #ff8a7a; background: rgba(180, 35, 24, 0.18); color: #ffd9d3; font-size: 14px; }
+.tpra-alert a { color: #fff; font-weight: 600; }
+.tpra-tasks { display: grid; gap: 6px; }
+.tpra-task { display: grid; grid-template-columns: 1.3fr 1.3fr 1fr auto auto auto; gap: 6px; align-items: center; }
+.tpra-task select, .tpra-task input[type="date"] { width: auto; }
+.tpra-sign li { margin-bottom: 12px; }
+@media (max-width: 1000px) { .tpra-grid { grid-template-columns: 1fr; } .tpra-summary { position: static; } }
+@media (max-width: 700px) { .tpra-two, .tpra-opts, .tpra-ev-row, .tpra-task { grid-template-columns: 1fr; } }
+.tpra-stats { display: flex; flex-wrap: wrap; gap: 10px; margin: 8px 0 16px; align-items: stretch; }
+.tpra-stat { display: block; min-width: 120px; padding: 10px 16px 10px 14px; border-radius: 12px; background: var(--cx-navy); color: var(--cx-light); text-decoration: none; border-top: 5px solid var(--c, #5f6878); }
+.cx a.tpra-stat { color: var(--cx-light); } .tpra-stat.on { box-shadow: 0 0 0 2px var(--cx-blue); }
+.tpra-stat span { display: block; font-size: 13px; color: var(--cx-light-muted); } .tpra-stat b { font-size: 22px; }

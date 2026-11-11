@@ -1095,3 +1095,49 @@ insert into invoice_payments (invoice_id, firm_id, percent, amount, receipt_no, 
 alter table dpias add column if not exists system_name text;
 alter table files add column if not exists dpia_id uuid references dpias on delete set null;
 alter table files add column if not exists text_content text; -- readable text of a DPIA document, for analysis
+
+-- Third-party risk (TPRA): Impact × Likelihood model with knock-outs (lib/tpra-model.ts). Firms can version their own
+-- model; each assessment keeps a copy of the version it was scored under. Evidence items are sized to the impact tier,
+-- remediation tasks track conditions, the client signs off in the portal (typed name + email code), and reviews recur.
+create table if not exists tpra_models (
+  id uuid primary key default gen_random_uuid(),
+  firm_id uuid not null references firms,
+  version int not null,
+  model jsonb not null,
+  note text,
+  created_by uuid references users,
+  created_at timestamptz not null default now(),
+  unique (firm_id, version)
+);
+alter table assessments add column if not exists model jsonb;
+alter table assessments add column if not exists rating text;
+alter table assessments add column if not exists residual int;
+alter table assessments add column if not exists next_review date;
+alter table assessments add column if not exists history jsonb not null default '[]';
+alter table assessments add column if not exists ropa_ids uuid[] not null default '{}';
+alter table assessments add column if not exists evidence_requested_at timestamptz;
+alter table assessments add column if not exists client_signed_at timestamptz;
+alter table assessments add column if not exists client_signed_name text;
+alter table assessments add column if not exists client_signed_by uuid references users;
+alter table assessments add column if not exists client_signed_sha text;
+alter table files add column if not exists evidence_item int; -- TPRA: index into the evidence checklist
+create table if not exists tpra_evidence (
+  assessment_id uuid not null references assessments on delete cascade,
+  item int not null,
+  status text not null default 'outstanding' check (status in ('outstanding','received','not_applicable')),
+  expires_on date,
+  verdict text check (verdict in ('accepted','insufficient')),
+  primary key (assessment_id, item)
+);
+create table if not exists tpra_tasks (
+  id uuid primary key default gen_random_uuid(),
+  assessment_id uuid not null references assessments on delete cascade,
+  gap text not null,
+  action text,
+  owner text,
+  deadline date,
+  status text not null default 'open' check (status in ('open','in_progress','done')),
+  created_at timestamptz not null default now()
+);
+alter table otp_challenges alter column request_id drop not null;
+alter table otp_challenges add column if not exists assessment_id uuid references assessments on delete cascade;
