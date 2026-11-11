@@ -69,8 +69,8 @@ export default function TpraForm(p: TpraProps) {
   const copilot = (() => { try { return JSON.parse(p.answers.copilot || "null") as { at: string; source: string; knockouts: string[] } | null; } catch { return null; } })();
   const ro = p.readOnly;
   const a = p.answers;
-  const t = (k: string, label: string, help?: string, rows = 2) => (
-    <label className="field"><span>{label}</span>{help && <span className="help">{help}</span>}<textarea name={k} rows={rows} defaultValue={a[k] ?? ""} /></label>
+  const t = (k: string, label: string, help?: string, rows = 2, ph?: string) => (
+    <label className="field"><span>{label}</span>{help && <span className="help">{help}</span>}<textarea name={k} rows={rows} defaultValue={a[k] ?? ""} placeholder={ph} /></label>
   );
   const s = (k: string, label: string, opts: string[], help?: string) => (
     <label className="field"><span>{label}</span>{help && <span className="help">{help}</span>}<select name={k} defaultValue={a[k] ?? ""} style={{ width: "auto" }}><option value="">–</option>{opts.map((o) => <option key={o}>{o}</option>)}</select></label>
@@ -98,19 +98,19 @@ export default function TpraForm(p: TpraProps) {
             <section className="panel" {...show(0)}>
               <h3>1. Intake</h3>
               <p className="meta">The processor, its service and the processing activities it supports.</p>
-              <label className="field"><span>Processor name</span><input name="vendor" defaultValue={a.vendor ?? ""} /></label>
-              {t("service", "Service provided and the processing it involves")}
+              <label className="field"><span>Processor name</span><input name="vendor" defaultValue={a.vendor ?? ""} placeholder="The company's registered name, e.g. CloudHost Ltd" /></label>
+              {t("service", "Service provided and the processing it involves", undefined, 2, "e.g. Cloud hosting of the patient records system: stores, backs up and serves patient files on our behalf")}
               <div className="tpra-two">
                 {s("role", "Role under the NDPA", ["Data processor", "Sub-processor", "Joint controller", "Independent controller"])}
                 {s("dcpmi", "NDPC DCPMI registration", ["Registered (verified)", "Registered (not verified)", "Not registered", "Not a DCPMI", "Unknown"], "Check on NDPC check where it qualifies as a DCPMI.")}
                 <label className="field"><span>Country of hosting</span><input name="location" defaultValue={a.location ?? ""} placeholder="e.g. Nigeria (Lagos); AWS eu-west-1" /></label>
                 {s("leaves_nigeria", "Does personal data leave Nigeria?", ["No", "Yes"], "Hosting, support or access from outside Nigeria counts.")}
-                <label className="field"><span>DPO contact</span><input name="dpo_contact" defaultValue={a.dpo_contact ?? ""} /></label>
-                <label className="field"><span>Business owner (client side)</span><input name="business_owner" defaultValue={a.business_owner ?? ""} /></label>
+                <label className="field"><span>DPO contact</span><input name="dpo_contact" defaultValue={a.dpo_contact ?? ""} placeholder="Name, email and phone of the processor's DPO" /></label>
+                <label className="field"><span>Business owner (client side)</span><input name="business_owner" defaultValue={a.business_owner ?? ""} placeholder="Who manages this processor at the client, e.g. Head of IT" /></label>
               </div>
-              {t("subprocessors", "Sub-processors, with locations", "Changing this on an approved assessment logs a reassessment trigger.")}
-              {t("data", "Personal data and data subjects")}
-              {t("contract", "Contract reference, start and end dates", undefined, 1)}
+              {t("subprocessors", "Sub-processors, with locations", "Changing this on an approved assessment logs a reassessment trigger.", 2, "Other companies the processor uses to handle the data, and where they are, e.g. AWS (Ireland) for hosting; Twilio (USA) for SMS. Write None if there are none.")}
+              {t("data", "Personal data and data subjects", undefined, 2, "What personal data the processor handles and whose, e.g. names, phone numbers and medical history of patients; payroll details of staff")}
+              {t("contract", "Contract reference, start and end dates", undefined, 2, "e.g. MSA-2026-014, signed 1 March 2026, runs to 28 February 2028")}
               <fieldset className="field"><legend>Linked processing activities (RoPA)</legend>
                 {p.ropa.length ? p.ropa.map((x) => <label key={x.id} className="check"><input type="checkbox" name="ropa_ids" value={x.id} defaultChecked={p.ropaIds.includes(x.id)} />{x.purpose}{x.department ? <span className="meta"> · {x.department}</span> : null}</label>) : <p className="meta">No active RoPA entries yet.</p>}
                 <span className="help">On approval, the processor is added to the recipients of each linked activity.</span>
@@ -170,7 +170,7 @@ export default function TpraForm(p: TpraProps) {
                     <div className="spread"><b>{d.label} <span className="meta">· weight {model.weights[d.key]}%</span></b>
                       <select name={`d_${d.key}`} defaultValue={a[`d_${d.key}`] ?? ""} style={{ width: "auto" }} aria-label={`${d.label} score`}><option value="">Score –</option>{SCORE_LABELS.map((l, i) => <option key={i} value={i}>{l}</option>)}</select></div>
                     <span className="meta">{d.covers}{r.domains[n] != null ? ` · contributes ${Math.round((model.weights[d.key] * r.domains[n]! / 4) * 10) / 10}%` : ""}</span>
-                    <textarea name={`dn_${d.key}`} rows={2} defaultValue={a[`dn_${d.key}`] ?? ""} placeholder="Evidence relied on and gaps" aria-label={`${d.label} notes`} />
+                    <textarea name={`dn_${d.key}`} rows={2} defaultValue={a[`dn_${d.key}`] ?? ""} placeholder="Which documents support this score, and what is missing, e.g. ISO 27001 certificate (valid to 2027) seen; no penetration test report yet" aria-label={`${d.label} notes`} />
                     {sg && <p className="small tpra-sg"><b>Copilot suggests {sg.score}</b> · {sg.evidence}. <i>Gaps:</i> {sg.gaps}. <i>Action:</i> {sg.action}</p>}
                   </div>
                 );
@@ -196,9 +196,9 @@ export default function TpraForm(p: TpraProps) {
               <label className="check"><input type="checkbox" name="high_risk" defaultChecked={!!a.high_risk} />The processing is high-risk (large-scale monitoring, new technology, profiling with significant effects)</label>
               <div className="tpra-two" style={{ marginTop: 12 }}>
                 {s("override_rating", "Override the rating", RATINGS, "Leave blank to use the calculated rating.")}
-                {t("override_reason", "Reason for the override (required when overriding)")}
+                {t("override_reason", "Reason for the override (required when overriding)", undefined, 2, "Why the calculated rating does not fit, e.g. Processor holds only encrypted data it cannot decrypt, so the impact is lower than scored")}
               </div>
-              {t("narrative", "Assessment narrative (printed in the report)", "Draft it from the scores, then edit.", 4)}
+              {t("narrative", "Assessment narrative (printed in the report)", "Draft it from the scores, then edit.", 4, "A short summary of the assessment: who the processor is, the inherent risk, the strength of its controls, the rating and the decision")}
               {!ro && <Btn action={p.actions.narrative} secondary>Draft the narrative</Btn>}
             </section>
 
@@ -212,7 +212,7 @@ export default function TpraForm(p: TpraProps) {
                 {DPA_CLAUSES.map((c) => <label key={c.key} className="check"><input type="checkbox" name={`dpa_${c.key}`} defaultChecked={!!a[`dpa_${c.key}`]} />{c.key === "breach" ? `Breach notice to the controller within ${ans.breach_hours || model.breach_hours} hours` : c.label}{c.enhanced && (r.rating === "High" || r.rating === "Critical") ? <span className="chip progress" style={{ marginLeft: 6 }}>Required at {r.rating}</span> : null}</label>)}
               </fieldset>
               {r.dpiaPrompt && <p className="tpra-alert">A DPIA in GAID Schedule 4 format is required: the rating is {r.rating} and the processing is high-risk. <a href={p.dpiaHref}>Start a DPIA</a></p>}
-              {t("conditions", "Conditions of approval", "One per line. Printed in the report and shown to the client.", 4)}
+              {t("conditions", "Conditions of approval", "One per line. Printed in the report and shown to the client.", 4, "e.g.\nConfirm the cross-border transfer mechanism before go-live\nAdd audit rights and a 24-hour breach-notice clause to the DPA\nComplete a DPIA")}
               <h4 style={{ marginBottom: 4 }}>Remediation tasks</h4>
               <p className="meta" style={{ marginTop: 0 }}>Gap, action, owner, deadline and status for each condition.</p>
               <div className="tpra-tasks">
