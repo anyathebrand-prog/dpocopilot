@@ -222,22 +222,21 @@ export default async function Dpia({ params, searchParams }: { params: Promise<{
             <form action={saveStep}>{h}
               {step === "measures" && (
                 body.risks_list?.length ? (
-                  <div className="scroll" style={{ marginBottom: 16 }}>
-                    <table className="register">
-                      <thead><tr><th>Risk (from step 11)</th><th>Measures to reduce it</th><th>Owner</th><th>Target date</th><th>Residual likelihood</th><th>Residual impact</th><th>Residual score</th><th>Accepted?</th></tr></thead>
-                      <tbody>{body.risks_list.map((r, i) => (
-                        <tr key={i}>
-                          <td>{r.description}<div className="meta">Score {r.likelihood * r.impact} · {riskLevel(r.likelihood * r.impact)}</div></td>
-                          <td data-label="Measures"><textarea name={`r${i}_mitigation`} rows={3} defaultValue={r.mitigation ?? standardRisk(r.description)?.mitigation ?? ""} aria-label={`Measures for risk ${i + 1}`} /></td>
-                          <td data-label="Owner"><input name={`r${i}_owner`} defaultValue={r.owner ?? standardRisk(r.description)?.owner ?? ""} aria-label={`Owner for risk ${i + 1}`} /></td>
-                          <td data-label="Target date"><input type="date" name={`r${i}_due`} defaultValue={r.target_date ?? ""} aria-label={`Target date for risk ${i + 1}`} /></td>
-                          <td data-label="Residual likelihood"><select name={`r${i}_rl`} defaultValue={r.residual_likelihood ?? ""} aria-label={`Residual likelihood ${i + 1}`}><option value="">–</option>{scale.map((n) => <option key={n}>{n}</option>)}</select></td>
-                          <td data-label="Residual impact"><select name={`r${i}_ri`} defaultValue={r.residual_impact ?? ""} aria-label={`Residual impact ${i + 1}`}><option value="">–</option>{scale.map((n) => <option key={n}>{n}</option>)}</select></td>
-                          <td data-label="Residual score" className="num">{r.residual_likelihood && r.residual_impact ? `${r.residual_likelihood * r.residual_impact} · ${riskLevel(r.residual_likelihood * r.residual_impact)}` : "—"}</td>
-                          <td data-label="Accepted?"><select name={`r${i}_accepted`} defaultValue={r.accepted ?? ""} aria-label={`Residual risk ${i + 1} accepted`}><option value="">–</option><option value="yes">Yes</option><option value="no">No</option></select></td>
-                        </tr>
-                      ))}</tbody>
-                    </table>
+                  <div style={{ marginBottom: 16, display: "grid", gap: 12 }}>
+                    {body.risks_list.map((r, i) => (
+                      <fieldset key={i} className="panel" style={{ margin: 0, minWidth: 0 }}>
+                        <legend style={{ fontWeight: 600 }}>R{i + 1}. {r.description} <span className="meta" style={{ fontWeight: 400 }}>· score {r.likelihood * r.impact} · {riskLevel(r.likelihood * r.impact)}</span></legend>
+                        <Field label="Measures to reduce it"><textarea name={`r${i}_mitigation`} rows={3} defaultValue={r.mitigation ?? standardRisk(r.description)?.mitigation ?? ""} style={{ width: "100%", boxSizing: "border-box" }} /></Field>
+                        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 10, alignItems: "end" }}>
+                          <Field label="Owner"><input name={`r${i}_owner`} defaultValue={r.owner ?? standardRisk(r.description)?.owner ?? ""} style={{ width: "100%", boxSizing: "border-box" }} /></Field>
+                          <Field label="Target date"><input type="date" name={`r${i}_due`} defaultValue={r.target_date ?? ""} style={{ width: "100%", boxSizing: "border-box" }} /></Field>
+                          <Field label="Residual likelihood"><select name={`r${i}_rl`} defaultValue={r.residual_likelihood ?? ""} style={{ width: "100%" }}><option value="">–</option>{scale.map((n) => <option key={n}>{n}</option>)}</select></Field>
+                          <Field label="Residual impact"><select name={`r${i}_ri`} defaultValue={r.residual_impact ?? ""} style={{ width: "100%" }}><option value="">–</option>{scale.map((n) => <option key={n}>{n}</option>)}</select></Field>
+                          <Field label="Accepted?"><select name={`r${i}_accepted`} defaultValue={r.accepted ?? ""} style={{ width: "100%" }}><option value="">–</option><option value="yes">Yes</option><option value="no">No</option></select></Field>
+                        </div>
+                        <p className="meta" style={{ margin: "8px 0 0" }}>Residual score: {r.residual_likelihood && r.residual_impact ? `${r.residual_likelihood * r.residual_impact} · ${riskLevel(r.residual_likelihood * r.residual_impact)}` : "set the residual likelihood and impact"}</p>
+                      </fieldset>
+                    ))}
                   </div>
                 ) : <Banner kind="warn">Save the risks in step 11 first; each one then gets its own measures here.</Banner>
               )}
