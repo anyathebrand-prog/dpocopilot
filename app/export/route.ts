@@ -265,8 +265,7 @@ export async function GET(req: Request) {
         "content-disposition": `attachment; filename="${slug(`${client!.name}-ropa${dept ? `-${dept}` : ""}`)}.xlsx"` } });
     }
     await audit(u, "export", "ropa", clientId, { client_id: clientId, details: { format, dept: dept || undefined } });
-    const firm = (await one<{ name: string }>("select f.* from doc_firms f join clients c on c.firm_id = f.id where c.id = $1", [clientId]))!;
-    const rep = ropaHtml(rows, { client: client!.name, firm, dept: dept || undefined, by: u.name });
+    const rep = ropaHtml(rows, { client: client!.name, dept: dept || undefined, by: u.name });
     return page(rep.title, rep.body, format, slug(`${client!.name}-ropa${dept ? `-${dept}` : ""}`), rep.css, await cover(clientId, "ropa", "Record of Processing Activities"));
   }
 

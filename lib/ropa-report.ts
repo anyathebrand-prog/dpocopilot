@@ -6,20 +6,17 @@ import { fmtDate, fmtWAT, todayWAT } from "./rules";
 const esc = (s: unknown) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!);
 const cell = (v: unknown) => (v && String(v).trim() ? esc(v) : `<span class="ns">Not recorded</span>`);
 
-type Firm = { name: string; logo?: string | null; logo_w?: number | null; logo_h?: number | null; address?: string | null; email?: string | null; phone?: string | null; website?: string | null };
 
-export function ropaHtml(rows: Record<string, any>[], o: { client: string; firm: Firm; dept?: string; by: string }) {
+export function ropaHtml(rows: Record<string, any>[], o: { client: string; dept?: string; by: string }) {
   const title = `Record of Processing Activities${o.dept ? ` — ${o.dept}` : ""}`;
   const depts = new Set(rows.map((r) => r.department).filter(Boolean)).size;
   const sensitive = rows.filter((r) => r.involves_sensitive).length;
   const transfers = rows.filter((r) => r.has_transfer).length;
   const highRisk = rows.filter((r) => r.is_high_risk).length;
-  const f = o.firm;
-  const logo = f.logo && f.logo_w && f.logo_h ? `<img src="${f.logo}" width="${Math.round(f.logo_w * 44 / f.logo_h)}" height="44" alt="${esc(f.name)}" style="height:44px;width:auto">` : "";
 
   const body = `
 <table class="band"><tr>
-  <td class="band-l">${logo ? `${logo}<br>` : ""}<span class="firm">${esc(f.name)}</span><br><span class="small">${[f.address, f.email, f.phone].filter(Boolean).map(esc).join(" · ")}</span></td>
+  <td class="band-l"><span class="firm">${esc(o.client)}</span></td>
   <td class="band-r"><span class="kicker">NDPA 2023 · GAID 2025</span><br><span class="doc">${esc(title)}</span></td>
 </tr></table>
 
@@ -27,7 +24,6 @@ export function ropaHtml(rows: Record<string, any>[], o: { client: string; firm:
   <td><span class="lbl">Organisation</span><br><b>${esc(o.client)}</b></td>
   <td><span class="lbl">Scope</span><br><b>${o.dept ? esc(o.dept) : "All departments"}</b></td>
   <td><span class="lbl">Date</span><br><b>${fmtDate(todayWAT())}</b></td>
-  <td><span class="lbl">Prepared with</span><br><b>${esc(f.name)}</b></td>
 </tr></table>
 
 <table class="stats"><tr>
@@ -67,7 +63,7 @@ body { font-size: 9.5pt; }
 table.band { margin: 0 0 14px; } table.band td { border: none; background: #0d1f4a; color: #fff; padding: 12px 16px; vertical-align: middle; }
 .band-l .firm { font-size: 14pt; font-weight: 700; color: #fff; } .band-l .small { color: #c9d4ea; }
 .band-r { text-align: right; width: 45%; } .kicker { font-size: 8pt; letter-spacing: .08em; text-transform: uppercase; color: #9fc0ee; } .doc { font-size: 17pt; font-weight: 700; color: #fff; }
-table.facts td { border: none; border-bottom: 2px solid #e3e8f0; padding: 6px 10px 8px 0; width: 25%; }
+table.facts td { border: none; border-bottom: 2px solid #e3e8f0; padding: 6px 10px 8px 0; width: 33%; }
 .lbl { font-size: 7.5pt; text-transform: uppercase; letter-spacing: .06em; color: #5f6878; font-weight: 600; }
 table.stats { margin: 8px 0 12px; } table.stats td { border: none; background: #f2f5fa; border-left: 4px solid #2a6aa8; padding: 6px 12px; font-size: 8.5pt; color: #5f6878; }
 table.stats td + td { border-left-width: 4px; } .n { font-size: 16pt; font-weight: 700; color: #0d1f4a; }
