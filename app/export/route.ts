@@ -192,7 +192,8 @@ export async function GET(req: Request) {
   }
 
   const clientId = url.searchParams.get("client") ?? "";
-  if (!/^[0-9a-f-]{36}$/.test(clientId) || !(await canSeeClient(clientId))) return denied();
+  const ownRopa = kind === "ropa" && u.kind === "contact" && u.client_id === clientId; // the client downloads its own RoPA from the portal
+  if (!/^[0-9a-f-]{36}$/.test(clientId) || !(ownRopa || (await canSeeClient(clientId)))) return denied();
   const client = await one("select name, car_audit_year from clients where id = $1", [clientId]);
   const stamp = `<p class="meta">${esc(client!.name)} · exported ${fmtWAT(new Date())} by ${esc(u.name)}</p>`;
 
@@ -238,12 +239,13 @@ export async function GET(req: Request) {
     return page(r.title, r.body, format, slug(r.title), r.css, await cover(clientId, "framework", "Data Protection Framework"));
   }
   if (kind === "ropa") {
-    const rows = await q("select * from ropa_entries where client_id = $1 and state = 'active' order by purpose", [clientId]);
+    const dept = (url.searchParams.get("dept") ?? "").trim().slice(0, 120);
+    const rows = await q("select * from ropa_entries where client_id = $1 and state = 'active'" + (dept ? " and lower(department) = lower($2)" : "") + " order by department nulls last, purpose", dept ? [clientId, dept] : [clientId]);
     const cols: [string, (r: any) => string][] = [["Purpose", (r) => r.purpose], ["Department", (r) => r.department], ["Lawful basis", (r) => (r.lawful_basis ? LAWFUL_BASIS[r.lawful_basis] : "")], ["Data subjects", (r) => r.data_subjects], ["Data categories", (r) => r.data_categories],
       ["Recipients", (r) => r.recipients], ["Transfers outside Nigeria", (r) => (r.has_transfer ? `Yes. ${r.transfer_safeguard ?? "No safeguard recorded"}` : "No")], ["Retention", (r) => r.retention_period], ["Security measures", (r) => r.security_measures], ["System / owner", (r) => r.system_owner]];
-    const TITLE = "Record of Processing Activities (RoPA)";
+    const TITLE = `Record of Processing Activities (RoPA)${dept ? ` — ${dept}` : ""}`;
     if (url.searchParams.get("format") === "xlsx") {
-      await audit(u, "export", "ropa", clientId, { client_id: clientId, details: { format: "xlsx" } });
+      await audit(u, "export", "ropa", clientId, { client_id: clientId, details: { format: "xlsx", dept: dept || undefined } });
       const ExcelJS = (await import("exceljs")).default;
       const wb = new ExcelJS.Workbook(), ws = wb.addWorksheet("RoPA", { views: [{ state: "frozen", ySplit: 4 }] });
       ws.addRow([client!.name]).font = { bold: true, size: 16, color: { argb: "FF0D1F4A" } };
@@ -255,10 +257,10 @@ export async function GET(req: Request) {
       cols.forEach((_, i) => { ws.getColumn(i + 1).width = 26; });
       return new Response(new Uint8Array(await wb.xlsx.writeBuffer()), { headers: {
         "content-type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        "content-disposition": `attachment; filename="${slug(`${client!.name}-ropa`)}.xlsx"` } });
+        "content-disposition": `attachment; filename="${slug(`${client!.name}-ropa${dept ? `-${dept}` : ""}`)}.xlsx"` } });
     }
-    await audit(u, "export", "ropa", clientId, { client_id: clientId, details: { format } });
-    return page(`${client!.name} - ${TITLE}`, `<h1>${esc(client!.name)}</h1><h2>${TITLE}</h2>${stamp}<table><tr>${cols.map(([h]) => `<th>${h}</th>`).join("")}</tr>${rows.map((r) => `<tr>${cols.map(([, f]) => `<td>${esc(f(r))}</td>`).join("")}</tr>`).join("")}</table>`, format, slug(`${client!.name}-ropa`), CSS, await cover(clientId, "ropa", "Record of Processing Activities"));
+    await audit(u, "export", "ropa", clientId, { client_id: clientId, details: { format, dept: dept || undefined } });
+    return page(`${client!.name} - ${TITLE}`, `<h1>${esc(client!.name)}</h1><h2>${TITLE}</h2>${stamp}<table><tr>${cols.map(([h]) => `<th>${h}</th>`).join("")}</tr>${rows.map((r) => `<tr>${cols.map(([, f]) => `<td>${esc(f(r))}</td>`).join("")}</tr>`).join("")}</table>${rows.length ? "" : `<p>No processing activities recorded${dept ? ` for ${esc(dept)}` : ""} yet.</p>`}`, format, slug(`${client!.name}-ropa${dept ? `-${dept}` : ""}`), CSS, await cover(clientId, "ropa", "Record of Processing Activities"));
   }
 
   if (kind === "car-report" || kind === "car-plan" || kind === "car-tracker") {

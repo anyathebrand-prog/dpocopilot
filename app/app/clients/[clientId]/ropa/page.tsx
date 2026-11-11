@@ -4,6 +4,10 @@ import { requireClient } from "@/lib/auth";
 import { q } from "@/lib/db";
 import { LAWFUL_BASIS } from "@/lib/templates";
 import { Flash, Empty } from "@/components/ui";
+import { answersOf } from "@/lib/data";
+import { list } from "@/lib/questionnaire";
+import { departmentOptions } from "@/lib/ropa-fields";
+import { DeptBar } from "@/components/ropa-dept";
 
 const TABS = [["proposed", "Proposed"], ["active", "Active"], ["archived", "Archived"]] as const;
 const REQUIRED_ROPA = ["lawful_basis", "data_subjects", "data_categories", "retention_period", "security_measures", "system_owner"] as const;
@@ -14,26 +18,26 @@ export default async function Ropa({ params, searchParams }: { params: Promise<{
   const { client } = await requireClient(clientId);
   const counts = Object.fromEntries((await q("select state, count(*)::int as n from ropa_entries where client_id = $1 group by state", [clientId])).map((r) => [r.state, r.n]));
   const tab = TABS.some(([t]) => t === sp.tab) ? sp.tab : counts.proposed ? "proposed" : "active";
-  const rows = await q("select * from ropa_entries where client_id = $1 and state = $2 order by purpose", [clientId, tab]);
+  const dept = (sp.dept ?? "").trim().slice(0, 120);
+  const rows = await q("select * from ropa_entries where client_id = $1 and state = $2" + (dept ? " and lower(department) = lower($3)" : "") + " order by purpose", dept ? [clientId, tab, dept] : [clientId, tab]);
+  const used = (await q<{ department: string }>("select distinct department from ropa_entries where client_id = $1 and department is not null and state <> 'archived' order by 1", [clientId])).map((r) => r.department);
+  const options = departmentOptions(used, list((await answersOf(clientId)).org_departments));
   const b = `/app/clients/${clientId}/ropa`;
   return (
     <>
       <div className="spread">
         <h2 style={{ marginTop: 0 }}>Records of processing activities</h2>
         <div className="row">
-          <a className="btn secondary" href={`/export?kind=ropa&client=${clientId}&format=pdf`} target="_blank">Export PDF</a>
-          <a className="btn secondary" href={`/export?kind=ropa&client=${clientId}&format=doc`}>Export Word</a>
-          <a className="btn secondary" href={`/export?kind=ropa&client=${clientId}&format=xlsx`}>Export Excel</a>
           <a className="btn secondary" href={`/export?kind=ropa&client=${clientId}&format=pdf` + "&cover=only"} target="_blank">Cover letter (PDF)</a><a className="btn secondary" href={`/export?kind=ropa&client=${clientId}&format=doc` + "&cover=only"}>Cover letter (Word)</a>
-          {!client.archived_at && <Link className="btn" href={`${b}/new`}>Add entry</Link>}
         </div>
       </div>
       <Flash sp={sp} />
+      <DeptBar base={b} options={options} dept={dept} exportBase={`/export?kind=ropa&client=${clientId}`} addHref={client.archived_at ? undefined : `${b}/new`} extra={{ tab }} />
       <nav className="row" aria-label="Filter" style={{ margin: "8px 0 16px" }}>
-        {TABS.map(([t, l]) => <Link key={t} href={`${b}?tab=${t}`} className={`btn ${t === tab ? "" : "secondary"}`} aria-current={t === tab ? "page" : undefined}>{l} <span className="num">({counts[t] ?? 0})</span></Link>)}
+        {TABS.map(([t, l]) => <Link key={t} href={`${b}?tab=${t}${dept ? `&dept=${encodeURIComponent(dept)}` : ""}`} className={`btn ${t === tab ? "" : "secondary"}`} aria-current={t === tab ? "page" : undefined}>{l} <span className="num">({counts[t] ?? 0})</span></Link>)}
       </nav>
       {rows.length === 0 ? (
-        <Empty><p>{tab === "proposed" ? "No proposed entries. Complete onboarding to get proposed entries, or add one manually." : tab === "active" ? "No active entries yet. Accept proposed entries or add one." : "Nothing archived."}</p></Empty>
+        <Empty><p>{dept ? `No ${tab} entries for ${dept} yet. Use "Add entry for ${dept}" above to record its processing activities.` : tab === "proposed" ? "No proposed entries. Complete onboarding to get proposed entries, or add one manually." : tab === "active" ? "No active entries yet. Accept proposed entries or add one." : "Nothing archived."}</p></Empty>
       ) : (
         <table className="register">
           <thead><tr><th>Purpose</th><th>Department</th><th>Lawful basis</th><th>Data categories</th><th>Retention</th><th>Transfer</th></tr></thead>

@@ -14,7 +14,7 @@ export async function saveClientRopa(fd: FormData) {
   const purpose = str(fd, "purpose").slice(0, 500);
   if (!purpose) redirect(flash(back, "Enter the purpose.", "error"));
   const lb = str(fd, "lawful_basis");
-  const vals = [purpose, LAWFUL_BASIS[lb] ? lb : null, ...ROPA_TEXT.map(([k]) => opt(fd, k)), fd.get("has_transfer") === "on", opt(fd, "transfer_safeguard"), fd.get("involves_sensitive") === "on", opt(fd, "department")];
+  const vals = [purpose, LAWFUL_BASIS[lb] ? lb : null, ...ROPA_TEXT.map(([k]) => opt(fd, k)), fd.get("has_transfer") === "on", opt(fd, "transfer_safeguard"), fd.get("involves_sensitive") === "on", (opt(fd, "department") ?? "").trim().slice(0, 120) || null];
   let entryId = id;
   if (id) {
     const r = await one(`update ropa_entries set purpose=$3, lawful_basis=$4, data_subjects=$5, data_categories=$6, recipients=$7, retention_period=$8, security_measures=$9, system_owner=$10,
@@ -31,5 +31,5 @@ export async function saveClientRopa(fd: FormData) {
   }
   const c = (await one<{ firm_id: string; name: string }>("select firm_id, name from clients where id = $1", [u.client_id]))!;
   await notifyTeam(c.firm_id, u.client_id!, "ropa_updated", `${c.name} ${id ? "updated" : "added"} a RoPA entry: ${purpose}`, `/app/clients/${u.client_id}/ropa/${entryId}`);
-  redirect(flash("/portal/ropa", id ? "Saved. Your DPCO has been told about the change." : "Added to your record. Your DPCO has been told."));
+  redirect(flash(`/portal/ropa${vals[vals.length - 1] ? `?dept=${encodeURIComponent(String(vals[vals.length - 1]))}` : ""}`, id ? "Saved. Your DPCO has been told about the change." : "Added to your record. Your DPCO has been told."));
 }
