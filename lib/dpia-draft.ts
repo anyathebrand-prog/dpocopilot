@@ -12,3 +12,8 @@ export async function draftDpiaBody(clientId: string, ropaIds: string[], focus: 
   }
   return body;
 }
+
+/** Documents to upload for a system DPIA. */
+export const DPIA_DOCS = ["System Architecture Diagram", "Data Flow Diagram", "Database Design / Schema", "System Requirements Specification", "User Access and Role Matrix",
+  "Information Security Policy", "Data Retention and Disposal Policy", "Encryption and Backup Documentation", "API and Third-Party Integration Documentation",
+  "Incident and Breach Management Procedures", "Privacy Policy and Consent Mechanism", "Hosting and Cloud Infrastructure Documentation"];

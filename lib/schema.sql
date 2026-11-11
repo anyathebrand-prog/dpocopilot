@@ -1090,3 +1090,7 @@ create index if not exists invoice_payments_invoice on invoice_payments (invoice
 insert into invoice_payments (invoice_id, firm_id, percent, amount, receipt_no, paid_on, created_by)
   select i.id, i.firm_id, 100, 0, i.receipt_no, coalesce(i.paid_on, i.issued_on), i.created_by from invoices i
   where i.status = 'paid' and i.receipt_no is not null and not exists (select 1 from invoice_payments p where p.invoice_id = i.id);
+
+-- DPIA: the system it assesses, and its supporting documents (architecture and data flow diagrams, policies, …).
+alter table dpias add column if not exists system_name text;
+alter table files add column if not exists dpia_id uuid references dpias on delete set null;

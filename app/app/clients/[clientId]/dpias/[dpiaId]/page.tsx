@@ -9,6 +9,8 @@ import { str, opt, flash } from "@/lib/form";
 import { Flash, Field, Hidden, Chip, Seal, Doc, Banner } from "@/components/ui";
 import { Submit } from "@/components/client";
 import { ReviewBar, AiPanel, Versions } from "@/components/workflow";
+import { storeFile, ACCEPT } from "@/lib/files";
+import { DPIA_DOCS } from "@/lib/dpia-draft";
 
 const scale = [1, 2, 3, 4, 5];
 
@@ -83,6 +85,25 @@ async function setReviewDate(fd: FormData) {
   redirect(flash(back, "Saved. The review date appears on the calendar."));
 }
 
+/** Add supporting documents to a DPIA, or change the system name. */
+async function saveDocs(fd: FormData) {
+  "use server";
+  const d = await one("select id, client_id from dpias where id = $1", [str(fd, "dpia_id")]);
+  if (!d) redirect("/forbidden");
+  const { user, client } = await requireClient(d.client_id, { write: true });
+  const back = `/app/clients/${d.client_id}/dpias/${d.id}`;
+  await q("update dpias set system_name = $2 where id = $1", [d.id, opt(fd, "system_name")]);
+  let n = 0;
+  for (const f of fd.getAll("docs")) {
+    if (!(f instanceof File) || !f.size) continue;
+    const r = await storeFile(user, client as { id: string; firm_id: string }, f, null);
+    if ("error" in r) redirect(flash(back, r.error, "error"));
+    await q("update files set dpia_id = $2 where id = $1", [r.id, d.id]); n++;
+  }
+  await audit(user, "update", "dpia", d.id, { client_id: d.client_id, details: { documents_added: n } });
+  redirect(flash(back, n ? `${n} document${n > 1 ? "s" : ""} uploaded.` : "Saved."));
+}
+
 export default async function Dpia({ params, searchParams }: { params: Promise<{ clientId: string; dpiaId: string }>; searchParams: Promise<Record<string, string>> }) {
   const { clientId, dpiaId } = await params;
   const sp = await searchParams;
@@ -108,12 +129,13 @@ export default async function Dpia({ params, searchParams }: { params: Promise<{
   const draftText = stored ?? (ctx && step !== "scoring" ? dpiaStep(step, ctx) : "");
   const emptySteps = DPIA_STEPS.filter((s) => (s.key === "scoring" ? !body.risks_list?.length : !body[s.key]?.trim())).length;
   const h = <Hidden values={{ id: v.id, step }} />;
+  const docs = await q("select id, original_name, size_bytes from files where dpia_id = $1 order by created_at", [d.id]);
 
   return (
     <>
       <nav className="meta" aria-label="Breadcrumb"><Link href={`/app/clients/${clientId}/dpias`}>DPIAs</Link> / <Link href={`/app/clients/${clientId}/dpias?year=${d.assessment_year}`}>{d.assessment_year}</Link> / {d.title}</nav>
       <div className="spread" style={{ alignItems: "flex-start" }}>
-        <h2 style={{ marginTop: 8 }}>{d.title} <span className="meta" style={{ fontSize: "0.7em" }}>· {d.assessment_year}</span> <Chip status={v.status} ai={v.ai_generated} /></h2>
+        <h2 style={{ marginTop: 8 }}>{d.title} <span className="meta" style={{ fontSize: "0.7em" }}>· {d.assessment_year}{d.system_name ? ` · ${d.system_name}` : ""}</span> <Chip status={v.status} ai={v.ai_generated} /></h2>
         <div className="row" style={{ marginTop: 8 }}>
           <a className="btn" href={`/export?kind=dpia-report&id=${d.id}&format=pdf`} target="_blank">Generate DPIA report (PDF)</a>
           <a className="btn secondary" href={`/export?kind=dpia-report&id=${d.id}&format=doc`}>Word</a>
@@ -209,6 +231,18 @@ export default async function Dpia({ params, searchParams }: { params: Promise<{
         <aside>
           {!viewingOld && !client.archived_at && <ReviewBar v={v} user={user} back={back} signoff />}
           {editable && step !== "scoring" && <AiPanel v={v} back={`${back}?step=${step}`} step={step} label="Draft this step with AI" />}
+          <section className="panel">
+            <h3>System and documents</h3>
+            {docs.length ? docs.map((f) => <span key={f.id} className="small" style={{ display: "block" }}><a href={`/files/${f.id}`}>{f.original_name}</a> <span className="meta">({Math.ceil(Number(f.size_bytes) / 1024)} KB)</span></span>) : <p className="meta">No documents uploaded yet.</p>}
+            {!client.archived_at && (
+              <form action={saveDocs} style={{ marginTop: 8 }}>
+                <Hidden values={{ dpia_id: d.id }} />
+                <Field label="System name"><input name="system_name" defaultValue={d.system_name ?? ""} placeholder="Input system name" /></Field>
+                <Field label="Upload documents" help={`Upload these documents: ${DPIA_DOCS.join("; ")}.`}><input type="file" name="docs" multiple accept={ACCEPT} /></Field>
+                <Submit className="btn secondary">Save</Submit>
+              </form>
+            )}
+          </section>
           <section className="panel">
             <h3>Year and review</h3>
             <form action={setReviewDate}>
