@@ -41,7 +41,7 @@ const TYPES: [string, RegExp][] = [
 ];
 /** Which of the 12 documents a file is: by its name first, then by its opening text. */
 export function docType(d: Doc) {
-  return TYPES.find(([, re]) => re.test(d.name))?.[0] ?? TYPES.find(([, re]) => re.test(d.text.slice(0, 600)))?.[0] ?? null;
+  return TYPES.find(([, re]) => re.test(d.name.replace(/[-_.]+/g, " ")))?.[0] ?? TYPES.find(([, re]) => re.test(d.text.slice(0, 600)))?.[0] ?? null;
 }
 
 export type Term = [label: string, re: RegExp];

@@ -51,7 +51,8 @@ export default async function Assessments({ params, searchParams }: { params: Pr
   const b = `/app/clients/${clientId}/assessments/${kind}`;
   return (
     <>
-      <h2 style={{ marginTop: 0 }}>{k.name}s</h2>
+      <div className="spread"><h2 style={{ marginTop: 0 }}>{k.name}s</h2>
+        {kind === "lia" && <div className="row"><a className="btn secondary" href={`/export?kind=lia-readiness&client=${clientId}&format=pdf`} target="_blank">Generate LIA Readiness Document</a><a className="btn secondary" href={`/export?kind=lia-readiness&client=${clientId}&format=doc`}>Word</a></div>}</div>
       <p className="meta">{k.intro}</p>
       <Flash sp={sp} />
       {rows.length === 0 ? <Empty><p>No {k.name.toLowerCase()}s yet.</p></Empty> : (

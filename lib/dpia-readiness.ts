@@ -115,7 +115,7 @@ table.band { margin: 0 0 14px; } table.band td { border: none; background: #0d1f
 table.facts td { border: none; border-bottom: 2px solid #e3e8f0; padding: 6px 10px 8px 0; }
 .lbl { font-size: 7.5pt; text-transform: uppercase; letter-spacing: .06em; color: #5f6878; font-weight: 600; }
 .law { border-left: 5px solid #2a6aa8; background: #f2f6fc; padding: 12px 16px; margin: 8px 0 10px; }
-.law p { margin: 0 0 6px; } .law .cite { font-size: 8.5pt; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: #2a6aa8; } .law .item { padding-left: 14px; }
+.law p { margin: 0 0 6px; } .law .cite { font-size: 9pt; font-weight: 700; letter-spacing: .02em; color: #2a6aa8; } .law .item { padding-left: 14px; }
 .small { font-size: 8.5pt; color: #5f6878; } tr.alt td { background: #f7f9fc; }
 .ok { color: #1e7a4c; font-weight: 700; } .out { color: #b42318; font-weight: 700; }
 .box { display: inline-block; width: 10px; height: 10px; border: 1px solid #1b2433; vertical-align: middle; margin-right: 4px; }

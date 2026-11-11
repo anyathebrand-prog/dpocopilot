@@ -10,11 +10,11 @@ export const LIA_MARK = "[From the uploaded documents]";
 const LIA_TYPES: [string, RegExp][] = [
   ["Business Case / Project Proposal", /business case|proposal/i], ["Organisational Objectives and Policies", /objective|strategy|corporate polic/i], ["Business Process Documentation", /business process|process map|workflow/i],
   ["Standard Operating Procedures", /\bsop\b|standard operating/i], ["Management Justification / Approval", /justification|approval|board|memo/i], ["Privacy Policy", /privacy (policy|notice)/i],
-  ["Data Collection Forms", /form/i], ["Data Retention Policy", /retention/i], ["Data Sharing Agreements", /sharing agreement|\bdsa\b|\bdpa\b|processing agreement/i], ["System Architecture", /architect/i],
+  ["Data Collection Forms", /\b(data[\s_-]*collection|forms?|questionnaire)\b/i], ["Data Retention Policy", /retention/i], ["Data Sharing Agreements", /sharing agreement|\bdsa\b|\bdpa\b|processing agreement/i], ["System Architecture", /architect/i],
   ["Data Flow Diagram", /data[\s_-]*flow|\bdfd\b/i], ["User Access Control Matrix", /access|role|rbac|matrix/i], ["Information Security Policy", /security policy|infosec|information security/i],
   ["Data Encryption and Backup Policy", /encrypt|backup/i], ["Incident and Breach Management Policy", /incident|breach/i], ["Third-Party Integration Documentation", /integration|third[\s-]party|\bapi\b|vendor/i],
 ];
-const liaType = (d: Doc) => LIA_TYPES.find(([, re]) => re.test(d.name))?.[0] ?? LIA_TYPES.find(([, re]) => re.test(d.text.slice(0, 600)))?.[0] ?? null;
+export const liaType = (d: Doc) => LIA_TYPES.find(([, re]) => re.test(d.name.replace(/[-_.]+/g, " ")))?.[0] ?? LIA_TYPES.find(([, re]) => re.test(d.text.slice(0, 600)))?.[0] ?? null;
 
 /** Evidence for each LIA answer key, as lines. */
 export function analyseLia(all: Doc[]): { add: Record<string, string[]>; read: number; unreadable: string[] } {
