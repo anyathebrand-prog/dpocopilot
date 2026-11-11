@@ -3,7 +3,8 @@ import { notFound, redirect } from "next/navigation";
 import { requireClient, audit } from "@/lib/auth";
 import { q, one } from "@/lib/db";
 import { str, flash } from "@/lib/form";
-import { KINDS, RATED, ATTACH, nextNo, type Kind } from "@/lib/assessments";
+import { KINDS, RATED, ATTACH, LIA_DOCS, nextNo, type Kind } from "@/lib/assessments";
+import { documentText } from "@/lib/dpia-docs";
 import { riskLevel } from "@/lib/rules";
 import { Flash, Hidden, Chip } from "@/components/ui";
 import { Submit } from "@/components/client";
@@ -35,7 +36,7 @@ async function save(fd: FormData) {
     if (!(f instanceof File) || !f.size) continue;
     const r = await storeFile(user, client, f, null);
     if ("error" in r) redirect(flash(back, `Answers saved, but the attachment failed: ${r.error}`, "error"));
-    await q("update files set assessment_id = $2 where id = $1", [r.id, a.id]);
+    await q("update files set assessment_id = $2, text_content = $3 where id = $1", [r.id, a.id, (await documentText(f)) || null]);
   }
   redirect(flash(back, a.status === "approved" ? "Saved. It's back to draft and needs approving again." : "Saved"));
 }
@@ -73,6 +74,15 @@ export default async function Assessment({ params, searchParams }: { params: Pro
       <form action={save}>
         <Hidden values={{ id: a.id }} />
         <fieldset disabled={ro}>
+          {kind === "lia" && (
+            <section className="panel" style={{ marginBottom: 16 }}>
+              <h3 style={{ marginTop: 0 }}>Supporting documents</h3>
+              {files.length ? files.map((f) => <span key={f.id} className="small" style={{ display: "block" }}><a href={`/files/${f.id}`}>{f.original_name}</a> <span className="meta">({Math.ceil(Number(f.size_bytes) / 1024)} KB)</span></span>) : <p className="meta" style={{ marginTop: 0 }}>No documents uploaded yet.</p>}
+              <label className="field" style={{ marginTop: 8 }}><span>Upload documents</span>
+                <span className="help">Upload these documents: {LIA_DOCS.join("; ")}. PDF, Word, Excel or images, up to 25 MB each. They upload when you save.</span>
+                <input type="file" name="evidence_files" multiple accept={ACCEPT} /></label>
+            </section>
+          )}
           {k.sections.map((s) => (
             <section key={s.title} className="panel" style={{ marginBottom: 16 }}>
               <h3 style={{ marginTop: 0 }}>{s.title}</h3>
