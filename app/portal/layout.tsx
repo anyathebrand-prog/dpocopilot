@@ -40,7 +40,7 @@ export default async function PortalLayout({ children }: { children: ReactNode }
           <nav className="nav" aria-label="Main">
             <NavLink href="/portal" exact><House aria-hidden />Home</NavLink>
             <NavLink href="/portal/car"><ListChecks aria-hidden />CAR checklist</NavLink>
-            <NavLink href="/portal/ropa"><Database aria-hidden />Data inventory</NavLink>
+            <NavLink href="/portal/ropa"><Database aria-hidden />Data inventory (RoPA)</NavLink>
             <NavLink href="/portal/deadlines"><CalendarClock aria-hidden />Deadlines</NavLink>
             <NavLink href="/portal/documents"><FileText aria-hidden /><span>Documents</span>{badge(c!.signoffs)}</NavLink>
             <NavLink href="/portal/evidence"><Upload aria-hidden /><span>Evidence</span>{badge(c!.evidence)}</NavLink>
