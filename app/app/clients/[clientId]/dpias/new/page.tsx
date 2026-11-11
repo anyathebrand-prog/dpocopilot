@@ -8,6 +8,7 @@ import { list } from "@/lib/questionnaire";
 import { departmentOptions } from "@/lib/ropa-fields";
 import { draftDpiaBody, DPIA_DOCS } from "@/lib/dpia-draft";
 import { storeFile, ACCEPT } from "@/lib/files";
+import { documentText, analyseDocuments, applyFindings, type Doc } from "@/lib/dpia-docs";
 import { Field, Hidden, Flash } from "@/components/ui";
 import { Submit } from "@/components/client";
 import { DpiaEntries } from "@/components/dpia-entries";
@@ -26,18 +27,24 @@ async function create(fd: FormData) {
   const valid = await q("select id from ropa_entries where client_id = $1 and id = any($2::uuid[])", [client.id, picked]);
   if (valid.length !== picked.length) redirect("/forbidden");
   // Store every document first, so a rejected file stops before any DPIA is created.
-  const stored: string[][] = [];
+  const stored: string[][] = [], texts: Doc[][] = [];
   for (const e of entries) {
-    const ids: string[] = [];
-    for (const f of e.files) { const r = await storeFile(user, client as { id: string; firm_id: string }, f, null); if ("error" in r) redirect(flash(self, r.error, "error")); ids.push(r.id); }
-    stored.push(ids);
+    const ids: string[] = [], docs: Doc[] = [];
+    for (const f of e.files) {
+      const r = await storeFile(user, client as { id: string; firm_id: string }, f, null); if ("error" in r) redirect(flash(self, r.error, "error"));
+      const text = await documentText(f); // read now: the steps are drafted from it below
+      await q("update files set text_content = $2 where id = $1", [r.id, text || null]);
+      ids.push(r.id); docs.push({ name: f.name.slice(0, 200), text });
+    }
+    stored.push(ids); texts.push(docs);
   }
   const ids: string[] = [];
   for (const [k, e] of entries.entries()) {
     // Linked activities: the ones ticked, plus the department's active RoPA entries.
     const inDept = e.dept ? (await q<{ id: string }>("select id from ropa_entries where client_id = $1 and state = 'active' and lower(department) = lower($2)", [client.id, e.dept])).map((r) => r.id) : [];
     const ropa = [...new Set([...picked, ...inDept])];
-    const body = await draftDpiaBody(client.id, ropa, { system: e.system || e.title, department: e.dept || undefined });
+    const drafted = await draftDpiaBody(client.id, ropa, { system: e.system || e.title, department: e.dept || undefined });
+    const body = texts[k].length ? applyFindings(drafted, analyseDocuments(texts[k])).body : drafted; // add what the uploaded documents show
     ids.push(await tx(async (t) => {
       const d = await t.query<{ id: string }>("insert into dpias (firm_id, client_id, title, assessment_year, created_by, system_name) values ($1,$2,$3,$4,$5,$6) returning id", [client.firm_id, client.id, e.title, year, user.id, e.system || null]);
       if (stored[k].length) await t.query("update files set dpia_id = $2 where id = any($1::uuid[]) and client_id = $3", [stored[k], d.rows[0].id, client.id]);
@@ -47,7 +54,7 @@ async function create(fd: FormData) {
       return d.rows[0].id;
     }));
   }
-  const msg = "drafted from the client's records. Review each step, complete the [To be completed] parts and edit as needed.";
+  const msg = "drafted from the client's records and uploaded documents. Review each step, complete the [To be completed] parts and edit as needed.";
   if (ids.length === 1) redirect(flash(`/app/clients/${client.id}/dpias/${ids[0]}`, `DPIA started and all 13 steps ${msg}`));
   redirect(flash(`/app/clients/${client.id}/dpias?year=${year}`, `${ids.length} DPIAs started, each ${msg}`));
 }

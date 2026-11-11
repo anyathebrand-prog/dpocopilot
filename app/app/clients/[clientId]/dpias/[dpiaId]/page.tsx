@@ -11,6 +11,7 @@ import { Submit } from "@/components/client";
 import { ReviewBar, AiPanel, Versions } from "@/components/workflow";
 import { storeFile, ACCEPT } from "@/lib/files";
 import { DPIA_DOCS } from "@/lib/dpia-draft";
+import { documentText, dpiaDocuments, analyseDocuments, applyFindings } from "@/lib/dpia-docs";
 
 const scale = [1, 2, 3, 4, 5];
 
@@ -98,10 +99,32 @@ async function saveDocs(fd: FormData) {
     if (!(f instanceof File) || !f.size) continue;
     const r = await storeFile(user, client as { id: string; firm_id: string }, f, null);
     if ("error" in r) redirect(flash(back, r.error, "error"));
-    await q("update files set dpia_id = $2 where id = $1", [r.id, d.id]); n++;
+    await q("update files set dpia_id = $2, text_content = $3 where id = $1", [r.id, d.id, (await documentText(f)) || null]); n++;
   }
   await audit(user, "update", "dpia", d.id, { client_id: d.client_id, details: { documents_added: n } });
-  redirect(flash(back, n ? `${n} document${n > 1 ? "s" : ""} uploaded.` : "Saved."));
+  if (!n) redirect(flash(back, "Saved."));
+  const a = await analyseInto(d.id, user);
+  redirect(flash(back, `${n} document${n > 1 ? "s" : ""} uploaded. ${a}`));
+}
+
+/** Re-read every document of the DPIA into its current draft (each step's "From the uploaded documents" section). */
+async function analyseInto(dpiaId: string, user: Parameters<typeof audit>[0]) {
+  const v = (await latestVersion("dpia", dpiaId))!;
+  if (v.status !== "draft") return "The current version is locked, so the steps were not updated. Create a new version to analyse them.";
+  const docs = await dpiaDocuments(dpiaId);
+  const f = analyseDocuments(docs);
+  const { body, steps } = applyFindings(normalizeDpia(v.body), f);
+  await q("update content_versions set body = $2 where id = $1 and status = 'draft'", [v.id, JSON.stringify(body)]);
+  await audit(user, "update", "dpia", dpiaId, { client_id: v.client_id, details: { analysed_documents: docs.length, steps_updated: steps } });
+  return `${f.reviewed.length} of ${docs.length} document${docs.length === 1 ? "" : "s"} read; ${steps} step${steps === 1 ? "" : "s"} updated from them${f.unreadable.length ? `. No text could be read from: ${f.unreadable.join(", ")} (scans or images)` : ""}.`;
+}
+
+async function analyseDocs(fd: FormData) {
+  "use server";
+  const d = await one("select id, client_id from dpias where id = $1", [str(fd, "dpia_id")]);
+  if (!d) redirect("/forbidden");
+  const { user } = await requireClient(d.client_id, { write: true });
+  redirect(flash(`/app/clients/${d.client_id}/dpias/${d.id}`, await analyseInto(d.id, user)));
 }
 
 export default async function Dpia({ params, searchParams }: { params: Promise<{ clientId: string; dpiaId: string }>; searchParams: Promise<Record<string, string>> }) {
@@ -240,6 +263,12 @@ export default async function Dpia({ params, searchParams }: { params: Promise<{
                 <Field label="System name"><input name="system_name" defaultValue={d.system_name ?? ""} placeholder="Input system name" /></Field>
                 <Field label="Upload documents" help={`Upload these documents: ${DPIA_DOCS.join("; ")}.`}><input type="file" name="docs" multiple accept={ACCEPT} /></Field>
                 <Submit className="btn secondary">Save</Submit>
+              </form>
+            )}
+            {!client.archived_at && docs.length > 0 && (
+              <form action={analyseDocs} style={{ marginTop: 8 }}><Hidden values={{ dpia_id: d.id }} />
+                <Submit className="btn">Analyse documents and update steps</Submit>
+                <p className="meta" style={{ marginTop: 4 }}>Adds a &quot;From the uploaded documents&quot; section to each step it has evidence for. Your own text in each step is kept.</p>
               </form>
             )}
           </section>

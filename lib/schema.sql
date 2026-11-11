@@ -1094,3 +1094,4 @@ insert into invoice_payments (invoice_id, firm_id, percent, amount, receipt_no, 
 -- DPIA: the system it assesses, and its supporting documents (architecture and data flow diagrams, policies, …).
 alter table dpias add column if not exists system_name text;
 alter table files add column if not exists dpia_id uuid references dpias on delete set null;
+alter table files add column if not exists text_content text; -- readable text of a DPIA document, for analysis
