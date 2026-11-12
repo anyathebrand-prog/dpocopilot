@@ -66,6 +66,7 @@ export default async function SignUp({ searchParams }: { searchParams: Promise<R
           </Reveal>
 
           <Reveal delay={0.35}>
+            {!solo && !sp.token && <p className="sp-alt">Working on your own? <Link href="/sign-up?plan=solo">Join as a Solo DPO instead</Link></p>}
             <p className="sp-alt">Already have an account? <Link href="/sign-in">Sign in</Link></p>
           </Reveal>
         </div>
