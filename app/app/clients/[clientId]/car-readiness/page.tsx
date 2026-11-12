@@ -230,9 +230,9 @@ export default async function Car({ params, searchParams }: { params: Promise<{ 
   return (
     <>
       <div className="spread">
-        <h2 style={{ marginTop: 0 }}>CAR readiness · {year}</h2>
+        <h2 style={{ marginTop: 0 }}>Compliance Audit Returns · {year}</h2>
         <div className="row">
-          <a className="btn" href={exp("car-readiness-doc", "pdf")} target="_blank">Generate CAR Readiness Document</a>
+          <a className="btn" href={exp("car-readiness-doc", "pdf")} target="_blank">Generate Compliance Audit Returns Document</a>
           <a className="btn secondary" href={exp("car-readiness-doc", "doc")}>Word</a>
         </div>
       </div>
@@ -256,7 +256,7 @@ export default async function Car({ params, searchParams }: { params: Promise<{ 
       </form>
       {items.length === 0 ? (
         <Empty>
-          <p><b>No CAR readiness has been recorded for {year}.</b></p>
+          <p><b>No Compliance Audit Returns checklist has been recorded for {year}.</b></p>
           <p>{years.length ? `Recorded years: ${years.join(", ")}.` : "No years recorded yet."}</p>
           {!ro && <form action={startYear}>{h}<Submit>Start the {year} checklist</Submit></form>}
         </Empty>
@@ -407,7 +407,7 @@ export default async function Car({ params, searchParams }: { params: Promise<{ 
             )}
             {!ro && (
               <div style={{ marginTop: 8 }}>
-                <Confirm action={saveFinding} label="Delete" title="Delete this finding?" body="It is removed from this year's CAR readiness, the client portal and exports.">
+                <Confirm action={saveFinding} label="Delete" title="Delete this finding?" body="It is removed from this year's Compliance Audit Returns, the client portal and exports.">
                   <Hidden values={{ finding_id: f.id, op: "delete" }} />
                 </Confirm>
               </div>

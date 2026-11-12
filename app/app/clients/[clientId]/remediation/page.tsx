@@ -19,7 +19,7 @@ async function build(fd: FormData) {
   const year = validYear(str(fd, "year"));
   if (!year) redirect(`/app/clients/${client.id}/remediation`);
   const added = await buildTracker(client.id, year, user.id);
-  if (added === null) redirect(flash(path(client.id, year), `No CAR readiness has been recorded for ${year}.`, "error"));
+  if (added === null) redirect(flash(path(client.id, year), `No Compliance Audit Returns checklist has been recorded for ${year}.`, "error"));
   await audit(user, "update", "remediation_tracker", client.id, { client_id: client.id, details: { audit_year: year, added } });
   redirect(flash(path(client.id, year), added ? `${added} action${added > 1 ? "s" : ""} added from the audit` : "Tracker is up to date with the audit"));
 }
@@ -71,7 +71,7 @@ export default async function Remediation({ params, searchParams }: { params: Pr
         {years.map((y) => <Link key={y} href={path(clientId, y)} className={`btn ${y === year ? "" : "quiet"}`} aria-current={y === year ? "page" : undefined}>{y}{y === client.car_audit_year ? " (active)" : ""}</Link>)}
       </div>
       {!hasChecklist ? (
-        <Empty><p><b>No CAR readiness has been recorded for {year}.</b></p><p>The tracker is built from that year&apos;s audit. <Link href={`/app/clients/${clientId}/car-readiness?year=${year}`}>Open CAR readiness</Link></p></Empty>
+        <Empty><p><b>No Compliance Audit Returns checklist has been recorded for {year}.</b></p><p>The tracker is built from that year&apos;s audit. <Link href={`/app/clients/${clientId}/car-readiness?year=${year}`}>Open Compliance Audit Returns</Link></p></Empty>
       ) : (
         <>
           {!ro && (

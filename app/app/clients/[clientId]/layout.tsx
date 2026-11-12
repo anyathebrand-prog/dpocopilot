@@ -28,7 +28,7 @@ export default async function ClientLayout({ children, params }: { children: Rea
   const groups: [string | null, [string, string, number?][]][] = [
     [null, [["", "Overview"]]],
     ["Set up", [["/onboarding", "Onboarding"], ["/data-inventory", "Data inventory"], ["/ropa", "RoPA"]]],
-    ["Assess", [["/dpias", "DPIAs"], ["/assessments/lia", "LIAs"], ["/assessments/tia", "Transfer risk"], ["/assessments/tpra", "Third-party risk"], ["/gaps", "Gaps", s!.gaps], ...(car ? [["/car-readiness", "CAR readiness"] as [string, string]] : []), ["/remediation", "Remediation", s!.remediation_open]]],
+    ["Assess", [["/dpias", "DPIAs"], ["/assessments/lia", "LIAs"], ["/assessments/tia", "Transfer risk"], ["/assessments/tpra", "Third-party risk"], ["/gaps", "Gaps", s!.gaps], ...(car ? [["/car-readiness", "Compliance Audit Returns"] as [string, string]] : []), ["/remediation", "Remediation", s!.remediation_open]]],
     ["Documents and evidence", [["/documents", "Documents"], ["/evidence", "Evidence", s!.evidence_waiting]]],
     ["Respond", [["/breaches", "Breaches", s!.breaches]]],
     [null, [["/settings", "Settings"]]],
@@ -46,7 +46,7 @@ export default async function ClientLayout({ children, params }: { children: Rea
             <span className="meta">{client.mi_class === "major_importance" ? "Major importance" : client.mi_class === "not_major_importance" ? "Not of major importance" : "Major importance: not yet classified"}</span>
           </div>
         </div>
-        {car ? <div className="meta">CAR readiness <b className="num" style={{ fontSize: 22, color: "var(--ink-900)" }}>{s!.readiness}%</b></div> : <div className="meta">{cc.name} · {cc.law.short} · {cc.regulator.short}</div>}
+        {car ? <div className="meta">Compliance Audit Returns <b className="num" style={{ fontSize: 22, color: "var(--ink-900)" }}>{s!.readiness}%</b></div> : <div className="meta">{cc.name} · {cc.law.short} · {cc.regulator.short}</div>}
       </div>
       {subEnds && sub !== "active" && <Banner kind="warn">{client.name}&apos;s subscription ended on {fmtDate(subEnds)}. {sub === "grace" ? `Their portal is read-only until ${fmtDate(addDays(subEnds, GRACE_DAYS))}, then it pauses.` : "Their portal is paused."} <Link href={`${b}/subscription`}>Renew</Link></Banner>}
       {subEnds && sub === "active" && daysUntil(subEnds, todayWAT()) <= 30 && <Banner kind="info">{client.name}&apos;s subscription ends on {fmtDate(subEnds)}. <Link href={`${b}/subscription`}>Renew</Link></Banner>}

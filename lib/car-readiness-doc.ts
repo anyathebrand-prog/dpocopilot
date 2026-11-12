@@ -1,4 +1,4 @@
-// CAR Readiness Document: sent to the client before the annual data protection compliance audit. It lists, in eight
+// Compliance Audit Returns Document: sent to the client before the annual data protection compliance audit. It lists, in eight
 // groups, the documents the client must make available for the audit and the Compliance Audit Return (CAR). Where DPO
 // Copilot already holds a record for an item (RoPA, DPIAs, LIAs, processor assessments, registers, training), the
 // status column says so; everything else has a tick box for the client.
@@ -155,7 +155,7 @@ export async function loadCarReadinessDoc(clientId: string, year: number) {
 }
 
 export function carReadinessDocHtml(o: Awaited<ReturnType<typeof loadCarReadinessDoc>>) {
-  const title = `CAR Readiness Document ${o.year}`;
+  const title = `Compliance Audit Returns Document ${o.year}`;
   const total = CAR_DOC_GROUPS.reduce((s, g) => s + g.items.length, 0);
   const status = (it: Item) => {
     const k = it.held, count = k ? o.held[k] : 0;
@@ -166,7 +166,7 @@ export function carReadinessDocHtml(o: Awaited<ReturnType<typeof loadCarReadines
   const body = `
 <table class="band"><tr>
   <td class="band-l"><span class="org">${esc(o.org)}</span></td>
-  <td class="band-r"><span class="kicker">NDPA 2023 · GAID 2025 · Compliance Audit Return</span><br><span class="doc">CAR Readiness Document</span></td>
+  <td class="band-r"><span class="kicker">NDPA 2023 · GAID 2025 · Compliance Audit Return</span><br><span class="doc">Compliance Audit Returns Document</span></td>
 </tr></table>
 
 <table class="facts"><tr>
@@ -196,7 +196,7 @@ ${g.items.map((it, i) => `<tr${i % 2 ? ' class="alt"' : ""}><td>${gi + 3}.${i + 
 }).join("\n")}
 
 <h2>${CAR_DOC_GROUPS.length + 3}. Next steps</h2>
-<p>Once the documents are in, each item on the CAR readiness checklist is tested against the evidence, gaps are risk-rated with recommendations, and the audit report and Compliance Audit Return are prepared for ${esc(o.org)}'s review and sign-off before filing with the NDPC by 31 March.</p>
+<p>Once the documents are in, each item on the Compliance Audit Returns checklist is tested against the evidence, gaps are risk-rated with recommendations, and the audit report and Compliance Audit Return are prepared for ${esc(o.org)}'s review and sign-off before filing with the NDPC by 31 March.</p>
 
 <table class="sig"><tr>
   <td class="k2">Received by</td><td class="ln"></td><td class="k2">Date</td><td class="ln d"></td><td class="gap"></td>

@@ -128,7 +128,7 @@ export async function GET(req: Request) {
   }
 
   if (kind === "car-readiness-doc") {
-    // CAR Readiness Document: the documents the client must make available for the annual audit, by group.
+    // Compliance Audit Returns Document: the documents the client must make available for the annual audit, by group.
     const cid = url.searchParams.get("client") ?? "", year = Number(url.searchParams.get("year"));
     if (!/^[0-9a-f-]{36}$/.test(cid) || !Number.isInteger(year) || year < 2019 || year > 2100 || !(await canSeeClient(cid))) return denied();
     const r = carReadinessDocHtml(await loadCarReadinessDoc(cid, year));
@@ -410,7 +410,7 @@ export async function GET(req: Request) {
     const asked = Number(url.searchParams.get("year"));
     const year: number = Number.isInteger(asked) && asked >= 2019 && asked <= 2100 ? asked : client!.car_audit_year;
     const d = await loadCarReport(clientId, year);
-    if (!d) return new Response(`No CAR readiness has been recorded for ${year}.`, { status: 404, headers: { "content-type": "text/plain; charset=utf-8" } });
+    if (!d) return new Response(`No Compliance Audit Returns checklist has been recorded for ${year}.`, { status: 404, headers: { "content-type": "text/plain; charset=utf-8" } });
     if (kind === "car-report") {
       const r = carReportHtml(d);
       await audit(u, "export", "car_report", clientId, { client_id: clientId, details: { format, audit_year: year } });
@@ -435,14 +435,14 @@ export async function GET(req: Request) {
     const auditYear: number = Number.isInteger(asked) && asked >= 2019 && asked <= 2100 ? asked : client!.car_audit_year;
     const items = await q("select * from client_car_items where client_id = $1 and audit_year = $2 and category_key <> 'data_processors' order by category_key, position", [clientId, auditYear]);
     const findings = await q("select * from car_findings where client_id = $1 and audit_year = $2 order by status, created_at", [clientId, auditYear]);
-    if (!items.length) return new Response(`No CAR readiness has been recorded for ${auditYear}.`, { status: 404, headers: { "content-type": "text/plain; charset=utf-8" } });
+    if (!items.length) return new Response(`No Compliance Audit Returns checklist has been recorded for ${auditYear}.`, { status: 404, headers: { "content-type": "text/plain; charset=utf-8" } });
     const r = readiness(items as { category_key: string; status: string }[]);
     const label: Record<string, string> = { complete: "Complete", in_progress: "In progress", missing: "Missing", not_applicable: "Not applicable" };
     const riskLabel = (x: string | null | undefined) => (x ? x[0].toUpperCase() + x.slice(1) : "—");
     const risk = carRisk(items as { category_key: string; status: string }[]);
     const year = ` · ${auditYear} audit`;
     await audit(u, "export", "car_checklist", clientId, { client_id: clientId, details: { format, audit_year: auditYear } });
-    return page("CAR readiness checklist", `<h1>CAR readiness checklist${year}</h1>${stamp}<p>Overall readiness: <b>${r.overall.pct}%</b> (${r.overall.complete} of ${r.overall.applicable} applicable items complete)</p>` +
+    return page("Compliance Audit Returns checklist", `<h1>Compliance Audit Returns checklist${year}</h1>${stamp}<p>Overall readiness: <b>${r.overall.pct}%</b> (${r.overall.complete} of ${r.overall.applicable} applicable items complete)</p>` +
       (risk ? `<p>Risk score: <b>${risk.score} / 100 (${riskLabel(risk.rating)})</b>. Item risk follows status and question priority: Missing high, In progress medium, Complete low; a Medium-priority question drops one level.</p>` : "") +
       Object.entries(CAR_CATEGORIES).filter(([k]) => items.some((i) => i.category_key === k)).map(([k, l]) => {
         const cat = items.filter((i) => i.category_key === k); const cr = carRisk(cat as { category_key: string; status: string; priority: string | null }[]);
@@ -453,7 +453,7 @@ export async function GET(req: Request) {
       `<h2>Other findings and observations</h2>` + (findings.length
         ? `<table><tr><th>Finding / observation</th><th>Risk</th><th>Status</th><th>Recommendation</th></tr>${findings.map((f) => `<tr><td>${esc(f.observation)}</td><td>${riskLabel(f.risk)}</td><td>${f.status === "resolved" ? "Resolved" : "Open"}</td><td>${esc(f.recommendation ?? "")}</td></tr>`).join("")}</table>`
         : `<p>None recorded.</p>`),
-      format, slug(`${client!.name}-car-readiness-${auditYear}`), CSS, await cover(clientId, "car", `CAR Readiness Checklist ${auditYear}`));
+      format, slug(`${client!.name}-compliance-audit-returns-${auditYear}`), CSS, await cover(clientId, "car", `Compliance Audit Returns Checklist ${auditYear}`));
   }
   return denied();
 }

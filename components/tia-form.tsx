@@ -110,7 +110,7 @@ export default function TiaForm(p: TiaProps) {
 
             <section className="panel" {...show(1)}>
               <div className="spread"><h3>2. Documents</h3><span className="meta">{received} of {needed.length} required received</span></div>
-              <p className="meta">Request these four groups during CAR readiness. Items marked &ldquo;where applicable&rdquo; depend on the mechanism and the data. Files upload when you save; the client can also upload them in the portal under Transfers.</p>
+              <p className="meta">Request these four groups for the Compliance Audit Returns. Items marked &ldquo;where applicable&rdquo; depend on the mechanism and the data. Files upload when you save; the client can also upload them in the portal under Transfers.</p>
               {(Object.keys(DOC_GROUPS) as (keyof typeof DOC_GROUPS)[]).map((g) => (
                 <div key={g} style={{ marginBottom: 12 }}>
                   <h4 style={{ margin: "12px 0 4px" }}>{g}. {DOC_GROUPS[g]}</h4>
