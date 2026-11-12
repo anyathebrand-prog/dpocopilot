@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { requireClient, audit } from "@/lib/auth";
+import { requireClient, clientBase, audit } from "@/lib/auth";
 import { q, one } from "@/lib/db";
 import { str, opt, flash } from "@/lib/form";
 import { storeFile, ACCEPT } from "@/lib/files";
@@ -12,8 +12,9 @@ import { Submit } from "@/components/client";
 async function load(fd: FormData) {
   const t = await one("select * from trainings where id = $1", [/^[0-9a-f-]{36}$/.test(str(fd, "id")) ? str(fd, "id") : null]);
   if (!t) redirect("/forbidden");
-  const { user, client } = await requireClient(t.client_id, { write: true });
-  return { t, user, client, back: `/app/clients/${t.client_id}/training/${t.id}` };
+  const { user, client } = await requireClient(t.client_id, { write: true, portal: true });
+  const B = await clientBase(t.client_id);
+  return { t, user, client, back: `${B}/training/${t.id}` };
 }
 const count = (v: string) => (v === "" ? null : Number.isInteger(Number(v)) && Number(v) >= 0 ? Number(v) : NaN);
 
@@ -68,14 +69,15 @@ async function upload(fd: FormData) {
 export default async function TrainingSession({ params, searchParams }: { params: Promise<{ clientId: string; id: string }>; searchParams: Promise<Record<string, string>> }) {
   const { clientId, id } = await params;
   const sp = await searchParams;
-  const { client } = await requireClient(clientId);
+  const { client } = await requireClient(clientId, { portal: true });
+  const B = await clientBase(clientId);
   const t = await one("select * from trainings where id = $1 and client_id = $2", [/^[0-9a-f-]{36}$/.test(id) ? id : null, clientId]);
   if (!t) notFound();
   const files = await q("select f.*, u.name as uploader from files f join users u on u.id = f.uploaded_by where f.training_id = $1 order by f.evidence_kind, f.created_at", [t.id]);
   const T = TRAININGS[t.kind as TrainingKind], ro = !!client.archived_at, h = <Hidden values={{ id: t.id }} />;
   return (
     <>
-      <nav className="meta" aria-label="Breadcrumb"><Link href={`/app/clients/${clientId}/training?year=${t.starts_on.slice(0, 4)}`}>Capacity building plan</Link> / {T.name}</nav>
+      <nav className="meta" aria-label="Breadcrumb"><Link href={`${B}/training?year=${t.starts_on.slice(0, 4)}`}>Capacity building plan</Link> / {T.name}</nav>
       <h2 style={{ marginTop: 8 }}>{T.name} <span className="meta" style={{ fontSize: "0.7em" }}>· {sessionDates(t)}</span> {t.status === "completed" ? <Chip status="complete" /> : <span className="small">{t.status === "cancelled" ? "Cancelled" : "Scheduled"}</span>}</h2>
       <p className="meta">{T.audience}. {T.about}</p>
       <Flash sp={sp} />

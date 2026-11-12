@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { requireClient } from "@/lib/auth";
+import { requireClient, clientBase } from "@/lib/auth";
 import { q } from "@/lib/db";
 import { todayWAT, fmtDate } from "@/lib/rules";
 import { list } from "@/lib/questionnaire";
@@ -12,7 +12,8 @@ import { RatingBadge } from "@/components/tpra-form";
 
 /** Cross-Border Data Transfer Register: every transfer of personal data outside Nigeria, its mechanism and risk, and the CAR disclosure. */
 export default async function TiaRegister({ clientId, sp }: { clientId: string; sp: Record<string, string> }) {
-  const { client } = await requireClient(clientId);
+  const { client } = await requireClient(clientId, { portal: true });
+  const B = await clientBase(clientId);
   const today = todayWAT();
   const rows = (await q(`select a.id, a.title, a.status, a.answers, to_char(a.next_review, 'YYYY-MM-DD') as next_review, a.client_signed_at, a.assessment_year,
       (select count(*)::int from tpra_tasks t where t.assessment_id = a.id and t.status <> 'done') as open_tasks
@@ -22,7 +23,7 @@ export default async function TiaRegister({ clientId, sp }: { clientId: string; 
   const st = (x: any) => (x.client_signed_at ? "signed" : x.status);
   const due = (x: any) => !!x.next_review && x.next_review <= today;
   const shown = rows.filter((x) => (!sp.rating || x.r.rating === sp.rating) && (!sp.status || (sp.status === "due" ? due(x) : st(x) === sp.status)));
-  const b = `/app/clients/${clientId}/assessments/tia`;
+  const b = `${B}/assessments/tia`;
   const link = (k: string, v: string) => { const p = new URLSearchParams({ ...(sp.rating ? { rating: sp.rating } : {}), ...(sp.status ? { status: sp.status } : {}) }); if (v) p.set(k, v); else p.delete(k); const s = p.toString(); return s ? `${b}?${s}` : b; };
   const car = carDisclosure(rows.map((x) => ({ answers: x.answers, status: x.status })));
   const unassessed = ropa.filter((r) => r.has_transfer).length;

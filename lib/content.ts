@@ -14,7 +14,7 @@ import { flash, back as backOf, str } from "./form";
 async function load(fd: FormData, write = true) {
   const v = await getVersion(str(fd, "id"));
   if (!v) redirect("/forbidden");
-  const { user, client } = await requireClient(v.client_id, { write });
+  const { user, client } = await requireClient(v.client_id, { write, portal: v.parent_type === "dpia" }); // the client works on its own DPIAs
   return { v, user, client, back: backOf(fd) };
 }
 

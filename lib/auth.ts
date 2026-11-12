@@ -98,7 +98,12 @@ export const requireFirm = () => need("firm");
 export const requireContact = () => need("contact");
 export const requireSecretary = () => need("secretary");
 
-export const canApprove = (u: User) => u.role === "firm_admin" || u.role === "lead_consultant";
+// The client's own contacts approve their self-service assessments (they reach only their own organisation's records).
+export const canApprove = (u: User) => u.kind === "contact" || u.role === "firm_admin" || u.role === "lead_consultant";
+/** Where a client's self-service pages live for the signed-in user: the portal for the client, the client's workspace for the firm. */
+export async function clientBase(clientId: string) {
+  return (await getUser())?.kind === "contact" ? "/portal/c" : `/app/clients/${clientId}`;
+}
 export const isAdmin = (u: User) => u.role === "firm_admin";
 
 /** Features left out of the Solo DPO plan: team seats and spreadsheet import. Sends the user home with a note. */
@@ -123,7 +128,17 @@ export const scopeArgs = (u: User) => [u.firm_id, u.membership_id];
 
 /** FR1.4: every client page and action goes through here. Unassigned or foreign → 403, including by direct URL. */
 /** A firm user's client, in scope. Until a client's checkout is paid every client page sends the firm to checkout (opts.unpaid allows the checkout itself). */
-export async function requireClient(clientId: string, opts: { write?: boolean; unpaid?: boolean } = {}) {
+export async function requireClient(clientId: string, opts: { write?: boolean; unpaid?: boolean; portal?: boolean } = {}) {
+  // Self-service modules (DPIAs, LIAs, Transfer risk, Third-party risk, Remediation, Training plan) opt in with portal: the
+  // client's own contacts may then use them for their own organisation only. Every other module stays firm-only.
+  if (opts.portal && (await getUser())?.kind === "contact") {
+    const c = await requireContact();
+    if (!/^[0-9a-f-]{36}$/i.test(clientId) || clientId !== c.client_id) redirect("/forbidden");
+    const client = await one("select c.*, c.subscription_ends::text as sub_ends, false as unpaid from clients c where c.id = $1", [clientId]);
+    if (!client) redirect("/forbidden");
+    if (opts.write && client.archived_at) throw new Error("This client is archived and read-only.");
+    return { user: c, client };
+  }
   const u = await requireFirm();
   if (!/^[0-9a-f-]{36}$/i.test(clientId)) redirect("/forbidden");
   const client = await one(`select c.*, c.subscription_ends::text as sub_ends, (c.checkout_amount is not null and not exists (select 1 from client_payments p where p.client_id = c.id and p.status = 'paid')) as unpaid

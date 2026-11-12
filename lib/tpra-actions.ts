@@ -2,7 +2,7 @@
 // Third-party risk (TPRA) server actions. Every button on the assessment form saves the form first, then acts.
 import { redirect } from "next/navigation";
 import ExcelJS from "exceljs";
-import { requireClient, audit, canApprove, send, type User } from "./auth";
+import { requireClient, clientBase, audit, canApprove, send, type User } from "./auth";
 import { q, one } from "./db";
 import { str, all, flash } from "./form";
 import { storeFile } from "./files";
@@ -29,8 +29,9 @@ async function persist(fd: FormData) {
   const id = str(fd, "id");
   const a = UUID.test(id) ? await one("select * from assessments where id = $1 and kind = 'tpra'", [id]) : null;
   if (!a) redirect("/forbidden");
-  const { user, client } = await requireClient(a.client_id, { write: true });
-  const back = `/app/clients/${a.client_id}/assessments/tpra/${a.id}`;
+  const { user, client } = await requireClient(a.client_id, { write: true, portal: true });
+  const B = await clientBase(a.client_id);
+  const back = `${B}/assessments/tpra/${a.id}`;
   const model: Model = a.model ? asModel(a.model) : await firmModel(a.firm_id);
   const before = a.answers as Record<string, string>;
   const answers: Record<string, string> = { ...before };
@@ -110,6 +111,11 @@ export async function approveTpra(fd: FormData) {
     await q("update ropa_entries set recipients = $2, updated_at = now() where id = $1", [e.id, [e.recipients?.trim(), `${name} (processor)`].filter(Boolean).join("; ")]);
   }
   await logEvent(a.id, user.name, `Approved: ${r.rating}, ${r.decision}${next ? `; next review ${fmtDate(next)}` : ""}`);
+  if (user.kind === "contact") { // the client approved its own assessment: that is also its sign-off
+    await q("update assessments set client_signed_at = now(), client_signed_name = $2, client_signed_by = $3 where id = $1", [a.id, user.name, user.id]);
+    await audit(user, "approve", "assessment_tpra", a.id, { client_id: a.client_id, details: { rating: r.rating, self_service: true } });
+    redirect(flash(back, `Approved and signed off as ${r.rating}.`));
+  }
   await audit(user, "approve", "assessment_tpra", a.id, { client_id: a.client_id, details: { rating: r.rating } });
   for (const c of await contacts(a.client_id))
     await send("email", c.email, "tpra_signoff", `A processor risk assessment is ready for your sign-off. Log in to review and sign it: ${APP()}/portal/processors/${a.id}`);
@@ -178,8 +184,9 @@ async function newProcessor(user: User, client: { id: string; firm_id: string },
 }
 
 export async function createTpra(fd: FormData) {
-  const { user, client } = await requireClient(str(fd, "client_id"), { write: true });
-  const base = `/app/clients/${client.id}/assessments/tpra`;
+  const { user, client } = await requireClient(str(fd, "client_id"), { write: true, portal: true });
+  const B = await clientBase(str(fd, "client_id"));
+  const base = `${B}/assessments/tpra`;
   const name = str(fd, "name"), year = Number(str(fd, "year"));
   if (!name || !Number.isInteger(year) || year < 2019 || year > 2100) redirect(flash(base, "Enter the processor's name and a four-digit year.", "error"));
   const own = new Set((await q<{ id: string }>("select id from ropa_entries where client_id = $1", [client.id])).map((r) => r.id));
@@ -189,8 +196,9 @@ export async function createTpra(fd: FormData) {
 }
 
 export async function importTpra(fd: FormData) {
-  const { user, client } = await requireClient(str(fd, "client_id"), { write: true });
-  const base = `/app/clients/${client.id}/assessments/tpra`;
+  const { user, client } = await requireClient(str(fd, "client_id"), { write: true, portal: true });
+  const B = await clientBase(str(fd, "client_id"));
+  const base = `${B}/assessments/tpra`;
   const f = fd.get("file");
   if (!(f instanceof File) || !f.size) redirect(flash(base, "Choose a CSV or Excel file.", "error"));
   let rows: string[][] = [];

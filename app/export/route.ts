@@ -91,13 +91,16 @@ export async function GET(req: Request) {
   // Each client report has a cover letter, downloaded on its own with ?cover=only (the "Cover letter" buttons).
   const cover = (clientId: string, k: Parameters<typeof reportCover>[1], title: string) => (url.searchParams.get("cover") === "only" ? reportCover(clientId, k, title) : Promise.resolve(""));
 
+  // The client's own contacts open the exports of their self-service modules (DPIAs, LIAs, transfers, processors, remediation, training).
+  const SELF_SERVICE = new Set(["lia-readiness", "dpia-readiness", "dpia-report", "assessment", "tpra-request", "tpra-register", "tia-request", "tia-register", "training-plan", "car-tracker", "car-plan"]);
   const canSeeClient = async (clientId: string) =>
-    u.kind === "firm" ? !!(await one(`select 1 from clients c where c.id = $3 and ${clientScope(u)}`, [...scopeArgs(u), clientId])) : false;
+    u.kind === "firm" ? !!(await one(`select 1 from clients c where c.id = $3 and ${clientScope(u)}`, [...scopeArgs(u), clientId]))
+      : u.kind === "contact" && u.client_id === clientId && SELF_SERVICE.has(kind ?? "");
 
   if (kind === "version") {
     const v = await getVersion(url.searchParams.get("id") ?? "");
     if (!v || !["approved", "awaiting_client_signoff", "client_signed_off"].includes(v.status)) return denied(); // FR11.4: approved only
-    const contactOk = u.kind === "contact" && u.client_id === v.client_id && !!(await one("select 1 from signoff_requests where version_id = $1", [v.id]));
+    const contactOk = u.kind === "contact" && u.client_id === v.client_id && (v.parent_type === "dpia" || !!(await one("select 1 from signoff_requests where version_id = $1", [v.id])));
     if (!contactOk && !(await canSeeClient(v.client_id))) return denied();
     const client = await one("select name from clients where id = $1", [v.client_id]);
     let title = "Document", body = v.body;

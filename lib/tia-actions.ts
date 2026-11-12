@@ -1,7 +1,7 @@
 "use server";
 // Transfer risk server actions. Every button on the assessment form saves the form first, then acts.
 import { redirect } from "next/navigation";
-import { requireClient, audit, canApprove, send, type User } from "./auth";
+import { requireClient, clientBase, audit, canApprove, send, type User } from "./auth";
 import { q, one } from "./db";
 import { str, all, flash } from "./form";
 import { storeFile } from "./files";
@@ -28,8 +28,9 @@ async function persist(fd: FormData) {
   const id = str(fd, "id");
   const a = UUID.test(id) ? await one("select * from assessments where id = $1 and kind = 'tia'", [id]) : null;
   if (!a) redirect("/forbidden");
-  const { user, client } = await requireClient(a.client_id, { write: true });
-  const back = `/app/clients/${a.client_id}/assessments/tia/${a.id}`;
+  const { user, client } = await requireClient(a.client_id, { write: true, portal: true });
+  const B = await clientBase(a.client_id);
+  const back = `${B}/assessments/tia/${a.id}`;
   const before = a.answers as Record<string, string>;
   const answers: Record<string, string> = { ...before };
   for (const k of TEXT_KEYS) if (fd.has(k)) answers[k] = str(fd, k);
@@ -106,6 +107,11 @@ export async function approveTia(fd: FormData) {
   for (const e of await q<{ id: string; transfer_safeguard: string | null }>("select id, transfer_safeguard from ropa_entries where id = any($1::uuid[])", [a.ropa_ids ?? []]))
     await q("update ropa_entries set has_transfer = true, transfer_safeguard = coalesce(nullif(transfer_safeguard, ''), $2), updated_at = now() where id = $1", [e.id, `${mechanismLabel(a.answers.mechanism)} (${a.answers.destination || "destination recorded in the transfer assessment"})`]);
   await logEvent(a.id, user.name, `Approved: inherent ${r.rating}, residual ${r.residualRating}; ${r.action}${next ? `; next review ${fmtDate(next)}` : ""}`);
+  if (user.kind === "contact") { // the client approved its own assessment: that is also management's approval of the residual risk
+    await q("update assessments set client_signed_at = now(), client_signed_name = $2, client_signed_by = $3 where id = $1", [a.id, user.name, user.id]);
+    await audit(user, "approve", "assessment_tia", a.id, { client_id: a.client_id, details: { rating: r.rating, residual: r.residualRating, self_service: true } });
+    redirect(flash(back, `Approved: inherent ${r.rating}, residual ${r.residualRating}. Residual risk accepted.`));
+  }
   await audit(user, "approve", "assessment_tia", a.id, { client_id: a.client_id, details: { rating: r.rating, residual: r.residualRating } });
   for (const c of await contacts(a.client_id))
     await send("email", c.email, "tia_signoff", `A cross-border transfer risk assessment is ready for management approval of the residual risk. Log in to review and sign it: ${APP()}/portal/transfers/${a.id}`);
@@ -168,8 +174,9 @@ export async function tiaReassess(fd: FormData) {
 // ---------- Register: new transfer ----------
 
 export async function createTia(fd: FormData) {
-  const { user, client } = await requireClient(str(fd, "client_id"), { write: true });
-  const base = `/app/clients/${client.id}/assessments/tia`;
+  const { user, client } = await requireClient(str(fd, "client_id"), { write: true, portal: true });
+  const B = await clientBase(str(fd, "client_id"));
+  const base = `${B}/assessments/tia`;
   const recipient = str(fd, "recipient"), destination = str(fd, "destination"), year = Number(str(fd, "year"));
   if (!recipient || !destination || !Number.isInteger(year) || year < 2019 || year > 2100) redirect(flash(base, "Enter the recipient, the destination country and a four-digit year.", "error"));
   const own = new Set((await q<{ id: string }>("select id from ropa_entries where client_id = $1", [client.id])).map((r) => r.id));

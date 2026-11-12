@@ -15,7 +15,7 @@ type Suggestion = { key: string; score: number; evidence: string; gaps: string; 
 export type TpraProps = {
   id: string; status: string; answers: Record<string, string>; model: unknown; ropaIds: string[]; history: { at: string; by: string; what: string }[];
   nextReview: string | null; approver: string | null; approvedAt: string | null; signedName: string | null; signedAt: string | null; requestedAt: string | null;
-  ev: EvItem[]; tasks: Task[]; ropa: { id: string; purpose: string; department: string | null }[]; readOnly: boolean; canApprove: boolean;
+  ev: EvItem[]; tasks: Task[]; ropa: { id: string; purpose: string; department: string | null }[]; readOnly: boolean; canApprove: boolean; selfService?: boolean;
   accept: string; dpiaHref: string; reportHref: string; requestHref: string;
   actions: { save: Act; approve: Act; requestEvidence: Act; copilot: Act; narrative: Act; reassess: Act };
 };
@@ -232,8 +232,8 @@ export default function TpraForm(p: TpraProps) {
             <section className="panel" {...show(6)}>
               <h3>7. Sign-off</h3>
               <ol className="tpra-sign">
-                <li><b>Lead Consultant approval.</b> {p.status === "approved" ? <>Approved{p.approver ? ` by ${p.approver}` : ""}{p.approvedAt ? ` on ${fmt(p.approvedAt)}` : ""}.</> : r.rating ? <>Ready to approve as <b>{r.rating}</b>: {r.decision}.</> : "Score all six factors and six domains first."}
-                  {!ro && p.status !== "approved" && (p.canApprove ? <div style={{ marginTop: 8 }}><Btn action={p.actions.approve}>Approve and send to the client</Btn></div> : <span className="meta"> Only a Lead Consultant or Firm Admin can approve.</span>)}</li>
+                <li><b>{p.selfService ? "Approval." : "Lead Consultant approval."}</b> {p.status === "approved" ? <>Approved{p.approver ? ` by ${p.approver}` : ""}{p.approvedAt ? ` on ${fmt(p.approvedAt)}` : ""}.</> : r.rating ? <>Ready to approve as <b>{r.rating}</b>: {r.decision}.</> : "Score all six factors and six domains first."}
+                  {!ro && p.status !== "approved" && (p.canApprove ? <div style={{ marginTop: 8 }}><Btn action={p.actions.approve}>{p.selfService ? "Approve" : "Approve and send to the client"}</Btn></div> : <span className="meta"> Only a Lead Consultant or Firm Admin can approve.</span>)}</li>
                 <li><b>Client sign-off.</b> {p.signedAt ? <>Signed by {p.signedName} on {fmt(p.signedAt)} (typed name and email code).</> : p.status === "approved" ? "Waiting for the client to sign in the portal." : "After approval, the client signs in the portal with their typed name and a one-time code."}</li>
               </ol>
               <a className="btn secondary" href={p.reportHref} target="_blank" rel="noreferrer">Processor Risk Assessment report (PDF)</a>

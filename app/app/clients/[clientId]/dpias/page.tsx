@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { requireClient } from "@/lib/auth";
+import { requireClient, clientBase } from "@/lib/auth";
 import { q } from "@/lib/db";
 import { riskLevel, fmtDate } from "@/lib/rules";
 import { Flash, Chip, Empty } from "@/components/ui";
@@ -7,8 +7,9 @@ import { Flash, Chip, Empty } from "@/components/ui";
 export default async function Dpias({ params, searchParams }: { params: Promise<{ clientId: string }>; searchParams: Promise<Record<string, string>> }) {
   const { clientId } = await params;
   const sp = await searchParams;
-  const { client } = await requireClient(clientId);
-  const b = `/app/clients/${clientId}/dpias`;
+  const { client } = await requireClient(clientId, { portal: true });
+  const B = await clientBase(clientId);
+  const b = `${B}/dpias`;
   const asked = Number(sp.year);
   const year = Number.isInteger(asked) && asked >= 2019 && asked <= 2100 ? asked : null; // null = all years
   const years = (await q<{ y: number }>("select distinct assessment_year as y from dpias where client_id = $1 order by 1 desc", [clientId])).map((r) => r.y);
@@ -34,7 +35,7 @@ export default async function Dpias({ params, searchParams }: { params: Promise<
           {years.map((y) => <Link key={y} href={`${b}?year=${y}`} className={`btn ${y === year ? "" : "quiet"}`} aria-current={y === year ? "page" : undefined}>{y}</Link>)}
         </nav>
       </form>
-      {gap.length > 0 && <div className="banner warn">The last gap check found high-risk processing with no DPIA. <Link href={`/app/clients/${clientId}/gaps`}>See gaps</Link></div>}
+      {gap.length > 0 && B.startsWith("/app/") && <div className="banner warn">The last gap check found high-risk processing with no DPIA. <Link href={`${B}/gaps`}>See gaps</Link></div>}
       {rows.length === 0 ? (
         <Empty>
           <p><b>{year ? `No DPIAs recorded for ${year}.` : "No DPIAs yet."}</b></p>

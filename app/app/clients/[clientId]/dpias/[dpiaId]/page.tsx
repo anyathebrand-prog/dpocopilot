@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { requireClient, audit } from "@/lib/auth";
+import { requireClient, clientBase, audit } from "@/lib/auth";
 import { q, one } from "@/lib/db";
 import { latestVersion, versionsOf, getVersion, loadCtx, signatureFor } from "@/lib/data";
 import { DPIA_STEPS, suggestedRisks, dpiaStep, normalizeDpia, standardRisk, type Risk } from "@/lib/templates";
@@ -19,8 +19,9 @@ async function saveStep(fd: FormData) {
   "use server";
   const v = await getVersion(str(fd, "id"));
   if (!v || v.parent_type !== "dpia") redirect("/forbidden");
-  const { user } = await requireClient(v.client_id, { write: true });
-  const step = str(fd, "step"), back = `/app/clients/${v.client_id}/dpias/${v.parent_id}`;
+  const { user } = await requireClient(v.client_id, { write: true, portal: true });
+  const B = await clientBase(v.client_id);
+  const step = str(fd, "step"), back = `${B}/dpias/${v.parent_id}`;
   if (v.status !== "draft") redirect(flash(`${back}?step=${step}`, "This version is locked. Edit creates a new version.", "error"));
   const body = normalizeDpia(v.body);
   if (step === "scoring") {
@@ -57,8 +58,9 @@ async function fillAll(fd: FormData) {
   "use server";
   const v = await getVersion(str(fd, "id"));
   if (!v || v.parent_type !== "dpia") redirect("/forbidden");
-  const { user } = await requireClient(v.client_id, { write: true });
-  const back = `/app/clients/${v.client_id}/dpias/${v.parent_id}`;
+  const { user } = await requireClient(v.client_id, { write: true, portal: true });
+  const B = await clientBase(v.client_id);
+  const back = `${B}/dpias/${v.parent_id}`;
   if (v.status !== "draft") redirect(flash(back, "This version is locked. Edit creates a new version.", "error"));
   const ids = (await q("select ropa_entry_id from dpia_ropa where dpia_id = $1", [v.parent_id])).map((r) => r.ropa_entry_id);
   const ctx = await loadCtx(v.client_id, ids);
@@ -77,8 +79,9 @@ async function setReviewDate(fd: FormData) {
   "use server";
   const d = await one("select id, client_id from dpias where id = $1", [str(fd, "dpia_id")]);
   if (!d) redirect("/forbidden");
-  const { user } = await requireClient(d.client_id, { write: true });
-  const back = `/app/clients/${d.client_id}/dpias/${d.id}`;
+  const { user } = await requireClient(d.client_id, { write: true, portal: true });
+  const B = await clientBase(d.client_id);
+  const back = `${B}/dpias/${d.id}`;
   const year = Number(str(fd, "assessment_year"));
   if (!Number.isInteger(year) || year < 2019 || year > 2100) redirect(flash(back, "Enter the assessment year as four digits, for example 2026.", "error"));
   await q("update dpias set review_date = $2, assessment_year = $3 where id = $1", [d.id, opt(fd, "review_date"), year]);
@@ -91,8 +94,9 @@ async function saveDocs(fd: FormData) {
   "use server";
   const d = await one("select id, client_id from dpias where id = $1", [str(fd, "dpia_id")]);
   if (!d) redirect("/forbidden");
-  const { user, client } = await requireClient(d.client_id, { write: true });
-  const back = `/app/clients/${d.client_id}/dpias/${d.id}`;
+  const { user, client } = await requireClient(d.client_id, { write: true, portal: true });
+  const B = await clientBase(d.client_id);
+  const back = `${B}/dpias/${d.id}`;
   await q("update dpias set system_name = $2 where id = $1", [d.id, opt(fd, "system_name")]);
   let n = 0;
   for (const f of fd.getAll("docs")) {
@@ -123,14 +127,16 @@ async function analyseDocs(fd: FormData) {
   "use server";
   const d = await one("select id, client_id from dpias where id = $1", [str(fd, "dpia_id")]);
   if (!d) redirect("/forbidden");
-  const { user } = await requireClient(d.client_id, { write: true });
-  redirect(flash(`/app/clients/${d.client_id}/dpias/${d.id}`, await analyseInto(d.id, user)));
+  const { user } = await requireClient(d.client_id, { write: true, portal: true });
+  const B = await clientBase(d.client_id);
+  redirect(flash(`${B}/dpias/${d.id}`, await analyseInto(d.id, user)));
 }
 
 export default async function Dpia({ params, searchParams }: { params: Promise<{ clientId: string; dpiaId: string }>; searchParams: Promise<Record<string, string>> }) {
   const { clientId, dpiaId } = await params;
   const sp = await searchParams;
-  const { user, client } = await requireClient(clientId);
+  const { user, client } = await requireClient(clientId, { portal: true });
+  const B = await clientBase(clientId);
   const d = await one("select * from dpias where id = $1 and client_id = $2", [/^[0-9a-f-]{36}$/.test(dpiaId) ? dpiaId : null, clientId]);
   if (!d) redirect("/forbidden");
   const latest = (await latestVersion("dpia", d.id))!;
@@ -144,7 +150,7 @@ export default async function Dpia({ params, searchParams }: { params: Promise<{
   const stepIdx = DPIA_STEPS.findIndex((s) => s.key === step);
   const ropa = await q("select r.id, r.purpose, r.state from dpia_ropa dr join ropa_entries r on r.id = dr.ropa_entry_id where dr.dpia_id = $1", [d.id]);
   const editable = v.status === "draft" && !viewingOld && !client.archived_at;
-  const back = `/app/clients/${clientId}/dpias/${d.id}`;
+  const back = `${B}/dpias/${d.id}`;
   const sig = v.status === "client_signed_off" ? await signatureFor(v.id) : null;
   const ctx = editable ? await loadCtx(clientId, ropa.map((r) => r.id)) : null;
   const risks = body.risks_list?.length ? body.risks_list : ctx ? suggestedRisks(ctx) : [];
@@ -156,7 +162,7 @@ export default async function Dpia({ params, searchParams }: { params: Promise<{
 
   return (
     <>
-      <nav className="meta" aria-label="Breadcrumb"><Link href={`/app/clients/${clientId}/dpias`}>DPIAs</Link> / <Link href={`/app/clients/${clientId}/dpias?year=${d.assessment_year}`}>{d.assessment_year}</Link> / {d.title}</nav>
+      <nav className="meta" aria-label="Breadcrumb"><Link href={`${B}/dpias`}>DPIAs</Link> / <Link href={`${B}/dpias?year=${d.assessment_year}`}>{d.assessment_year}</Link> / {d.title}</nav>
       <div className="spread" style={{ alignItems: "flex-start" }}>
         <h2 style={{ marginTop: 8 }}>{d.title} <span className="meta" style={{ fontSize: "0.7em" }}>· {d.assessment_year}{d.system_name ? ` · ${d.system_name}` : ""}</span> <Chip status={v.status} ai={v.ai_generated} /></h2>
         <div className="row" style={{ marginTop: 8 }}>
@@ -166,7 +172,7 @@ export default async function Dpia({ params, searchParams }: { params: Promise<{
           <a className="btn secondary" href={`/export?kind=dpia-report&id=${d.id}&format=pdf` + "&cover=only"} target="_blank">Cover letter (PDF)</a><a className="btn secondary" href={`/export?kind=dpia-report&id=${d.id}&format=doc` + "&cover=only"}>Cover letter (Word)</a>
         </div>
       </div>
-      <p className="meta">Covers: {ropa.map((r, i) => <span key={r.id}>{i > 0 && ", "}<Link href={`/app/clients/${clientId}/ropa/${r.id}`}>{r.purpose}</Link>{r.state === "archived" && " (archived)"}</span>)}</p>
+      <p className="meta">Covers: {ropa.map((r, i) => <span key={r.id}>{i > 0 && ", "}<Link href={B.startsWith("/portal") ? "/portal/ropa" : `${B}/ropa/${r.id}`}>{r.purpose}</Link>{r.state === "archived" && " (archived)"}</span>)}</p>
       <Flash sp={sp} />
       {viewingOld && <Banner>You are viewing version {v.version_no}. <Link href={back}>Go to the current version</Link></Banner>}
       {ropa.some((r) => r.state === "archived") && <Banner kind="warn">A linked processing activity has been archived.</Banner>}
