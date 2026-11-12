@@ -39,7 +39,7 @@ export default async function CarPerformance({ params, searchParams }: { params:
       ) : <PerfView t={t} today={todayWAT()} base={b} />}
 
       {t.snaps.length > 0 && year && s && (
-        <section className="panel" id="year">
+        <section className="panel" id="year" style={{ marginTop: 8 }}>
           <div className="spread">
             <h3 style={{ margin: 0 }}>CAR {year} <span className="meta" style={{ fontWeight: 400 }}>· {s.status === "locked" ? `Locked${s.locker ? ` by ${s.locker}` : ""}${s.locked_at ? ` on ${fmtDate(new Date(s.locked_at).toISOString().slice(0, 10))}` : ""}` : "Draft"}</span></h3>
             <nav className="row" aria-label="CAR years" style={{ gap: 6 }}>{t.all.map((y) => <Link key={y} href={`${b}?year=${y}${sp.end ? `&end=${sp.end}` : ""}#year`} className={`btn ${y === year ? "" : "quiet"}`} aria-current={y === year ? "page" : undefined}>{y}</Link>)}</nav>
@@ -127,12 +127,12 @@ export default async function CarPerformance({ params, searchParams }: { params:
       )}
 
       {!ro && (
-        <div className="perf-two">
+        <div className="perf-two" style={{ marginTop: 24 }}>
           <section className="panel">
             <h3 style={{ marginTop: 0 }}>Add a CAR year</h3>
             <form action={startYear} className="row" style={{ alignItems: "flex-end" }}><Hidden values={{ client_id: clientId }} />
               <Field label="CAR year"><input type="number" name="year" min={2019} max={2100} required defaultValue={client.car_audit_year ?? new Date().getFullYear() - 1} style={{ width: 120 }} /></Field>
-              <Submit className="btn secondary">Start year</Submit>
+              <span style={{ marginBottom: 20 }}><Submit className="btn secondary">Start year</Submit></span>
             </form>
             <h3>Import past years</h3>
             <p className="meta" style={{ marginTop: 0 }}>CSV or Excel with a header row: <b>car_year</b>, <b>kpi_code</b> (GOV-1 … DPR-2), then <b>numerator</b> and <b>denominator</b>, or <b>raw_value</b> (a percentage, a count, or On time / Late / Not filed for GOV-3). Locked years are skipped and every rejected row is listed.</p>
