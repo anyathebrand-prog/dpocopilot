@@ -302,3 +302,15 @@
 .tpra-stat { display: block; min-width: 120px; padding: 10px 16px 10px 14px; border-radius: 12px; background: var(--cx-navy); color: var(--cx-light); text-decoration: none; border-top: 5px solid var(--c, #5f6878); }
 .cx a.tpra-stat { color: var(--cx-light); } .tpra-stat.on { box-shadow: 0 0 0 2px var(--cx-blue); }
 .tpra-stat span { display: block; font-size: 13px; color: var(--cx-light-muted); } .tpra-stat b { font-size: 22px; }
+
+/* Add a processor: RoPA activities as a selectable table inside the dark panel. */
+.tpra-ropa { max-height: 340px; overflow: auto; border: 1px solid var(--cx-line); border-radius: 10px; margin: 6px 0 4px; }
+.tpra-ropa table { width: 100%; border-collapse: collapse; margin: 0; font-size: 14px; }
+.tpra-ropa th { position: sticky; top: 0; background: var(--cx-navy-2); color: var(--cx-light-muted); font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--cx-line); }
+.tpra-ropa td { padding: 8px 10px; border-bottom: 1px solid var(--cx-line); vertical-align: top; color: var(--cx-light); }
+.tpra-ropa tr:last-child td { border-bottom: none; }
+.tpra-ropa td.small { color: var(--cx-light-muted); }
+.tpra-ropa td label { cursor: pointer; font-weight: 500; }
+.tpra-ropa input[type="checkbox"] { width: 18px; height: 18px; margin: 1px 0 0; }
+.tpra-ropa tbody tr:hover td { background: rgba(255, 255, 255, 0.03); }
+.tpra-ropa tbody tr:has(input:checked) td { background: rgba(168, 220, 255, 0.08); }
