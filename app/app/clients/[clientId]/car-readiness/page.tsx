@@ -324,7 +324,7 @@ export default async function Car({ params, searchParams }: { params: Promise<{ 
                   {!ro && (
                     <form action={setStatus} className="row" style={{ marginTop: 8, alignItems: "flex-end" }}>
                       <Hidden values={{ item_id: i.id }} />
-                      <label className="small">Status <select name="status" defaultValue={i.status} style={{ width: "auto", display: "block" }}>{STATUSES.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></label>
+                      <label className="small">Status <select key={i.status} name="status" defaultValue={i.status} style={{ width: "auto", display: "block" }}>{STATUSES.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></label>
                       <label className="small" style={{ flex: 1, minWidth: 200 }}>Non-Conformity/Observation <input name="na_reason" defaultValue={i.na_reason ?? ""} placeholder="Required when Not applicable" /></label>
                       <label className="small" style={{ flex: "1 1 260px" }}>Answer / facts <input name="answer" defaultValue={i.answer ?? ""} placeholder="Yes, No, or the facts (e.g. a number or name)" /></label>
                       <label className="small" style={{ flex: "1 1 260px" }}>Evidence / documents <input name="evidence_notes" defaultValue={i.evidence_notes ?? ""} placeholder="Documents seen or requested" /></label>
@@ -400,7 +400,7 @@ export default async function Car({ params, searchParams }: { params: Promise<{ 
                 <Hidden values={{ finding_id: f.id }} />
                 <label className="small" style={{ flexBasis: "100%" }}>Finding / observation <textarea name="observation" rows={2} defaultValue={f.observation} required style={{ display: "block" }} /></label>
                 <label className="small">Risk <select name="risk" defaultValue={f.risk} style={{ width: "auto", display: "block" }}>{RISKS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></label>
-                <label className="small">Status <select name="status" defaultValue={f.status} style={{ width: "auto", display: "block" }}><option value="open">Open</option><option value="resolved">Resolved</option></select></label>
+                <label className="small">Status <select key={f.status} name="status" defaultValue={f.status} style={{ width: "auto", display: "block" }}><option value="open">Open</option><option value="resolved">Resolved</option></select></label>
                 <label className="small" style={{ flex: "1 1 300px" }}>Recommendation <input name="recommendation" defaultValue={f.recommendation ?? ""} /></label>
                 <Submit className="btn secondary" name="op" value="save">Save</Submit>
               </form>
