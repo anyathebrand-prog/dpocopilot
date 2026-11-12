@@ -6,6 +6,7 @@ import { layoutHtml } from "./email-layout.ts"; // .ts: also loaded directly by 
 const SUBJECTS: Record<string, string> = {
   invitation: "You've been invited to DPO Copilot", otp: "Your signing code", breach_alert: "Urgent: new breach report",
   evidence_request: "A document has been requested", signoff_request: "A document is waiting for your sign-off",
+  tpra_evidence: "Documents requested about a data processor", tpra_signoff: "A processor risk assessment is waiting for your sign-off",
   questionnaire: "Your data protection questionnaire", car_reminder: "Compliance Audit Return reminder",
   invoice_issued: "New invoice", receipt_issued: "Payment receipt", audit_notice: "Compliance Audit Notification",
   dsar_acknowledgement: "We have received your data request", email_changed: "Your login email was changed",
@@ -18,7 +19,7 @@ const inlineLogo = async () => ({ filename: "logo.png", content: (await import("
 
 // Label for the button made from the email's link.
 const BUTTONS: Record<string, string> = {
-  invitation: "Accept invitation", breach_alert: "View breach", evidence_request: "Open portal", signoff_request: "Review document",
+  invitation: "Accept invitation", breach_alert: "View breach", evidence_request: "Open portal", signoff_request: "Review document", tpra_evidence: "Upload documents", tpra_signoff: "Review and sign",
   questionnaire: "Open questionnaire", solo_request: "Review request", solo_decision: "Open DPO Copilot", proposal_review: "Review proposal", proposal_decision: "Open proposal", withdrawal_request: "Open payouts", withdrawal_decision: "Open wallet", car_reminder: "Open portal", invoice_issued: "View invoice", receipt_issued: "View receipt", audit_notice: "View letter",
 };
 

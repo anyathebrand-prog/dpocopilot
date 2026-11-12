@@ -8,6 +8,10 @@ export type Kind = "lia" | "tia" | "tpra";
 export const RATED: Kind[] = ["tia", "tpra"];
 /** Kinds with an evidence question that takes attachments. */
 export const ATTACH: Kind[] = ["tia", "tpra"];
+/** Supporting documents to upload for a Legitimate Interest Assessment. */
+export const LIA_DOCS = ["Business Case / Project Proposal", "Organisational Objectives and Policies", "Business Process Documentation", "Standard Operating Procedures", "Management Justification / Approval",
+  "Privacy Policy", "Data Collection Forms", "Data Retention Policy", "Data Sharing Agreements", "System Architecture", "Data Flow Diagram", "User Access Control Matrix",
+  "Information Security Policy", "Data Encryption and Backup Policy", "Incident and Breach Management Policy", "Third-Party Integration Documentation"];
 /** Number for the section after the last numbered one (risk rating or outcome). */
 export const nextNo = (k: { sections: { title: string }[] }) => (parseInt(k.sections.at(-1)!.title) || k.sections.length) + 1;
 type Q = { key: string; label: string; help?: string; type?: "choice"; options?: string[] };

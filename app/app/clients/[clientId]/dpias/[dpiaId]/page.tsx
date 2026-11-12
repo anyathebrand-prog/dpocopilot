@@ -9,6 +9,9 @@ import { str, opt, flash } from "@/lib/form";
 import { Flash, Field, Hidden, Chip, Seal, Doc, Banner } from "@/components/ui";
 import { Submit } from "@/components/client";
 import { ReviewBar, AiPanel, Versions } from "@/components/workflow";
+import { storeFile, ACCEPT } from "@/lib/files";
+import { DPIA_DOCS } from "@/lib/dpia-draft";
+import { documentText, dpiaDocuments, analyseDocuments, applyFindings } from "@/lib/dpia-docs";
 
 const scale = [1, 2, 3, 4, 5];
 
@@ -83,6 +86,47 @@ async function setReviewDate(fd: FormData) {
   redirect(flash(back, "Saved. The review date appears on the calendar."));
 }
 
+/** Add supporting documents to a DPIA, or change the system name. */
+async function saveDocs(fd: FormData) {
+  "use server";
+  const d = await one("select id, client_id from dpias where id = $1", [str(fd, "dpia_id")]);
+  if (!d) redirect("/forbidden");
+  const { user, client } = await requireClient(d.client_id, { write: true });
+  const back = `/app/clients/${d.client_id}/dpias/${d.id}`;
+  await q("update dpias set system_name = $2 where id = $1", [d.id, opt(fd, "system_name")]);
+  let n = 0;
+  for (const f of fd.getAll("docs")) {
+    if (!(f instanceof File) || !f.size) continue;
+    const r = await storeFile(user, client as { id: string; firm_id: string }, f, null);
+    if ("error" in r) redirect(flash(back, r.error, "error"));
+    await q("update files set dpia_id = $2, text_content = $3 where id = $1", [r.id, d.id, (await documentText(f)) || null]); n++;
+  }
+  await audit(user, "update", "dpia", d.id, { client_id: d.client_id, details: { documents_added: n } });
+  if (!n) redirect(flash(back, "Saved."));
+  const a = await analyseInto(d.id, user);
+  redirect(flash(back, `${n} document${n > 1 ? "s" : ""} uploaded. ${a}`));
+}
+
+/** Re-read every document of the DPIA into its current draft (each step's "From the uploaded documents" section). */
+async function analyseInto(dpiaId: string, user: Parameters<typeof audit>[0]) {
+  const v = (await latestVersion("dpia", dpiaId))!;
+  if (v.status !== "draft") return "The current version is locked, so the steps were not updated. Create a new version to analyse them.";
+  const docs = await dpiaDocuments(dpiaId);
+  const f = analyseDocuments(docs);
+  const { body, steps } = applyFindings(normalizeDpia(v.body), f);
+  await q("update content_versions set body = $2 where id = $1 and status = 'draft'", [v.id, JSON.stringify(body)]);
+  await audit(user, "update", "dpia", dpiaId, { client_id: v.client_id, details: { analysed_documents: docs.length, steps_updated: steps } });
+  return `${f.reviewed.length} of ${docs.length} document${docs.length === 1 ? "" : "s"} read; ${steps} step${steps === 1 ? "" : "s"} updated from them${f.unreadable.length ? `. No text could be read from: ${f.unreadable.join(", ")} (scans or images)` : ""}.`;
+}
+
+async function analyseDocs(fd: FormData) {
+  "use server";
+  const d = await one("select id, client_id from dpias where id = $1", [str(fd, "dpia_id")]);
+  if (!d) redirect("/forbidden");
+  const { user } = await requireClient(d.client_id, { write: true });
+  redirect(flash(`/app/clients/${d.client_id}/dpias/${d.id}`, await analyseInto(d.id, user)));
+}
+
 export default async function Dpia({ params, searchParams }: { params: Promise<{ clientId: string; dpiaId: string }>; searchParams: Promise<Record<string, string>> }) {
   const { clientId, dpiaId } = await params;
   const sp = await searchParams;
@@ -108,15 +152,17 @@ export default async function Dpia({ params, searchParams }: { params: Promise<{
   const draftText = stored ?? (ctx && step !== "scoring" ? dpiaStep(step, ctx) : "");
   const emptySteps = DPIA_STEPS.filter((s) => (s.key === "scoring" ? !body.risks_list?.length : !body[s.key]?.trim())).length;
   const h = <Hidden values={{ id: v.id, step }} />;
+  const docs = await q("select id, original_name, size_bytes from files where dpia_id = $1 order by created_at", [d.id]);
 
   return (
     <>
       <nav className="meta" aria-label="Breadcrumb"><Link href={`/app/clients/${clientId}/dpias`}>DPIAs</Link> / <Link href={`/app/clients/${clientId}/dpias?year=${d.assessment_year}`}>{d.assessment_year}</Link> / {d.title}</nav>
       <div className="spread" style={{ alignItems: "flex-start" }}>
-        <h2 style={{ marginTop: 8 }}>{d.title} <span className="meta" style={{ fontSize: "0.7em" }}>· {d.assessment_year}</span> <Chip status={v.status} ai={v.ai_generated} /></h2>
+        <h2 style={{ marginTop: 8 }}>{d.title} <span className="meta" style={{ fontSize: "0.7em" }}>· {d.assessment_year}{d.system_name ? ` · ${d.system_name}` : ""}</span> <Chip status={v.status} ai={v.ai_generated} /></h2>
         <div className="row" style={{ marginTop: 8 }}>
           <a className="btn" href={`/export?kind=dpia-report&id=${d.id}&format=pdf`} target="_blank">Generate DPIA report (PDF)</a>
           <a className="btn secondary" href={`/export?kind=dpia-report&id=${d.id}&format=doc`}>Word</a>
+          <a className="btn secondary" href={`/export?kind=dpia-readiness&id=${d.id}&format=pdf`} target="_blank">Generate DPIA Readiness Document</a><a className="btn secondary" href={`/export?kind=dpia-readiness&id=${d.id}&format=doc`}>Readiness (Word)</a>
           <a className="btn secondary" href={`/export?kind=dpia-report&id=${d.id}&format=pdf` + "&cover=only"} target="_blank">Cover letter (PDF)</a><a className="btn secondary" href={`/export?kind=dpia-report&id=${d.id}&format=doc` + "&cover=only"}>Cover letter (Word)</a>
         </div>
       </div>
@@ -177,22 +223,21 @@ export default async function Dpia({ params, searchParams }: { params: Promise<{
             <form action={saveStep}>{h}
               {step === "measures" && (
                 body.risks_list?.length ? (
-                  <div className="scroll" style={{ marginBottom: 16 }}>
-                    <table className="register">
-                      <thead><tr><th>Risk (from step 11)</th><th>Measures to reduce it</th><th>Owner</th><th>Target date</th><th>Residual likelihood</th><th>Residual impact</th><th>Residual score</th><th>Accepted?</th></tr></thead>
-                      <tbody>{body.risks_list.map((r, i) => (
-                        <tr key={i}>
-                          <td>{r.description}<div className="meta">Score {r.likelihood * r.impact} · {riskLevel(r.likelihood * r.impact)}</div></td>
-                          <td data-label="Measures"><textarea name={`r${i}_mitigation`} rows={3} defaultValue={r.mitigation ?? standardRisk(r.description)?.mitigation ?? ""} aria-label={`Measures for risk ${i + 1}`} /></td>
-                          <td data-label="Owner"><input name={`r${i}_owner`} defaultValue={r.owner ?? standardRisk(r.description)?.owner ?? ""} aria-label={`Owner for risk ${i + 1}`} /></td>
-                          <td data-label="Target date"><input type="date" name={`r${i}_due`} defaultValue={r.target_date ?? ""} aria-label={`Target date for risk ${i + 1}`} /></td>
-                          <td data-label="Residual likelihood"><select name={`r${i}_rl`} defaultValue={r.residual_likelihood ?? ""} aria-label={`Residual likelihood ${i + 1}`}><option value="">–</option>{scale.map((n) => <option key={n}>{n}</option>)}</select></td>
-                          <td data-label="Residual impact"><select name={`r${i}_ri`} defaultValue={r.residual_impact ?? ""} aria-label={`Residual impact ${i + 1}`}><option value="">–</option>{scale.map((n) => <option key={n}>{n}</option>)}</select></td>
-                          <td data-label="Residual score" className="num">{r.residual_likelihood && r.residual_impact ? `${r.residual_likelihood * r.residual_impact} · ${riskLevel(r.residual_likelihood * r.residual_impact)}` : "—"}</td>
-                          <td data-label="Accepted?"><select name={`r${i}_accepted`} defaultValue={r.accepted ?? ""} aria-label={`Residual risk ${i + 1} accepted`}><option value="">–</option><option value="yes">Yes</option><option value="no">No</option></select></td>
-                        </tr>
-                      ))}</tbody>
-                    </table>
+                  <div style={{ marginBottom: 16, display: "grid", gap: 12 }}>
+                    {body.risks_list.map((r, i) => (
+                      <fieldset key={i} className="panel" style={{ margin: 0, minWidth: 0 }}>
+                        <legend style={{ fontWeight: 600 }}>R{i + 1}. {r.description} <span className="meta" style={{ fontWeight: 400 }}>· score {r.likelihood * r.impact} · {riskLevel(r.likelihood * r.impact)}</span></legend>
+                        <Field label="Measures to reduce it"><textarea name={`r${i}_mitigation`} rows={3} defaultValue={r.mitigation ?? standardRisk(r.description)?.mitigation ?? ""} style={{ width: "100%", boxSizing: "border-box" }} /></Field>
+                        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 10, alignItems: "end" }}>
+                          <Field label="Owner"><input name={`r${i}_owner`} defaultValue={r.owner ?? standardRisk(r.description)?.owner ?? ""} style={{ width: "100%", boxSizing: "border-box" }} /></Field>
+                          <Field label="Target date"><input type="date" name={`r${i}_due`} defaultValue={r.target_date ?? ""} style={{ width: "100%", boxSizing: "border-box" }} /></Field>
+                          <Field label="Residual likelihood"><select name={`r${i}_rl`} defaultValue={r.residual_likelihood ?? ""} style={{ width: "100%" }}><option value="">–</option>{scale.map((n) => <option key={n}>{n}</option>)}</select></Field>
+                          <Field label="Residual impact"><select name={`r${i}_ri`} defaultValue={r.residual_impact ?? ""} style={{ width: "100%" }}><option value="">–</option>{scale.map((n) => <option key={n}>{n}</option>)}</select></Field>
+                          <Field label="Accepted?"><select name={`r${i}_accepted`} defaultValue={r.accepted ?? ""} style={{ width: "100%" }}><option value="">–</option><option value="yes">Yes</option><option value="no">No</option></select></Field>
+                        </div>
+                        <p className="meta" style={{ margin: "8px 0 0" }}>Residual score: {r.residual_likelihood && r.residual_impact ? `${r.residual_likelihood * r.residual_impact} · ${riskLevel(r.residual_likelihood * r.residual_impact)}` : "set the residual likelihood and impact"}</p>
+                      </fieldset>
+                    ))}
                   </div>
                 ) : <Banner kind="warn">Save the risks in step 11 first; each one then gets its own measures here.</Banner>
               )}
@@ -209,6 +254,24 @@ export default async function Dpia({ params, searchParams }: { params: Promise<{
         <aside>
           {!viewingOld && !client.archived_at && <ReviewBar v={v} user={user} back={back} signoff />}
           {editable && step !== "scoring" && <AiPanel v={v} back={`${back}?step=${step}`} step={step} label="Draft this step with AI" />}
+          <section className="panel">
+            <h3>System and documents</h3>
+            {docs.length ? docs.map((f) => <span key={f.id} className="small" style={{ display: "block" }}><a href={`/files/${f.id}`}>{f.original_name}</a> <span className="meta">({Math.ceil(Number(f.size_bytes) / 1024)} KB)</span></span>) : <p className="meta">No documents uploaded yet.</p>}
+            {!client.archived_at && (
+              <form action={saveDocs} style={{ marginTop: 8 }}>
+                <Hidden values={{ dpia_id: d.id }} />
+                <Field label="System name"><input name="system_name" defaultValue={d.system_name ?? ""} placeholder="Input system name" /></Field>
+                <Field label="Upload documents" help={`Upload these documents: ${DPIA_DOCS.join("; ")}.`}><input type="file" name="docs" multiple accept={ACCEPT} /></Field>
+                <Submit className="btn secondary">Save</Submit>
+              </form>
+            )}
+            {!client.archived_at && docs.length > 0 && (
+              <form action={analyseDocs} style={{ marginTop: 8 }}><Hidden values={{ dpia_id: d.id }} />
+                <Submit className="btn">Analyse documents and update steps</Submit>
+                <p className="meta" style={{ marginTop: 4 }}>Adds a &quot;From the uploaded documents&quot; section to each step it has evidence for. Your own text in each step is kept.</p>
+              </form>
+            )}
+          </section>
           <section className="panel">
             <h3>Year and review</h3>
             <form action={setReviewDate}>

@@ -21,7 +21,10 @@ export default async function Dpias({ params, searchParams }: { params: Promise<
   const maxRisk = (body: string) => Math.max(0, ...(JSON.parse(body || "{}").risks_list ?? []).map((r: any) => r.likelihood * r.impact));
   return (
     <>
-      <div className="spread"><h2 style={{ marginTop: 0 }}>DPIAs{year ? ` · ${year}` : ""}</h2>{!client.archived_at && <Link className="btn" href={start}>Start DPIA</Link>}</div>
+      <div className="spread"><h2 style={{ marginTop: 0 }}>DPIAs{year ? ` · ${year}` : ""}</h2><div className="row">
+        <a className="btn secondary" href={`/export?kind=dpia-readiness&client=${clientId}&format=pdf`} target="_blank">Generate DPIA Readiness Document</a>
+        <a className="btn secondary" href={`/export?kind=dpia-readiness&client=${clientId}&format=doc`}>Word</a>
+        {!client.archived_at && <Link className="btn" href={start}>Start DPIA</Link>}</div></div>
       <Flash sp={sp} />
       <form method="get" className="row" style={{ alignItems: "flex-end", margin: "8px 0 16px" }} aria-label="Assessment year">
         <label className="small">Assessment year <input type="number" name="year" min={2019} max={2100} required defaultValue={year ?? ""} style={{ width: 120, display: "block" }} /></label>

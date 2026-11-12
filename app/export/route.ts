@@ -2,7 +2,7 @@ import { getUser, clientScope, scopeArgs, audit } from "@/lib/auth";
 import { q, one } from "@/lib/db";
 import { getVersion, signatureFor } from "@/lib/data";
 import { dpiaText, LAWFUL_BASIS } from "@/lib/templates";
-import { fmtWAT, riskLevel, readiness, CAR_CATEGORIES, carItemRisk, carRisk } from "@/lib/rules";
+import { todayWAT, fmtWAT, riskLevel, readiness, CAR_CATEGORIES, carItemRisk, carRisk } from "@/lib/rules";
 import { TODO } from "@/lib/templates";
 import { loadCarReport, carReportHtml } from "@/lib/car-report";
 import { buildTracker, loadTracker, trackerHtml, trackerXlsx } from "@/lib/remediation";
@@ -11,6 +11,14 @@ import { htmlToDocx } from "@/lib/docx";
 import { assessmentHtml } from "@/lib/assessments";
 import { loadLiaReport, liaReportHtml } from "@/lib/lia-report";
 import { invoiceHtml } from "@/lib/invoice";
+import { ropaHtml } from "@/lib/ropa-report";
+import { dpiaReadinessHtml } from "@/lib/dpia-readiness";
+import { liaReadinessHtml } from "@/lib/lia-readiness";
+import { tpraReportHtml, tpraRequestHtml } from "@/lib/tpra-report";
+import { loadTpra, evidenceState, firmModel } from "@/lib/tpra";
+import { asModel, score, FACTORS, DOMAINS } from "@/lib/tpra-model";
+import { liaType } from "@/lib/lia-docs";
+import { docType } from "@/lib/dpia-docs";
 import { loadFramework, frameworkHtml } from "@/lib/framework";
 import { planHtml } from "@/lib/training";
 import { projectPlanHtml } from "@/lib/project-plan";
@@ -96,6 +104,45 @@ export async function GET(req: Request) {
     return page(title, seal + docHtml(body), format, slug(`${client!.name}-${title}-v${v.version_no}`), CSS, await cover(v.client_id, "version", title));
   }
 
+  if (kind === "lia-readiness") {
+    // LIA Readiness Document: s.25 NDPA and the documents the client must provide (with received/outstanding status for an LIA).
+    const id = url.searchParams.get("id") ?? "", cid = url.searchParams.get("client") ?? "";
+    const la = /^[0-9a-f-]{36}$/.test(id) ? await one("select a.*, r.purpose from assessments a left join ropa_entries r on r.id = a.ropa_entry_id where a.id = $1 and a.kind = 'lia'", [id]) : null;
+    const clientId = la?.client_id ?? (/^[0-9a-f-]{36}$/.test(cid) ? cid : null);
+    if (!clientId || !(await canSeeClient(clientId))) return denied();
+    const ans = await answersOf(clientId), c = (await one("select name from clients where id = $1", [clientId]))!;
+    let received: Map<string, string[]> | undefined;
+    if (la) {
+      received = new Map();
+      for (const f of await q<{ name: string; text: string }>("select original_name as name, coalesce(text_content, '') as text from files where assessment_id = $1 order by created_at", [la.id])) {
+        const t = liaType(f); if (t) received.set(t, [...(received.get(t) ?? []), f.name]);
+      }
+    }
+    const r = liaReadinessHtml({ org: String(ans.org_legal_name || c.name), received, lia: la ? { title: la.title, activity: la.purpose, year: la.assessment_year } : undefined });
+    await audit(u, "export", "lia_readiness", la?.id ?? clientId, { client_id: clientId, details: { format } });
+    return page(r.title, r.body, format, slug(r.title), r.css);
+  }
+
+  if (kind === "dpia-readiness") {
+    // DPIA Readiness Document: s.28(4) NDPA and the documents the client must provide (with received/outstanding status for a DPIA).
+    const id = url.searchParams.get("id") ?? "", cid = url.searchParams.get("client") ?? "";
+    const dp = /^[0-9a-f-]{36}$/.test(id) ? await one("select * from dpias where id = $1", [id]) : null;
+    const clientId = dp?.client_id ?? (/^[0-9a-f-]{36}$/.test(cid) ? cid : null);
+    if (!clientId || !(await canSeeClient(clientId))) return denied();
+    const ans = await answersOf(clientId), c = (await one("select name from clients where id = $1", [clientId]))!;
+    let received: Map<string, string[]> | undefined, department: string | null = null;
+    if (dp) {
+      received = new Map();
+      for (const f of await q<{ name: string; text: string }>("select original_name as name, coalesce(text_content, '') as text from files where dpia_id = $1 order by created_at", [dp.id])) {
+        const t = docType(f); if (t) received.set(t, [...(received.get(t) ?? []), f.name]);
+      }
+      department = (await one<{ d: string }>("select string_agg(distinct r.department, ', ') as d from dpia_ropa dr join ropa_entries r on r.id = dr.ropa_entry_id where dr.dpia_id = $1", [dp.id]))?.d ?? null;
+    }
+    const r = dpiaReadinessHtml({ org: String(ans.org_legal_name || c.name), received, dpia: dp ? { title: dp.title, system: dp.system_name, department, year: dp.assessment_year } : undefined });
+    await audit(u, "export", "dpia_readiness", dp?.id ?? clientId, { client_id: clientId, details: { format } });
+    return page(r.title, r.body, format, slug(r.title), r.css);
+  }
+
   if (kind === "dpia-report") {
     // DPIA report in the DPCO format, from the DPIA's current version (drafts included, marked as such). Firm users only.
     const id = url.searchParams.get("id") ?? "";
@@ -174,6 +221,21 @@ export async function GET(req: Request) {
     await audit(u, "export", "proposal", id, { details: { format, doc: url.searchParams.get("doc") ?? "proposal" } });
     return page(r.title, r.body, format, slug(r.title), r.css);
   }
+  if (kind === "tpra-request" || (kind === "assessment" && /^[0-9a-f-]{36}$/.test(url.searchParams.get("id") ?? "") && (await one("select 1 from assessments where id = $1 and kind = 'tpra'", [url.searchParams.get("id")])))) {
+    // Third-party risk: the Processor Risk Assessment report, or the evidence request. Contacts may open their own client's.
+    const d = await loadTpra(url.searchParams.get("id") ?? "");
+    if (!d || !((u.kind === "contact" && u.client_id === d.a.client_id) || (await canSeeClient(d.a.client_id)))) return denied();
+    const c = (await one("select name, firm_id from clients where id = $1", [d.a.client_id]))!;
+    const ans = await answersOf(d.a.client_id);
+    const org = String(ans.org_legal_name || c.name);
+    const model = d.a.model ? asModel(d.a.model) : await firmModel(c.firm_id);
+    const ev = evidenceState({ answers: d.a.answers, model }, d.rows, d.files, todayWAT());
+    const r = kind === "tpra-request"
+      ? tpraRequestHtml({ org, by: u.name, answers: d.a.answers, model, ev, year: d.a.assessment_year })
+      : tpraReportHtml({ org, by: u.name, a: { ...d.a, model } as any, ev, tasks: d.tasks, ropa: d.ropa.map((x) => x.purpose) });
+    await audit(u, "export", kind === "tpra-request" ? "tpra_request" : "assessment_tpra", d.a.id, { client_id: d.a.client_id, details: { format } });
+    return page(r.title, r.body, format, slug(r.title), r.css, kind === "tpra-request" ? "" : await cover(d.a.client_id, "tpra", "Data Processor Third Party Risk Assessment"));
+  }
   if (kind === "assessment") {
     const id = url.searchParams.get("id") ?? "";
     const a = /^[0-9a-f-]{36}$/.test(id) ? await one("select a.*, u.name as approver from assessments a left join users u on u.id = a.approved_by where a.id = $1", [id]) : null;
@@ -196,6 +258,28 @@ export async function GET(req: Request) {
   if (!/^[0-9a-f-]{36}$/.test(clientId) || !(ownRopa || (await canSeeClient(clientId)))) return denied();
   const client = await one("select name, car_audit_year from clients where id = $1", [clientId]);
   const stamp = `<p class="meta">${esc(client!.name)} · exported ${fmtWAT(new Date())} by ${esc(u.name)}</p>`;
+
+  if (kind === "tpra-register") { // processor register as Excel
+    const rows = await q("select a.*, to_char(a.next_review, 'YYYY-MM-DD') as nr, a.client_signed_at from assessments a where a.client_id = $1 and a.kind = 'tpra' order by a.answers->>'vendor'", [clientId]);
+    await audit(u, "export", "tpra_register", clientId, { client_id: clientId, details: { format: "xlsx" } });
+    const ExcelJS = (await import("exceljs")).default;
+    const wb = new ExcelJS.Workbook(), ws = wb.addWorksheet("Processor register", { views: [{ state: "frozen", ySplit: 4 }] });
+    ws.addRow([client!.name]).font = { bold: true, size: 16, color: { argb: "FF0D1F4A" } };
+    ws.addRow(["Processor register (Third-Party Risk Assessments)"]).font = { bold: true, size: 13 };
+    ws.addRow([`Exported ${fmtWAT(new Date())} by ${u.name}`]).font = { italic: true, size: 9 };
+    const cols = ["Processor", "Service", "Hosting", "Data leaves Nigeria", "Sub-processors", "DCPMI", ...FACTORS.map((f) => f.label), "Impact", ...DOMAINS.map((d) => d.label), "Control %", "Likelihood", "Residual", "Rating", "Decision", "DPA", "Next review", "Status"];
+    const hr = ws.addRow(cols);
+    hr.eachCell((c) => { c.font = { bold: true, color: { argb: "FFFFFFFF" } }; c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF0D1F4A" } }; c.alignment = { wrapText: true, vertical: "middle" }; });
+    for (const a of rows) {
+      const A = a.answers, r = score(A, asModel(a.model));
+      ws.addRow([A.vendor || a.title, A.service, A.location, A.leaves_nigeria, A.subprocessors, A.dcpmi, ...r.factors.map((x) => x ?? ""), r.impact ?? "", ...r.domains.map((x) => x ?? ""), r.controlPct ?? "", r.likelihood ?? "", r.residual ?? "",
+        a.rating ?? r.rating ?? "", r.decision ?? "", A.dpa_status || "Not started", a.nr ?? "", a.client_signed_at ? "Client signed" : a.status === "approved" ? "Approved" : "Draft"].map((x) => x ?? "")).alignment = { wrapText: true, vertical: "top" };
+    }
+    cols.forEach((_, i) => { ws.getColumn(i + 1).width = i < 6 ? 24 : 12; });
+    return new Response(new Uint8Array(await wb.xlsx.writeBuffer()), { headers: {
+      "content-type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      "content-disposition": `attachment; filename="${slug(`${client!.name}-processor-register`)}.xlsx"` } });
+  }
 
   if (kind === "project-plan") {
     const rows = await q(`select t.*, us.name as assignee from tasks t left join memberships m on m.id = t.assignee_membership_id left join users us on us.id = m.user_id
@@ -254,13 +338,18 @@ export async function GET(req: Request) {
       const hr = ws.addRow(cols.map(([h]) => h));
       hr.eachCell((c) => { c.font = { bold: true, color: { argb: "FFFFFFFF" } }; c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF0D1F4A" } }; c.alignment = { wrapText: true, vertical: "middle" }; });
       for (const r of rows) ws.addRow(cols.map(([, f]) => f(r) ?? "")).alignment = { wrapText: true, vertical: "top" };
+      ws.addRow([]); ws.addRow([]);
+      ws.addRow(["Prepared by:", "______________________________", "", "Approved by:", "______________________________"]);
+      ws.addRow([]);
+      ws.addRow(["Date:", "______________________", "", "Date:", "______________________"]);
       cols.forEach((_, i) => { ws.getColumn(i + 1).width = 26; });
       return new Response(new Uint8Array(await wb.xlsx.writeBuffer()), { headers: {
         "content-type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         "content-disposition": `attachment; filename="${slug(`${client!.name}-ropa${dept ? `-${dept}` : ""}`)}.xlsx"` } });
     }
     await audit(u, "export", "ropa", clientId, { client_id: clientId, details: { format, dept: dept || undefined } });
-    return page(`${client!.name} - ${TITLE}`, `<h1>${esc(client!.name)}</h1><h2>${TITLE}</h2>${stamp}<table><tr>${cols.map(([h]) => `<th>${h}</th>`).join("")}</tr>${rows.map((r) => `<tr>${cols.map(([, f]) => `<td>${esc(f(r))}</td>`).join("")}</tr>`).join("")}</table>${rows.length ? "" : `<p>No processing activities recorded${dept ? ` for ${esc(dept)}` : ""} yet.</p>`}`, format, slug(`${client!.name}-ropa${dept ? `-${dept}` : ""}`), CSS, await cover(clientId, "ropa", "Record of Processing Activities"));
+    const rep = ropaHtml(rows, { client: client!.name, dept: dept || undefined, by: u.name });
+    return page(rep.title, rep.body, format, slug(`${client!.name}-ropa${dept ? `-${dept}` : ""}`), rep.css, await cover(clientId, "ropa", "Record of Processing Activities"));
   }
 
   if (kind === "car-report" || kind === "car-plan" || kind === "car-tracker") {

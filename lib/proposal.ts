@@ -36,6 +36,7 @@ export const SERVICE_SCOPE: Record<string, { scope: string; deliverables: string
   "Policy Development": { scope: "Develop the Data Protection Framework and linked policies tailored to the organisation's structure.", deliverables: "Data protection policy, data classification, privacy notice, DPIA, incident response, retention and disposal, and consent policies." },
   "Data Protection Officer (DPO) Training and Certification": { scope: "Prepare the designated DPO for the role under NDPA s.32 and recognised certification.", deliverables: "DPO training; certification support; CPD plan." },
   "Employee Data Protection Training": { scope: "Awareness and role-based training for management, champions and staff.", deliverables: "Training sessions; materials; attendance records and certificates; capacity building plan." },
+  "DPO Copilot - Data Protection Compliance Software Deployment": { scope: "Deploy DPO Copilot for the organisation: set-up, onboarding questionnaire, data inventory and RoPA, user access for the client's team, and ongoing access to the compliance portal.", deliverables: "Configured DPO Copilot workspace and client portal; user accounts; onboarding and handover session." },
 };
 
 /** The six training tiers (the same six as the Capacity Building plan). */

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { House, ListChecks, Database, CalendarClock, FileText, Upload, Receipt, ClipboardList, ShieldAlert, UserSearch, BadgeCheck, NotebookPen, Menu, LogOut } from "lucide-react";
+import { House, ListChecks, Database, CalendarClock, FileText, Upload, Receipt, ClipboardList, ShieldAlert, UserSearch, BadgeCheck, NotebookPen, Menu, LogOut, Building } from "lucide-react";
 import { requireContact } from "@/lib/auth";
 import { one } from "@/lib/db";
 import { signOut } from "@/lib/auth-actions";
@@ -19,6 +19,7 @@ export default async function PortalLayout({ children }: { children: ReactNode }
       (select count(*)::int from evidence_requests e where e.client_id = c.id and e.status in ('open','rejected')) as evidence,
       (select count(*)::int from signoff_requests s where s.client_id = c.id and s.status = 'pending') as signoffs,
       (select count(*)::int from invoices i where i.client_id = c.id and i.status = 'unpaid' and i.sent_at is not null) as invoices,
+      (select count(*)::int from assessments a where a.client_id = c.id and a.kind = 'tpra' and ((a.status = 'approved' and a.client_signed_at is null) or (a.status = 'draft' and a.evidence_requested_at is not null))) as processors,
       (select count(*)::int from dsars d where d.client_id = c.id and d.status = 'open' and (d.id_status = 'not_verified' or d.department is null)) as unverified
     from clients c where c.id = $1`, [u.client_id]);
   const badge = (n: number) => (n ? <span className="chip neutral num" aria-label={`${n} need attention`}>{n}</span> : null);
@@ -43,6 +44,7 @@ export default async function PortalLayout({ children }: { children: ReactNode }
             <NavLink href="/portal/ropa"><Database aria-hidden />Data inventory (RoPA)</NavLink>
             <NavLink href="/portal/deadlines"><CalendarClock aria-hidden />Deadlines</NavLink>
             <NavLink href="/portal/documents"><FileText aria-hidden /><span>Documents</span>{badge(c!.signoffs)}</NavLink>
+            <NavLink href="/portal/processors"><Building aria-hidden /><span>Processors</span>{badge(c!.processors)}</NavLink>
             <NavLink href="/portal/evidence"><Upload aria-hidden /><span>Evidence</span>{badge(c!.evidence)}</NavLink>
             <NavLink href="/portal/invoices"><Receipt aria-hidden /><span>Invoices</span>{badge(c!.invoices)}</NavLink>
             <NavLink href="/portal/questionnaire"><ClipboardList aria-hidden />Onboarding answers</NavLink>

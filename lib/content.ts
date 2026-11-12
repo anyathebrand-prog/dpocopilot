@@ -4,6 +4,7 @@ import { q, one, tx } from "./db";
 import { requireClient, canApprove, audit, send } from "./auth";
 import { getVersion, loadCtx } from "./data";
 import { draft } from "./ai";
+import { dpiaDocuments, docFacts } from "./dpia-docs";
 import { policy, breachNotice, dsarResponse, dpiaStep, normalizeDpia, DPIA_STEPS, TEMPLATE_TITLES, NDPA_REFS } from "./templates";
 import { flash, back as backOf, str } from "./form";
 
@@ -84,7 +85,8 @@ export async function aiDraft(fd: FormData) {
     const ids = (await q("select ropa_entry_id from dpia_ropa where dpia_id = $1", [v.parent_id])).map((r) => r.ropa_entry_id);
     const ctx = await loadCtx(v.client_id, ids);
     const s = DPIA_STEPS.find((x) => x.key === step);
-    template = dpiaStep(step, ctx); what = `DPIA section "${s?.title ?? step}". Guidance for this section: ${s?.guide ?? ""}`; facts = ctx;
+    const documents = docFacts(await dpiaDocuments(v.parent_id)); // the system's uploaded documents (architecture, data flow, policies…)
+    template = dpiaStep(step, ctx); what = `DPIA section "${s?.title ?? step}". Guidance for this section: ${s?.guide ?? ""}${documents.length ? " Use the system documents provided to make the section specific to this system." : ""}`; facts = { ...ctx, documents };
   } else if (v.parent_type === "breach_notification") {
     const n = await one("select bn.audience, b.* from breach_notifications bn join breaches b on b.id = bn.breach_id where bn.id = $1", [v.parent_id]);
     const ctx = await loadCtx(v.client_id);

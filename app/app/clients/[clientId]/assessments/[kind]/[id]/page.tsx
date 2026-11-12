@@ -3,11 +3,14 @@ import { notFound, redirect } from "next/navigation";
 import { requireClient, audit } from "@/lib/auth";
 import { q, one } from "@/lib/db";
 import { str, flash } from "@/lib/form";
-import { KINDS, RATED, ATTACH, nextNo, type Kind } from "@/lib/assessments";
+import { KINDS, RATED, ATTACH, LIA_DOCS, nextNo, type Kind } from "@/lib/assessments";
+import { documentText } from "@/lib/dpia-docs";
+import { analyseLiaInto } from "@/lib/lia-docs";
 import { riskLevel } from "@/lib/rules";
 import { Flash, Hidden, Chip } from "@/components/ui";
 import { Submit } from "@/components/client";
 import { storeFile, ACCEPT } from "@/lib/files";
+import TpraPage from "./tpra-page";
 
 const scale = [1, 2, 3, 4, 5];
 
@@ -31,13 +34,16 @@ async function save(fd: FormData) {
     [a.id, JSON.stringify(answers), n("likelihood"), n("impact"), outcome]);
   await audit(user, "update", `assessment_${a.kind}`, a.id, { client_id: a.client_id });
   const client = (await one<{ id: string; firm_id: string }>("select id, firm_id from clients where id = $1", [a.client_id]))!;
+  let added = 0;
   for (const f of fd.getAll("evidence_files")) {
     if (!(f instanceof File) || !f.size) continue;
+    added++;
     const r = await storeFile(user, client, f, null);
     if ("error" in r) redirect(flash(back, `Answers saved, but the attachment failed: ${r.error}`, "error"));
-    await q("update files set assessment_id = $2 where id = $1", [r.id, a.id]);
+    await q("update files set assessment_id = $2, text_content = $3 where id = $1", [r.id, a.id, (await documentText(f)) || null]);
   }
-  redirect(flash(back, a.status === "approved" ? "Saved. It's back to draft and needs approving again." : "Saved"));
+  const an = a.kind === "lia" && (added || str(fd, "analyse")) ? (await analyseLiaInto(a.id)).msg : ""; // read the documents into the answers
+  redirect(flash(back, `${a.status === "approved" ? "Saved. It's back to draft and needs approving again." : "Saved."}${an ? ` ${an}` : ""}`));
 }
 
 async function approve(fd: FormData) {
@@ -54,6 +60,7 @@ export default async function Assessment({ params, searchParams }: { params: Pro
   const sp = await searchParams;
   const k = KINDS[kind as Kind];
   if (!k) notFound();
+  if (kind === "tpra") return <TpraPage clientId={clientId} id={id} sp={sp} />;
   const { client } = await requireClient(clientId);
   const a = await one("select a.*, r.purpose, u.name as approver from assessments a left join ropa_entries r on r.id = a.ropa_entry_id left join users u on u.id = a.approved_by where a.id = $1 and a.client_id = $2 and a.kind = $3",
     [/^[0-9a-f-]{36}$/.test(id) ? id : null, clientId, kind]);
@@ -66,13 +73,24 @@ export default async function Assessment({ params, searchParams }: { params: Pro
       <nav className="meta" aria-label="Breadcrumb"><Link href={`/app/clients/${clientId}/assessments/${kind}`}>{k.name}s</Link> / {a.title}</nav>
       <div className="spread" style={{ alignItems: "flex-start" }}>
         <h2 style={{ marginTop: 8 }}>{a.title} <span className="meta" style={{ fontSize: "0.7em" }}>· {a.assessment_year}</span> <Chip status={a.status === "approved" ? "approved" : "draft"} /></h2>
-        <div className="row" style={{ marginTop: 8 }}><a className="btn" href={exp("pdf")} target="_blank">PDF</a><a className="btn secondary" href={exp("doc")}>Word</a><a className="btn secondary" href={exp("pdf") + "&cover=only"} target="_blank">Cover letter (PDF)</a><a className="btn secondary" href={exp("doc") + "&cover=only"}>Cover letter (Word)</a></div>
+        <div className="row" style={{ marginTop: 8 }}>{kind === "lia" && <><a className="btn secondary" href={`/export?kind=lia-readiness&id=${a.id}&format=pdf`} target="_blank">Generate LIA Readiness Document</a><a className="btn secondary" href={`/export?kind=lia-readiness&id=${a.id}&format=doc`}>Readiness (Word)</a></>}<a className="btn" href={exp("pdf")} target="_blank">PDF</a><a className="btn secondary" href={exp("doc")}>Word</a><a className="btn secondary" href={exp("pdf") + "&cover=only"} target="_blank">Cover letter (PDF)</a><a className="btn secondary" href={exp("doc") + "&cover=only"}>Cover letter (Word)</a></div>
       </div>
       <p className="meta">Activity: {a.purpose ?? "not linked"}{a.status === "approved" && a.approver ? ` · Approved by ${a.approver}` : ""}</p>
       <Flash sp={sp} />
       <form action={save}>
         <Hidden values={{ id: a.id }} />
         <fieldset disabled={ro}>
+          {kind === "lia" && (
+            <section className="panel" style={{ marginBottom: 16 }}>
+              <h3 style={{ marginTop: 0 }}>Supporting documents</h3>
+              {files.length ? files.map((f) => <span key={f.id} className="small" style={{ display: "block" }}><a href={`/files/${f.id}`}>{f.original_name}</a> <span className="meta">({Math.ceil(Number(f.size_bytes) / 1024)} KB)</span></span>) : <p className="meta" style={{ marginTop: 0 }}>No documents uploaded yet.</p>}
+              <label className="field" style={{ marginTop: 8 }}><span>Upload documents</span>
+                <span className="help">Upload these documents: {LIA_DOCS.join("; ")}. PDF, Word, Excel or images, up to 25 MB each. They upload when you save.</span>
+                <input type="file" name="evidence_files" multiple accept={ACCEPT} /></label>
+              {!ro && <div style={{ marginTop: 8 }}><Submit className="btn secondary" name="analyse" value="1">Save and analyse documents</Submit>
+                <p className="meta" style={{ marginTop: 4 }}>Reads the documents and adds a &quot;[From the uploaded documents]&quot; part to each answer it has evidence for. New uploads are analysed automatically. Your own text is kept.</p></div>}
+            </section>
+          )}
           {k.sections.map((s) => (
             <section key={s.title} className="panel" style={{ marginBottom: 16 }}>
               <h3 style={{ marginTop: 0 }}>{s.title}</h3>

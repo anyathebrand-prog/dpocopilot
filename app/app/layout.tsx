@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { Users, ListChecks, Calendar, MessageSquareText, Upload, Settings, Bell, Menu, LayoutList, LogOut, Building2, Receipt, FileSignature, BookOpen, Mail, SearchCheck, UserCheck, Wallet, Banknote } from "lucide-react";
+import { Users, ListChecks, Calendar, MessageSquareText, Upload, Settings, Bell, Menu, LayoutList, LogOut, Building2, Receipt, FileSignature, BookOpen, Mail, SearchCheck, UserCheck, Wallet, Banknote, Scale } from "lucide-react";
 import { requireFirm, isAdmin, canApprove, ROLE_LABEL, PLAN_LABEL } from "@/lib/auth";
 import { one } from "@/lib/db";
 import { signOut } from "@/lib/auth-actions";
@@ -50,6 +50,7 @@ export default async function FirmLayout({ children }: { children: ReactNode }) 
             {u.plan === "solo" && <NavLink href="/app/settings/me"><Building2 aria-hidden />My details</NavLink>}
             {isAdmin(u) && u.plan !== "solo" && <NavLink href="/app/settings/team"><Users aria-hidden />Team</NavLink>}
             {isAdmin(u) && u.plan !== "solo" && sub.ends && <NavLink href="/subscription"><CreditCard aria-hidden />Subscription</NavLink>}
+            {isAdmin(u) && <NavLink href="/app/settings/risk-model"><Scale aria-hidden />Risk model</NavLink>}
             {isAdmin(u) && <NavLink href="/app/settings/activity"><Settings aria-hidden />Activity log</NavLink>}
           </nav>
         </details>

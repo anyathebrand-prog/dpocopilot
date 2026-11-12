@@ -5,10 +5,14 @@ import { q, one } from "@/lib/db";
 import { str, flash } from "@/lib/form";
 import { answersOf } from "@/lib/data";
 import { list } from "@/lib/questionnaire";
-import { KINDS, RATED, prefill, type Kind } from "@/lib/assessments";
+import { KINDS, RATED, LIA_DOCS, prefill, type Kind } from "@/lib/assessments";
+import { storeFile, ACCEPT } from "@/lib/files";
+import { documentText } from "@/lib/dpia-docs";
+import { analyseLiaInto } from "@/lib/lia-docs";
 import { riskLevel } from "@/lib/rules";
 import { Flash, Field, Hidden, Chip, Empty } from "@/components/ui";
 import { Submit } from "@/components/client";
+import TpraRegister from "./tpra-register";
 
 async function create(fd: FormData) {
   "use server";
@@ -24,7 +28,15 @@ async function create(fd: FormData) {
   const r = await one("insert into assessments (firm_id, client_id, kind, title, assessment_year, ropa_entry_id, answers, created_by) values ($1,$2,$3,$4,$5,$6,$7,$8) returning id",
     [client.firm_id, client.id, kind, title, year, ropa?.id ?? null, JSON.stringify(answers), user.id]);
   await audit(user, "create", `assessment_${kind}`, r!.id, { client_id: client.id });
-  redirect(flash(`${base}/${r!.id}`, "Started. Pre-filled from the linked activity; complete the rest."));
+  let n = 0;
+  for (const f of fd.getAll("evidence_files")) { // LIA supporting documents
+    if (!(f instanceof File) || !f.size) continue;
+    const up = await storeFile(user, client as { id: string; firm_id: string }, f, null);
+    if ("error" in up) redirect(flash(`${base}/${r!.id}`, `Started, but a document failed to upload: ${up.error}`, "error"));
+    await q("update files set assessment_id = $2, text_content = $3 where id = $1", [up.id, r!.id, (await documentText(f)) || null]); n++;
+  }
+  const an = kind === "lia" && n ? (await analyseLiaInto(r!.id)).msg : "";
+  redirect(flash(`${base}/${r!.id}`, `Started. Pre-filled from the linked activity${n ? ` and ${n} uploaded document${n > 1 ? "s" : ""}` : ""}; complete the rest.${an ? ` ${an}` : ""}`));
 }
 
 export default async function Assessments({ params, searchParams }: { params: Promise<{ clientId: string; kind: string }>; searchParams: Promise<Record<string, string>> }) {
@@ -32,6 +44,7 @@ export default async function Assessments({ params, searchParams }: { params: Pr
   const sp = await searchParams;
   const k = KINDS[kind as Kind];
   if (!k) notFound();
+  if (kind === "tpra") return <TpraRegister clientId={clientId} sp={sp} />;
   const { client } = await requireClient(clientId);
   const rows = await q(`select a.*, r.purpose from assessments a left join ropa_entries r on r.id = a.ropa_entry_id where a.client_id = $1 and a.kind = $2 order by a.assessment_year desc, a.created_at desc`, [clientId, kind]);
   // Suggest the activities that need one: legitimate interest (LIA), transfers outside Nigeria (TIA), third-party recipients (TPRA).
@@ -40,7 +53,8 @@ export default async function Assessments({ params, searchParams }: { params: Pr
   const b = `/app/clients/${clientId}/assessments/${kind}`;
   return (
     <>
-      <h2 style={{ marginTop: 0 }}>{k.name}s</h2>
+      <div className="spread"><h2 style={{ marginTop: 0 }}>{k.name}s</h2>
+        {kind === "lia" && <div className="row"><a className="btn secondary" href={`/export?kind=lia-readiness&client=${clientId}&format=pdf`} target="_blank">Generate LIA Readiness Document</a><a className="btn secondary" href={`/export?kind=lia-readiness&client=${clientId}&format=doc`}>Word</a></div>}</div>
       <p className="meta">{k.intro}</p>
       <Flash sp={sp} />
       {rows.length === 0 ? <Empty><p>No {k.name.toLowerCase()}s yet.</p></Empty> : (
@@ -68,6 +82,7 @@ export default async function Assessments({ params, searchParams }: { params: Pr
             <select name="ropa" defaultValue={needs[0]?.id ?? ""}><option value="">Not linked</option>{ropa.map((r) => <option key={r.id} value={r.id}>{r.purpose}</option>)}</select>
           </Field>
           <Field label="Year" required><input type="number" name="year" min={2019} max={2100} required defaultValue={new Date().getFullYear()} style={{ width: 140 }} /></Field>
+          {kind === "lia" && <Field label="Upload documents" help={`Upload these documents: ${LIA_DOCS.join("; ")}. PDF, Word, Excel or images, up to 25 MB each; you can add more later.`}><input type="file" name="evidence_files" multiple accept={ACCEPT} /></Field>}
           <Submit>Start</Submit>
         </form>
       )}
