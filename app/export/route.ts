@@ -14,6 +14,7 @@ import { invoiceHtml } from "@/lib/invoice";
 import { ropaHtml } from "@/lib/ropa-report";
 import { dpiaReadinessHtml } from "@/lib/dpia-readiness";
 import { liaReadinessHtml } from "@/lib/lia-readiness";
+import { loadCarReadinessDoc, carReadinessDocHtml } from "@/lib/car-readiness-doc";
 import { tpraReportHtml, tpraRequestHtml } from "@/lib/tpra-report";
 import { loadTpra, evidenceState, firmModel } from "@/lib/tpra";
 import { asModel, score, FACTORS, DOMAINS } from "@/lib/tpra-model";
@@ -120,6 +121,15 @@ export async function GET(req: Request) {
     }
     const r = liaReadinessHtml({ org: String(ans.org_legal_name || c.name), received, lia: la ? { title: la.title, activity: la.purpose, year: la.assessment_year } : undefined });
     await audit(u, "export", "lia_readiness", la?.id ?? clientId, { client_id: clientId, details: { format } });
+    return page(r.title, r.body, format, slug(r.title), r.css);
+  }
+
+  if (kind === "car-readiness-doc") {
+    // CAR Readiness Document: the documents the client must make available for the annual audit, by group.
+    const cid = url.searchParams.get("client") ?? "", year = Number(url.searchParams.get("year"));
+    if (!/^[0-9a-f-]{36}$/.test(cid) || !Number.isInteger(year) || year < 2019 || year > 2100 || !(await canSeeClient(cid))) return denied();
+    const r = carReadinessDocHtml(await loadCarReadinessDoc(cid, year));
+    await audit(u, "export", "car_readiness_doc", cid, { client_id: cid, details: { format, year } });
     return page(r.title, r.body, format, slug(r.title), r.css);
   }
 

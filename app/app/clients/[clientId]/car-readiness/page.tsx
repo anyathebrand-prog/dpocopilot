@@ -226,6 +226,13 @@ export default async function Car({ params, searchParams }: { params: Promise<{ 
     <>
       <div className="spread">
         <h2 style={{ marginTop: 0 }}>CAR readiness · {year}</h2>
+        <div className="row">
+          <a className="btn" href={exp("car-readiness-doc", "pdf")} target="_blank">Generate CAR Readiness Document</a>
+          <a className="btn secondary" href={exp("car-readiness-doc", "doc")}>Word</a>
+        </div>
+      </div>
+      <div className="spread">
+        <span />
         {items.length > 0 && (
           <div className="row">
             <a className="btn secondary" href={`/export?kind=car&client=${clientId}&year=${year}&format=pdf`} target="_blank">Export PDF</a>
