@@ -158,13 +158,14 @@ export async function importHistory(fd: FormData) {
   const locked = new Set((await q<{ car_year: number }>("select car_year from car_perf_snapshots where client_id = $1 and status = 'locked'", [client.id])).map((r) => r.car_year));
   const rejected: string[] = [];
   const touched = new Map<number, string>();
-  let ok = 0;
+  let ok = 0, skipped = 0;
   for (const [i, r] of rows.slice(0, 2000).entries()) {
     const line = i + 2, g = (c: number) => (c >= 0 ? (r[c] ?? "").trim() : "");
     if (!r.some((x) => String(x).trim())) continue;
     const year = Number(g(ci.year)), code = g(ci.code).toUpperCase(), k = KPI[code];
     if (!Number.isInteger(year) || year < 2019 || year > 2100) { rejected.push(`row ${line}: year "${g(ci.year)}"`); continue; }
     if (!k) { rejected.push(`row ${line}: unknown KPI code "${g(ci.code)}"`); continue; }
+    if (!g(ci.num) && !g(ci.den) && !g(ci.raw)) { skipped++; continue; } // no figure given: left out (N/A)
     if (locked.has(year)) { rejected.push(`row ${line}: ${year} is locked`); continue; }
     let numerator: number | null = null, denominator: number | null = null, raw: string | null = null;
     if (k.kind === "status") {
@@ -188,7 +189,7 @@ export async function importHistory(fd: FormData) {
   }
   for (const sid of touched.values()) await refreshDraft(client.id, sid);
   await audit(user, "import", "car_perf_values", client.id, { client_id: client.id, details: { imported: ok, rejected: rejected.length } });
-  const msg = `Imported ${ok} value${ok === 1 ? "" : "s"} for ${touched.size} year${touched.size === 1 ? "" : "s"}.${rejected.length ? ` Rejected ${rejected.length}: ${rejected.slice(0, 8).join("; ")}${rejected.length > 8 ? "; …" : ""}.` : ""}`;
+  const msg = `Imported ${ok} value${ok === 1 ? "" : "s"} for ${touched.size} year${touched.size === 1 ? "" : "s"}.${skipped ? ` ${skipped} row${skipped === 1 ? "" : "s"} without a figure left out.` : ""}${rejected.length ? ` Rejected ${rejected.length}: ${rejected.slice(0, 8).join("; ")}${rejected.length > 8 ? "; …" : ""}.` : ""}`;
   redirect(flash(back, msg, ok ? undefined : "error"));
 }
 

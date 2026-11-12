@@ -135,7 +135,16 @@ export default async function CarPerformance({ params, searchParams }: { params:
               <span style={{ marginBottom: 20 }}><Submit className="btn secondary">Start year</Submit></span>
             </form>
             <h3>Import past years</h3>
-            <p className="meta" style={{ marginTop: 0 }}>CSV or Excel with a header row: <b>car_year</b>, <b>kpi_code</b> (GOV-1 … DPR-2), then <b>numerator</b> and <b>denominator</b>, or <b>raw_value</b> (a percentage, a count, or On time / Late / Not filed for GOV-3). Locked years are skipped and every rejected row is listed.</p>
+            <p className="meta" style={{ marginTop: 0 }}>Bring in KPI values from earlier years. Fill in the template, then upload it here. <a href={`/export?kind=car-performance-template&client=${clientId}&format=csv`}>Download the template</a></p>
+            <details className="small" style={{ marginBottom: 10 }}>
+              <summary style={{ cursor: "pointer" }}>How to fill it in</summary>
+              <ul className="meta" style={{ margin: "6px 0 0", paddingLeft: 18 }}>
+                <li>One row per KPI per year. The template lists all twelve KPIs; copy the rows for each year.</li>
+                <li>For a percentage, give the counts (e.g. 45 of 100 activities) or just the percentage.</li>
+                <li>For breaches and open findings, give the number. For CAR filed on time, write On time, Late or Not filed.</li>
+                <li>Leave a KPI out if you don&apos;t have the figure; it shows as N/A. Years already locked are not changed.</li>
+              </ul>
+            </details>
             <form action={importHistory}><Hidden values={{ client_id: clientId }} />
               <input type="file" name="file" accept=".csv,.xlsx" required />
               <div style={{ marginTop: 8 }}><Submit className="btn secondary">Import history</Submit></div>

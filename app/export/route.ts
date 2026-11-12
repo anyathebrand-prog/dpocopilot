@@ -17,6 +17,7 @@ import { liaReadinessHtml } from "@/lib/lia-readiness";
 import { loadCarReadinessDoc, carReadinessDocHtml } from "@/lib/car-readiness-doc";
 import { loadTrend } from "@/lib/car-perf";
 import { carPerfHtml, carPerfCsv } from "@/lib/car-perf-report";
+import { KPIS } from "@/lib/car-perf-model";
 import { tpraReportHtml, tpraRequestHtml } from "@/lib/tpra-report";
 import { loadTpra, evidenceState, firmModel } from "@/lib/tpra";
 import { asModel, score, FACTORS, DOMAINS } from "@/lib/tpra-model";
@@ -129,6 +130,13 @@ export async function GET(req: Request) {
     return page(r.title, r.body, format, slug(r.title), r.css);
   }
 
+  if (kind === "car-performance-template") { // import template: every KPI code with its name, for the user to fill in
+    const y = new Date().getFullYear() - 2;
+    const rows = [["car_year", "kpi_code", "kpi_name", "numerator", "denominator", "raw_value", "notes"],
+      ...KPIS.map((k) => [y, k.code, k.name, "", "", "", k.kind === "percent" ? "Counts (numerator of denominator), or the percentage in raw_value" : k.kind === "count" ? "Number in raw_value" : "On time, Late or Not filed"])];
+    const csv = rows.map((r) => r.map((x) => (/[",]/.test(String(x)) ? `"${String(x).replace(/"/g, '""')}"` : String(x))).join(",")).join("\r\n");
+    return new Response(csv, { headers: { "content-type": "text/csv; charset=utf-8", "content-disposition": `attachment; filename="car-performance-import-template.csv"` } });
+  }
   if (kind === "car-performance") {
     // CAR Performance Trend: PDF/Word report or CSV. Firm users see every year; the client's own contacts see locked years only.
     const cid = url.searchParams.get("client") ?? "";
