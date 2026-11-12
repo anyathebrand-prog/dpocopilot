@@ -225,8 +225,8 @@ export default async function Dpia({ params, searchParams }: { params: Promise<{
                 body.risks_list?.length ? (
                   <div style={{ marginBottom: 16, display: "grid", gap: 12 }}>
                     {body.risks_list.map((r, i) => (
-                      <fieldset key={i} className="panel" style={{ margin: 0, minWidth: 0 }}>
-                        <legend style={{ fontWeight: 600 }}>R{i + 1}. {r.description} <span className="meta" style={{ fontWeight: 400 }}>· score {r.likelihood * r.impact} · {riskLevel(r.likelihood * r.impact)}</span></legend>
+                      <div key={i} className="panel" role="group" aria-labelledby={`risk-${i}`} style={{ margin: 0, minWidth: 0 }}>
+                        <p id={`risk-${i}`} style={{ fontWeight: 600, margin: "0 0 8px" }}>R{i + 1}. {r.description} <span className="meta" style={{ fontWeight: 400 }}>· score {r.likelihood * r.impact} · {riskLevel(r.likelihood * r.impact)}</span></p>
                         <Field label="Measures to reduce it"><textarea name={`r${i}_mitigation`} rows={3} defaultValue={r.mitigation ?? standardRisk(r.description)?.mitigation ?? ""} style={{ width: "100%", boxSizing: "border-box" }} /></Field>
                         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 10, alignItems: "end" }}>
                           <Field label="Owner"><input name={`r${i}_owner`} defaultValue={r.owner ?? standardRisk(r.description)?.owner ?? ""} style={{ width: "100%", boxSizing: "border-box" }} /></Field>
@@ -236,7 +236,7 @@ export default async function Dpia({ params, searchParams }: { params: Promise<{
                           <Field label="Accepted?"><select name={`r${i}_accepted`} defaultValue={r.accepted ?? ""} style={{ width: "100%" }}><option value="">–</option><option value="yes">Yes</option><option value="no">No</option></select></Field>
                         </div>
                         <p className="meta" style={{ margin: "8px 0 0" }}>Residual score: {r.residual_likelihood && r.residual_impact ? `${r.residual_likelihood * r.residual_impact} · ${riskLevel(r.residual_likelihood * r.residual_impact)}` : "set the residual likelihood and impact"}</p>
-                      </fieldset>
+                      </div>
                     ))}
                   </div>
                 ) : <Banner kind="warn">Save the risks in step 11 first; each one then gets its own measures here.</Banner>

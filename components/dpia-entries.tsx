@@ -12,8 +12,11 @@ export function DpiaEntries({ initial, departments, docs, accept }: { initial: R
     <div>
       <datalist id="dpia-depts">{departments.map((d) => <option key={d} value={d} />)}</datalist>
       {rows.map((r, i) => (
-        <fieldset key={r.key} className="panel" style={{ marginBottom: 12 }}>
-          <legend style={{ fontWeight: 600 }}>Entry {i + 1}{rows.length > 1 && <button type="button" className="btn quiet" style={{ marginLeft: 8 }} aria-label={`Remove entry ${i + 1}`} onClick={() => setRows((x) => x.filter((_, j) => j !== i))}>Remove</button>}</legend>
+        <div key={r.key} className="panel" role="group" aria-labelledby={`dpia-entry-${r.key}`} style={{ marginBottom: 12 }}>
+          <div className="spread" style={{ alignItems: "center", marginBottom: 8 }}>
+            <h3 id={`dpia-entry-${r.key}`} style={{ margin: 0 }}>Entry {i + 1}</h3>
+            {rows.length > 1 && <button type="button" className="btn quiet" aria-label={`Remove entry ${i + 1}`} onClick={() => setRows((x) => x.filter((_, j) => j !== i))}>Remove</button>}
+          </div>
           <label className="field"><span>Title<span className="req" aria-hidden="true"> *</span></span>
             <input name="title" value={r.title} onChange={(e) => set(i, "title", e.target.value)} required={i === 0} placeholder="e.g. DPIA for the customer helpdesk" /></label>
           <div className="row">
@@ -25,7 +28,7 @@ export function DpiaEntries({ initial, departments, docs, accept }: { initial: R
           <label className="field"><span>Upload documents</span>
             <span className="help">Upload these documents: {docs.join("; ")}. PDF, Word, Excel or images; you can add more later.</span>
             <input type="file" name={`docs${i}`} multiple accept={accept} /></label>
-        </fieldset>
+        </div>
       ))}
       <button type="button" className="btn secondary" style={{ marginTop: 8 }} onClick={() => setRows((x) => [...x, { title: "", system: "", dept: "", key: seq++ }])}>+ Add entry</button>
       <p className="meta">Each entry becomes its own DPIA, one per system.</p>
