@@ -4,11 +4,12 @@ import { q } from "@/lib/db";
 import { SIZES, paymentsOn } from "@/lib/checkout";
 import { Flash, Field, PageHead } from "@/components/ui";
 import { Submit } from "@/components/client";
+import { TIERS, TIER_LABEL, DEFAULT_TIER_FEES, seatText } from "@/lib/firm-tiers";
 
 export default async function PlatformSettings({ searchParams }: { searchParams: Promise<Record<string, string>> }) {
   const sp = await searchParams;
   const s = await one("select * from platform_settings where key = 'dsar_response_days'");
-  const annual = (await one("select published_value from platform_settings where key = 'dpco_annual_fee'"))?.published_value ?? "0";
+  const plan = Object.fromEntries((await q("select key, published_value from platform_settings where key like 'dpco_fee_%'")).map((r) => [r.key, r.published_value]));
   const fees = Object.fromEntries((await q("select key, published_value from platform_settings where key like 'client_fee_%'")).map((r) => [r.key, r.published_value]));
   return (
     <>
@@ -32,10 +33,12 @@ export default async function PlatformSettings({ searchParams }: { searchParams:
         <Submit>Save fees</Submit>
       </form>
       <form action={saveAnnualFee} className="panel" style={{ maxWidth: 640, marginTop: 16 }}>
-        <h3>DPCO annual subscription</h3>
-        <p className="meta">What a DPCO firm pays each year (in naira, through Paystack) to use its workspace. New firms pay before they get in; renewal reminders go out 30, 7 and 1 days before the end date, with 7 days&apos; read-only grace before the workspace locks. 0 means no subscription.</p>
-        <Field label="Annual fee"><input name="fee" inputMode="decimal" defaultValue={annual} style={{ width: 180 }} /></Field>
-        <Submit>Save fee</Submit>
+        <h3>DPCO plans (yearly fees)</h3>
+        <p className="meta">What a DPCO firm pays each year (in naira, through Paystack) for its plan. The team size a firm enters picks the plan: up to 3 people Starter, up to 10 Growth, more than 10 Firm. Moving up part-way through a year costs the difference for the days left. Renewal reminders go out 30, 7 and 1 days before the end date, with 7 days&apos; read-only grace before the workspace locks. 0 on every plan means no subscription.</p>
+        {TIERS.map((t) => (
+          <Field key={t} label={`${TIER_LABEL[t]} (${seatText(t).toLowerCase()})`}><input name={`fee_${t}`} inputMode="decimal" defaultValue={plan[`dpco_fee_${t}`] ?? String(DEFAULT_TIER_FEES[t])} style={{ width: 180 }} /></Field>
+        ))}
+        <Submit>Save fees</Submit>
       </form>
     </>
   );

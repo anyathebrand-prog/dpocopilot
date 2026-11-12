@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { seatBlock } from "@/lib/subscription";
 import { redirect } from "next/navigation";
 import { requireFirmRole, audit, ROLE_LABEL } from "@/lib/auth";
 import { q, one, tx } from "@/lib/db";
@@ -59,6 +60,7 @@ async function setActive(fd: FormData) {
   const { u, m, back } = await member(fd);
   const activate = str(fd, "op") === "activate";
   if (!activate && m.role === "firm_admin" && await lastAdmin(u.firm_id, m.id)) redirect(flash(back, "You can't deactivate the only Firm Admin.", "error"));
+  if (activate && m.status !== "active") { const block = await seatBlock(u.firm_id); if (block) redirect(flash(back, block, "error")); }
   await tx(async (t) => {
     await t.query("update memberships set status = $2 where id = $1", [m.id, activate ? "active" : "deactivated"]);
     if (!activate) await t.query("delete from sessions where user_id = $1", [m.user_id]);

@@ -1219,3 +1219,20 @@ create table if not exists car_perf_targets (
   target_value numeric(5,1) not null check (target_value between 0 and 100),
   primary key (client_id, car_year, scope, ref_code)
 );
+
+-- DPCO firm plans (lib/firm-tiers.ts): Starter (3 seats), Growth (10 seats), Firm (unlimited), each with its own yearly fee.
+-- Seats are active members plus pending team invitations. Existing DPCO firms start on the smallest plan that seats their current
+-- active team, so nobody loses access. Solo DPO practices have no tier (one seat, set by plan = 'solo').
+alter table firms add column if not exists tier text;
+do $$ begin
+  if not exists (select 1 from pg_constraint where conname = 'firms_tier_check') then
+    alter table firms add constraint firms_tier_check check (tier is null or tier in ('starter','growth','firm'));
+  end if;
+end $$;
+update firms f set tier = case when n.k <= 3 then 'starter' when n.k <= 10 then 'growth' else 'firm' end
+from (select f2.id, (select count(*) from memberships m where m.firm_id = f2.id and m.status = 'active') as k from firms f2) n
+where n.id = f.id and f.plan = 'firm' and f.tier is null;
+insert into platform_settings (key, published_value) values ('dpco_fee_starter', '500000'), ('dpco_fee_growth', '1500000'), ('dpco_fee_firm', '3000000') on conflict do nothing;
+-- Each subscription payment records the plan it buys: a year ('year') or a move up a plan part-way through the year ('upgrade').
+alter table firm_subscription_payments add column if not exists tier text;
+alter table firm_subscription_payments add column if not exists kind text not null default 'year';

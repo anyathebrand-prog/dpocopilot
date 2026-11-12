@@ -3,15 +3,18 @@ import { redirect } from "next/navigation";
 import { q, one, type Tx } from "./db";
 import { newToken, sha256 } from "./crypto";
 import { emailOn, deliver, type RawFile } from "./email";
+import { isTier, TIER_LABEL, type Tier } from "./firm-tiers";
 
 export type Role = "firm_admin" | "lead_consultant" | "associate";
 export type Plan = "solo" | "firm";
 export const PLAN_LABEL: Record<Plan, string> = { solo: "Solo DPO", firm: "DPCO Firm" };
+/** The plan name shown to a firm user: Solo DPO, or the DPCO firm's Starter, Growth or Firm plan. */
+export const planName = (u: { plan?: Plan; tier?: Tier }) => (u.plan === "solo" ? PLAN_LABEL.solo : TIER_LABEL[u.tier ?? "starter"]);
 
 export type User = {
   id: string; name: string; email: string; mfa_enabled: boolean;
   kind: "firm" | "contact" | "secretary";
-  firm_id: string; firm_name: string; plan?: Plan;
+  firm_id: string; firm_name: string; plan?: Plan; tier?: Tier; // tier: a DPCO firm's plan (Starter, Growth, Firm)
   dpco_firm_id?: string | null; dpco_name?: string | null; dpco_status?: string | null; // Solo DPO: the DPCO firm they work under, and its approval
   membership_id?: string; role?: Role;
   client_id?: string; contact_id?: string;
@@ -41,8 +44,8 @@ export async function getUser(): Promise<User | null> {
     where s.token_hash = $1 and s.expires_at > now() and s.mfa_ok and u.status = 'active'`, [sha256(t)]);
   if (!u) return null;
   if (u.platform_role === "secretary") return { ...base(u), kind: "secretary", firm_id: "", firm_name: "" };
-  const m = await one("select m.id, m.firm_id, m.role, f.name as firm_name, f.plan, f.dpco_firm_id, f.dpco_status, d.name as dpco_name from memberships m join firms f on f.id = m.firm_id left join firms d on d.id = f.dpco_firm_id where m.user_id = $1 and m.status = 'active'", [u.id]);
-  if (m) return { ...base(u), kind: "firm", firm_id: m.firm_id, firm_name: m.firm_name, plan: m.plan, dpco_firm_id: m.dpco_firm_id, dpco_status: m.dpco_status, dpco_name: m.dpco_name, membership_id: m.id, role: m.role };
+  const m = await one("select m.id, m.firm_id, m.role, f.name as firm_name, f.plan, f.tier, f.dpco_firm_id, f.dpco_status, d.name as dpco_name from memberships m join firms f on f.id = m.firm_id left join firms d on d.id = f.dpco_firm_id where m.user_id = $1 and m.status = 'active'", [u.id]);
+  if (m) return { ...base(u), kind: "firm", firm_id: m.firm_id, firm_name: m.firm_name, plan: m.plan, tier: isTier(m.tier) ? m.tier : "starter", dpco_firm_id: m.dpco_firm_id, dpco_status: m.dpco_status, dpco_name: m.dpco_name, membership_id: m.id, role: m.role };
   const c = await one("select cc.id, cc.client_id, cc.firm_id, f.name as firm_name from client_contacts cc join firms f on f.id = cc.firm_id join clients cl on cl.id = cc.client_id where cc.user_id = $1 and cc.status = 'active'", [u.id]);
   if (c) return { ...base(u), kind: "contact", firm_id: c.firm_id, firm_name: c.firm_name, client_id: c.client_id, contact_id: c.id };
   return null;

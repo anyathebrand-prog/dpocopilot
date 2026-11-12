@@ -12,6 +12,11 @@ import "@/components/homepage.css";
 import "@/components/site-pages.css";
 import { INSTALL, headerBrand } from "@/lib/install";
 import { NG_STATES } from "@/lib/solo-profile";
+import { TeamSizeField } from "@/components/team-size-field";
+import { tierFees } from "@/lib/subscription";
+
+// Pricing-page plan buttons link here with ?plan=starter|growth|firm; each starts the team size at a size that plan seats.
+const TEAM_FOR_PLAN: Record<string, number> = { starter: 3, growth: 10, firm: 11 };
 
 export const generateMetadata = () => ({ title: `Create a firm account · ${INSTALL.name}` });
 
@@ -43,6 +48,7 @@ export default async function SignUp({ searchParams }: { searchParams: Promise<R
               <label className="sp-field"><span>Work email <em className="req" aria-hidden="true">*</em><span className="sr-only">(required)</span></span><input type="email" name="email" autoComplete="email" required /></label>
               <label className="sp-field"><span>Password <em>(required, at least 10 characters)</em></span><input type="password" name="password" autoComplete="new-password" minLength={10} required /></label>
               {!solo && <label className="sp-field"><span>Firm name {req}</span><input name="firm" autoComplete="organization" required /></label>}
+              {!solo && <TeamSizeField initial={TEAM_FOR_PLAN[sp.plan ?? ""] ?? 3} fees={await tierFees()} />}
               {solo && (
                 <>
                   <input type="hidden" name="plan" value="solo" />

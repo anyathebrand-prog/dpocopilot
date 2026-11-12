@@ -135,3 +135,4 @@
 @media (prefers-reduced-motion: reduce) {
   .bh .sp-item, .bh .sp-size, .bh .sp-field input, .bh .sp-field textarea { transition: none; }
 }
+.bh .sp-field .sp-hint { display: block; margin-top: 8px; font-size: 0.82rem; color: #9aa6bd; }

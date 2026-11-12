@@ -433,3 +433,17 @@ table.perf-cat td:first-child { white-space: nowrap; }
   .rm-grid, .rm-grid.c3, .rm-grid.c4, .rm-grid.c5 { grid-template-columns: 1fr 1fr; }
   .rm-grid.two, .rm-save { grid-template-columns: 1fr; }
 }
+
+/* Subscription page: team size picks the plan (components/plan-picker.tsx). */
+.pp-team { display: block; margin-bottom: 14px; }
+.pp-team > span { display: block; font-weight: 500; margin-bottom: 8px; color: var(--cx-light); }
+.cx .panel .pp-team input { width: 140px; min-height: 44px; font-variant-numeric: tabular-nums; }
+.pp-plans { list-style: none; margin: 0 0 12px; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.pp-plans li { position: relative; display: flex; flex-direction: column; gap: 4px; padding: 14px; border: 1px solid var(--cx-line); border-radius: 12px; background: rgba(255, 255, 255, 0.02); }
+.pp-plans li.on { border-color: #3dd9b4; box-shadow: 0 0 0 1px #3dd9b4 inset; background: rgba(61, 217, 180, 0.08); }
+.pp-plans b { color: #fff; font-size: 15px; }
+.pp-price { font-size: 18px; font-weight: 700; color: #fff; font-variant-numeric: tabular-nums; }
+.pp-price small { font-size: 12px; font-weight: 500; color: var(--cx-light-muted); margin-left: 2px; }
+.pp-seats { font-size: 13px; color: var(--cx-light-muted); }
+.pp-cur { align-self: flex-start; margin-top: 4px; padding: 2px 8px; border-radius: 999px; font-size: 11.5px; background: rgba(168, 220, 255, 0.12); color: var(--cx-blue); }
+@media (max-width: 560px) { .pp-plans { grid-template-columns: 1fr; } }

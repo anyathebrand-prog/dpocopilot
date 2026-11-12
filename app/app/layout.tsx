@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { Users, ListChecks, Calendar, MessageSquareText, Upload, Settings, Bell, Menu, LayoutList, LogOut, Building2, Receipt, FileSignature, BookOpen, Mail, SearchCheck, UserCheck, Wallet, Banknote, Scale } from "lucide-react";
-import { requireFirm, isAdmin, canApprove, ROLE_LABEL, PLAN_LABEL } from "@/lib/auth";
+import { requireFirm, isAdmin, canApprove, ROLE_LABEL, planName } from "@/lib/auth";
 import { one } from "@/lib/db";
 import { signOut } from "@/lib/auth-actions";
 import { NavLink } from "@/components/client";
@@ -30,7 +30,7 @@ export default async function FirmLayout({ children }: { children: ReactNode }) 
               <span className="menu-toggle cx-menu" aria-label="Menu"><Menu aria-hidden /></span>
             </span>
             <span className="cx-pill">{u.firm_name}</span>
-            <span className="meta" style={{ display: "block", marginTop: 4, fontSize: 12 }}>{PLAN_LABEL[u.plan ?? "firm"]} plan{u.plan === "solo" && u.dpco_name ? ` · with ${u.dpco_name}` : ""}</span>
+            <span className="meta" style={{ display: "block", marginTop: 4, fontSize: 12 }}>{planName(u)} plan{u.plan === "solo" && u.dpco_name ? ` · with ${u.dpco_name}` : ""}</span>
           </summary>
           <nav className="nav" aria-label="Main">
             <NavLink href="/app" exact><LayoutList aria-hidden />Clients</NavLink>
