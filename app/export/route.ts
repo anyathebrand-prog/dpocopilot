@@ -15,6 +15,8 @@ import { ropaHtml } from "@/lib/ropa-report";
 import { dpiaReadinessHtml } from "@/lib/dpia-readiness";
 import { liaReadinessHtml } from "@/lib/lia-readiness";
 import { loadCarReadinessDoc, carReadinessDocHtml } from "@/lib/car-readiness-doc";
+import { loadTrend } from "@/lib/car-perf";
+import { carPerfHtml, carPerfCsv } from "@/lib/car-perf-report";
 import { tpraReportHtml, tpraRequestHtml } from "@/lib/tpra-report";
 import { loadTpra, evidenceState, firmModel } from "@/lib/tpra";
 import { asModel, score, FACTORS, DOMAINS } from "@/lib/tpra-model";
@@ -127,6 +129,19 @@ export async function GET(req: Request) {
     return page(r.title, r.body, format, slug(r.title), r.css);
   }
 
+  if (kind === "car-performance") {
+    // CAR Performance Trend: PDF/Word report or CSV. Firm users see every year; the client's own contacts see locked years only.
+    const cid = url.searchParams.get("client") ?? "";
+    const portal = u.kind === "contact";
+    if (!/^[0-9a-f-]{36}$/.test(cid) || !(portal ? u.client_id === cid : await canSeeClient(cid))) return denied();
+    const t = await loadTrend(cid, { lockedOnly: portal, endYear: Number(url.searchParams.get("end")) || undefined });
+    const c = (await one("select name from clients where id = $1", [cid]))!;
+    const org = String((await answersOf(cid)).org_legal_name || c.name);
+    await audit(u, "export", "car_performance", cid, { client_id: cid, details: { format: url.searchParams.get("format") } });
+    if (url.searchParams.get("format") === "csv") return new Response(carPerfCsv(t, portal), { headers: { "content-type": "text/csv; charset=utf-8", "content-disposition": `attachment; filename="${slug(`${org}-car-performance`)}.csv"` } });
+    const r = carPerfHtml({ org, by: u.name, t, portal });
+    return page(r.title, r.body, format, slug(r.title), r.css);
+  }
   if (kind === "car-readiness-doc") {
     // Compliance Audit Returns Document: the documents the client must make available for the annual audit, by group.
     const cid = url.searchParams.get("client") ?? "", year = Number(url.searchParams.get("year"));

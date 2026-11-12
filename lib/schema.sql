@@ -1160,3 +1160,62 @@ with p as (
   where d.item_text = 'Has a Data Privacy Impact Assessment (DPIA) been conducted?' and n.item_text = 'Were new technologies or processing introduced in the last year?'
     and d.position < n.position)
 update client_car_items t set position = case when t.id = p.did then p.np else p.dp end from p where t.id = p.did or t.id = p.nid;
+
+-- CAR Performance Trend (lib/car-perf-model.ts): yearly snapshots of twelve KPIs, scored per CAR category and overall.
+-- KPI definitions are platform constants in code. Draft snapshots refresh their auto values from the modules; a locked
+-- snapshot keeps its values, scores and the weights used, so history never shifts when settings change.
+create table if not exists car_perf_settings (
+  client_id uuid primary key references clients on delete cascade,
+  firm_id uuid not null references firms,
+  weights jsonb not null,
+  tolerances jsonb not null,
+  updated_by uuid references users,
+  updated_at timestamptz not null default now()
+);
+create table if not exists car_perf_snapshots (
+  id uuid primary key default gen_random_uuid(),
+  firm_id uuid not null references firms,
+  client_id uuid not null references clients on delete cascade,
+  car_year int not null check (car_year between 2019 and 2100),
+  filing_date date,
+  filing_status text not null default 'not_filed' check (filing_status in ('on_time','late','not_filed')),
+  score_gov numeric(5,1), score_sec numeric(5,1), score_acc numeric(5,1), score_cbt numeric(5,1), score_dpr numeric(5,1),
+  overall_score numeric(5,1),
+  rating_band text check (rating_band in ('Green','Amber','Red')),
+  weights_used jsonb,
+  tolerances_used jsonb,
+  status text not null default 'draft' check (status in ('draft','locked')),
+  locked_by uuid references users,
+  locked_at timestamptz,
+  summary text,
+  summary_status text not null default 'none' check (summary_status in ('none','draft','approved')),
+  summary_approved_by uuid references users,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique (client_id, car_year)
+);
+create index if not exists car_perf_snapshots_firm on car_perf_snapshots (firm_id);
+create table if not exists car_perf_values (
+  snapshot_id uuid not null references car_perf_snapshots on delete cascade,
+  firm_id uuid not null references firms,
+  kpi_code text not null,
+  numerator numeric,
+  denominator numeric,
+  raw_value text,
+  score numeric(5,1),
+  source text not null default 'auto' check (source in ('auto','manual','import')),
+  override_reason text,
+  updated_by uuid references users,
+  updated_at timestamptz not null default now(),
+  primary key (snapshot_id, kpi_code),
+  check (source <> 'manual' or coalesce(trim(override_reason), '') <> '')
+);
+create table if not exists car_perf_targets (
+  firm_id uuid not null references firms,
+  client_id uuid not null references clients on delete cascade,
+  car_year int not null,
+  scope text not null check (scope in ('kpi','category','overall')),
+  ref_code text not null,
+  target_value numeric(5,1) not null check (target_value between 0 and 100),
+  primary key (client_id, car_year, scope, ref_code)
+);
