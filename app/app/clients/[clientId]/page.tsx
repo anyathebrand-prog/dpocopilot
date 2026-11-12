@@ -26,7 +26,7 @@ export default async function Overview({ params, searchParams }: { params: Promi
     proposed!.n ? [`${proposed!.n} proposed processing activities are waiting for review.`, "Review proposed RoPA entries", `${b}/ropa`] :
     !docs!.n ? ["Generate the core policies from the data map.", "Generate documents", `${b}/documents`] :
     !client.gaps_checked_at ? ["Check the file for compliance gaps.", "Run gap check", `${b}/gaps`] :
-    ["Collect evidence for missing CAR checklist items.", "Open CAR readiness", `${b}/car-readiness`];
+    ["Collect evidence for missing CAR checklist items.", "Open Compliance Audit Returns", `${b}/car-readiness`];
 
   const breaches = await q("select id, deadline_at, description from breaches where client_id = $1 and status = 'open' order by deadline_at", [clientId]);
   const dsars = await q("select id, requester_name, deadline_on from dsars where client_id = $1 and status = 'open' order by deadline_on limit 5", [clientId]);

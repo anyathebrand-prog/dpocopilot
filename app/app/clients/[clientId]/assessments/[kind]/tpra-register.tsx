@@ -8,6 +8,14 @@ import { Flash, Field, Hidden, Chip, Empty } from "@/components/ui";
 import { Submit } from "@/components/client";
 import { RatingBadge } from "@/components/tpra-form";
 
+/** "payroll provider,, auditors,, cloud host." → "Payroll provider, auditors, cloud host" (duplicates and empty items dropped). */
+const recipients = (s: string | null) => {
+  const seen = new Set<string>();
+  const out = String(s ?? "").split(/[,;\n]+/).map((x) => x.trim().replace(/\.+$/, "")).filter((x) => x && !seen.has(x.toLowerCase()) && seen.add(x.toLowerCase()));
+  const t = out.join(", ");
+  return t ? t[0].toUpperCase() + t.slice(1) : "";
+};
+
 const STATUS: [string, string][] = [["draft", "Draft"], ["approved", "Approved, awaiting client"], ["signed", "Client signed"], ["due", "Review due"]];
 
 /** Processor register: every processor the client uses, with its rating, DPA status and next review. */
@@ -66,7 +74,20 @@ export default async function TpraRegister({ clientId, sp }: { clientId: string;
             <Field label="Service"><input name="service" placeholder="e.g. Payroll processing, cloud hosting, SMS delivery" /></Field>
             <Field label="Country of hosting"><input name="location" placeholder="e.g. Nigeria, or AWS eu-west-1 (Ireland)" /></Field>
             <fieldset className="field"><legend>Processing activities it supports (RoPA)</legend>
-              {ropa.length ? ropa.map((r) => <label key={r.id} className="check"><input type="checkbox" name="ropa_ids" value={r.id} />{r.purpose}{r.recipients ? <span className="meta"> · recipients: {r.recipients}</span> : null}</label>) : <p className="meta">No active RoPA entries yet.</p>}
+              {ropa.length ? (
+                <div className="tpra-ropa">
+                  <table>
+                    <thead><tr><th style={{ width: 36 }}><span className="sr-only">Select</span></th><th>Activity</th><th>Recipients</th></tr></thead>
+                    <tbody>{ropa.map((r) => (
+                      <tr key={r.id}>
+                        <td><input type="checkbox" name="ropa_ids" value={r.id} id={`ropa-${r.id}`} /></td>
+                        <td><label htmlFor={`ropa-${r.id}`}>{r.purpose}</label></td>
+                        <td className="small">{recipients(r.recipients) || "—"}</td>
+                      </tr>
+                    ))}</tbody>
+                  </table>
+                </div>
+              ) : <p className="meta">No active RoPA entries yet.</p>}
               <span className="help">Pre-fills the data, sensitivity and transfer factors from these activities.</span>
             </fieldset>
             <Field label="Year" required><input type="number" name="year" min={2019} max={2100} required defaultValue={new Date().getFullYear()} style={{ width: 140 }} /></Field>

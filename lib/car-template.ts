@@ -50,8 +50,8 @@ export const SCHEDULE_2: TemplateRow[] = [
   ["technology", "Security standards adopted", "Health Information Trust Alliance (HITRUST) Common Security Framework (CSF)", "medium", null],
 
   // Part 4: Accountability and risk evaluation
-  ["accountability_risk", "Data privacy impact assessment", "Has a Data Privacy Impact Assessment (DPIA) been conducted?", "high", "dpias"],
   ["accountability_risk", "Data privacy impact assessment", "Were new technologies or processing introduced in the last year?", "medium", null],
+  ["accountability_risk", "Data privacy impact assessment", "Has a Data Privacy Impact Assessment (DPIA) been conducted?", "high", "dpias"],
   ["accountability_risk", "Data privacy impact assessment", "Was the NDP Act considered during new technology implementations?", "high", null],
   ["accountability_risk", "Data privacy impact assessment", "Does the organisation process sensitive personal data?", "high", null],
   ["accountability_risk", "Data privacy impact assessment", "Are data subjects in vulnerable categories involved?", "high", null],

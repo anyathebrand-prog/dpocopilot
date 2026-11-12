@@ -14,10 +14,14 @@ import { invoiceHtml } from "@/lib/invoice";
 import { ropaHtml } from "@/lib/ropa-report";
 import { dpiaReadinessHtml } from "@/lib/dpia-readiness";
 import { liaReadinessHtml } from "@/lib/lia-readiness";
+import { loadCarReadinessDoc, carReadinessDocHtml } from "@/lib/car-readiness-doc";
 import { tpraReportHtml, tpraRequestHtml } from "@/lib/tpra-report";
 import { loadTpra, evidenceState, firmModel } from "@/lib/tpra";
 import { asModel, score, FACTORS, DOMAINS } from "@/lib/tpra-model";
 import { liaType } from "@/lib/lia-docs";
+import { loadTia } from "@/lib/tia";
+import { tiaReportHtml, tiaRequestHtml } from "@/lib/tia-report";
+import { assess as tiaAssess, mechanismLabel, CATEGORIES } from "@/lib/tia-model";
 import { docType } from "@/lib/dpia-docs";
 import { loadFramework, frameworkHtml } from "@/lib/framework";
 import { planHtml } from "@/lib/training";
@@ -120,6 +124,15 @@ export async function GET(req: Request) {
     }
     const r = liaReadinessHtml({ org: String(ans.org_legal_name || c.name), received, lia: la ? { title: la.title, activity: la.purpose, year: la.assessment_year } : undefined });
     await audit(u, "export", "lia_readiness", la?.id ?? clientId, { client_id: clientId, details: { format } });
+    return page(r.title, r.body, format, slug(r.title), r.css);
+  }
+
+  if (kind === "car-readiness-doc") {
+    // Compliance Audit Returns Document: the documents the client must make available for the annual audit, by group.
+    const cid = url.searchParams.get("client") ?? "", year = Number(url.searchParams.get("year"));
+    if (!/^[0-9a-f-]{36}$/.test(cid) || !Number.isInteger(year) || year < 2019 || year > 2100 || !(await canSeeClient(cid))) return denied();
+    const r = carReadinessDocHtml(await loadCarReadinessDoc(cid, year));
+    await audit(u, "export", "car_readiness_doc", cid, { client_id: cid, details: { format, year } });
     return page(r.title, r.body, format, slug(r.title), r.css);
   }
 
@@ -236,6 +249,18 @@ export async function GET(req: Request) {
     await audit(u, "export", kind === "tpra-request" ? "tpra_request" : "assessment_tpra", d.a.id, { client_id: d.a.client_id, details: { format } });
     return page(r.title, r.body, format, slug(r.title), r.css, kind === "tpra-request" ? "" : await cover(d.a.client_id, "tpra", "Data Processor Third Party Risk Assessment"));
   }
+  const tiaId = url.searchParams.get("id") ?? "";
+  if ((kind === "tia-request" && /^[0-9a-f-]{36}$/.test(tiaId)) || (kind === "assessment" && /^[0-9a-f-]{36}$/.test(tiaId) && (await one("select 1 from assessments where id = $1 and kind = 'tia'", [tiaId])))) {
+    // Transfer risk: the assessment report, or the Transfer Readiness Document for one transfer. Contacts may open their own client's.
+    const d = await loadTia(tiaId);
+    if (!d || !((u.kind === "contact" && u.client_id === d.a.client_id) || (await canSeeClient(d.a.client_id)))) return denied();
+    const c = (await one("select name from clients where id = $1", [d.a.client_id]))!;
+    const org = String((await answersOf(d.a.client_id)).org_legal_name || c.name);
+    const r = kind === "tia-request" ? tiaRequestHtml({ org, by: u.name, answers: d.a.answers, docs: d.docs })
+      : tiaReportHtml({ org, by: u.name, a: d.a as any, docs: d.docs, tasks: d.tasks, ropa: d.ropa.map((x) => x.purpose) });
+    await audit(u, "export", kind === "tia-request" ? "tia_request" : "assessment_tia", d.a.id, { client_id: d.a.client_id, details: { format } });
+    return page(r.title, r.body, format, slug(r.title), r.css, kind === "tia-request" ? "" : await cover(d.a.client_id, "tia", "Cross-Border Data Transfer Risk Assessment"));
+  }
   if (kind === "assessment") {
     const id = url.searchParams.get("id") ?? "";
     const a = /^[0-9a-f-]{36}$/.test(id) ? await one("select a.*, u.name as approver from assessments a left join users u on u.id = a.approved_by where a.id = $1", [id]) : null;
@@ -259,6 +284,35 @@ export async function GET(req: Request) {
   const client = await one("select name, car_audit_year from clients where id = $1", [clientId]);
   const stamp = `<p class="meta">${esc(client!.name)} · exported ${fmtWAT(new Date())} by ${esc(u.name)}</p>`;
 
+  if (kind === "tia-request") { // Transfer Readiness Document for all of the client's transfers
+    const ans = await answersOf(clientId);
+    const r = tiaRequestHtml({ org: String(ans.org_legal_name || client!.name), by: u.name, countries: list(ans.transfer_countries) });
+    await audit(u, "export", "tia_request", clientId, { client_id: clientId, details: { format } });
+    return page(r.title, r.body, format, slug(r.title), r.css);
+  }
+  if (kind === "tia-register") { // Cross-Border Data Transfer Register as Excel
+    const rows = await q("select a.*, to_char(a.next_review, 'YYYY-MM-DD') as nr from assessments a where a.client_id = $1 and a.kind = 'tia' order by a.answers->>'destination', a.answers->>'recipient'", [clientId]);
+    await audit(u, "export", "tia_register", clientId, { client_id: clientId, details: { format: "xlsx" } });
+    const ExcelJS = (await import("exceljs")).default;
+    const wb = new ExcelJS.Workbook(), ws = wb.addWorksheet("Transfer register", { views: [{ state: "frozen", ySplit: 4 }] });
+    ws.addRow([client!.name]).font = { bold: true, size: 16, color: { argb: "FF0D1F4A" } };
+    ws.addRow(["Cross-Border Data Transfer Register"]).font = { bold: true, size: 13 };
+    ws.addRow([`Exported ${fmtWAT(new Date())} by ${u.name}`]).font = { italic: true, size: 9 };
+    const cols = ["Recipient", "Role", "Destination", "Data categories", "Sensitive", "Data subjects", "Purpose", "Systems", "Sub-processors", "Mechanism", "Adequacy decision", "Consent obtained",
+      ...CATEGORIES.map((c) => `${c.label} (inherent / residual)`), "Inherent", "Residual", "Recommended action", "Next review", "Status"];
+    const hr = ws.addRow(cols);
+    hr.eachCell((c) => { c.font = { bold: true, color: { argb: "FFFFFFFF" } }; c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF0D1F4A" } }; c.alignment = { wrapText: true, vertical: "middle" }; });
+    for (const a of rows) {
+      const A = a.answers, r = tiaAssess(A);
+      ws.addRow([A.recipient || a.title, A.recipient_role, A.destination, A.data, A.sensitive, A.subjects_count, A.purpose, A.systems, A.subprocessors, mechanismLabel(A.mechanism), A.adequacy_decision, A.consent_obtained,
+        ...CATEGORIES.map((_, i) => [r.inherent[i], r.residual[i]].map((x) => x ?? "–").join(" / ")), r.rating ?? "", r.residualRating ?? "", r.action ?? "", a.nr ?? "",
+        a.client_signed_at ? "Approved by management" : a.status === "approved" ? "Approved" : "Draft"].map((x) => x ?? "")).alignment = { wrapText: true, vertical: "top" };
+    }
+    cols.forEach((_, i) => { ws.getColumn(i + 1).width = i < 12 ? 22 : 16; });
+    return new Response(new Uint8Array(await wb.xlsx.writeBuffer()), { headers: {
+      "content-type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      "content-disposition": `attachment; filename="${slug(`${client!.name}-transfer-register`)}.xlsx"` } });
+  }
   if (kind === "tpra-register") { // processor register as Excel
     const rows = await q("select a.*, to_char(a.next_review, 'YYYY-MM-DD') as nr, a.client_signed_at from assessments a where a.client_id = $1 and a.kind = 'tpra' order by a.answers->>'vendor'", [clientId]);
     await audit(u, "export", "tpra_register", clientId, { client_id: clientId, details: { format: "xlsx" } });
@@ -356,7 +410,7 @@ export async function GET(req: Request) {
     const asked = Number(url.searchParams.get("year"));
     const year: number = Number.isInteger(asked) && asked >= 2019 && asked <= 2100 ? asked : client!.car_audit_year;
     const d = await loadCarReport(clientId, year);
-    if (!d) return new Response(`No CAR readiness has been recorded for ${year}.`, { status: 404, headers: { "content-type": "text/plain; charset=utf-8" } });
+    if (!d) return new Response(`No Compliance Audit Returns checklist has been recorded for ${year}.`, { status: 404, headers: { "content-type": "text/plain; charset=utf-8" } });
     if (kind === "car-report") {
       const r = carReportHtml(d);
       await audit(u, "export", "car_report", clientId, { client_id: clientId, details: { format, audit_year: year } });
@@ -381,14 +435,14 @@ export async function GET(req: Request) {
     const auditYear: number = Number.isInteger(asked) && asked >= 2019 && asked <= 2100 ? asked : client!.car_audit_year;
     const items = await q("select * from client_car_items where client_id = $1 and audit_year = $2 and category_key <> 'data_processors' order by category_key, position", [clientId, auditYear]);
     const findings = await q("select * from car_findings where client_id = $1 and audit_year = $2 order by status, created_at", [clientId, auditYear]);
-    if (!items.length) return new Response(`No CAR readiness has been recorded for ${auditYear}.`, { status: 404, headers: { "content-type": "text/plain; charset=utf-8" } });
+    if (!items.length) return new Response(`No Compliance Audit Returns checklist has been recorded for ${auditYear}.`, { status: 404, headers: { "content-type": "text/plain; charset=utf-8" } });
     const r = readiness(items as { category_key: string; status: string }[]);
     const label: Record<string, string> = { complete: "Complete", in_progress: "In progress", missing: "Missing", not_applicable: "Not applicable" };
     const riskLabel = (x: string | null | undefined) => (x ? x[0].toUpperCase() + x.slice(1) : "—");
     const risk = carRisk(items as { category_key: string; status: string }[]);
     const year = ` · ${auditYear} audit`;
     await audit(u, "export", "car_checklist", clientId, { client_id: clientId, details: { format, audit_year: auditYear } });
-    return page("CAR readiness checklist", `<h1>CAR readiness checklist${year}</h1>${stamp}<p>Overall readiness: <b>${r.overall.pct}%</b> (${r.overall.complete} of ${r.overall.applicable} applicable items complete)</p>` +
+    return page("Compliance Audit Returns checklist", `<h1>Compliance Audit Returns checklist${year}</h1>${stamp}<p>Overall readiness: <b>${r.overall.pct}%</b> (${r.overall.complete} of ${r.overall.applicable} applicable items complete)</p>` +
       (risk ? `<p>Risk score: <b>${risk.score} / 100 (${riskLabel(risk.rating)})</b>. Item risk follows status and question priority: Missing high, In progress medium, Complete low; a Medium-priority question drops one level.</p>` : "") +
       Object.entries(CAR_CATEGORIES).filter(([k]) => items.some((i) => i.category_key === k)).map(([k, l]) => {
         const cat = items.filter((i) => i.category_key === k); const cr = carRisk(cat as { category_key: string; status: string; priority: string | null }[]);
@@ -399,7 +453,7 @@ export async function GET(req: Request) {
       `<h2>Other findings and observations</h2>` + (findings.length
         ? `<table><tr><th>Finding / observation</th><th>Risk</th><th>Status</th><th>Recommendation</th></tr>${findings.map((f) => `<tr><td>${esc(f.observation)}</td><td>${riskLabel(f.risk)}</td><td>${f.status === "resolved" ? "Resolved" : "Open"}</td><td>${esc(f.recommendation ?? "")}</td></tr>`).join("")}</table>`
         : `<p>None recorded.</p>`),
-      format, slug(`${client!.name}-car-readiness-${auditYear}`), CSS, await cover(clientId, "car", `CAR Readiness Checklist ${auditYear}`));
+      format, slug(`${client!.name}-compliance-audit-returns-${auditYear}`), CSS, await cover(clientId, "car", `Compliance Audit Returns Checklist ${auditYear}`));
   }
   return denied();
 }

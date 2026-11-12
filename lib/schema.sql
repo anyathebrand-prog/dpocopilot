@@ -1141,3 +1141,22 @@ create table if not exists tpra_tasks (
 );
 alter table otp_challenges alter column request_id drop not null;
 alter table otp_challenges add column if not exists assessment_id uuid references assessments on delete cascade;
+
+-- Transfer risk (cross-border transfer risk assessment, lib/tia-model.ts) reuses the TPRA evidence and task tables:
+-- tpra_evidence items index lib/tia-model DOCS, and tpra_tasks rows are the mitigation plan, with a priority.
+alter table tpra_tasks add column if not exists priority text;
+
+-- CAR readiness Part 4: "Were new technologies or processing introduced in the last year?" comes before the DPIA question.
+-- Swaps the two positions in the template and in every client checklist (each year). Idempotent: it only swaps while the
+-- DPIA question is still first. Rollback: run the same swap with the comparison reversed.
+with p as (
+  select d.id as did, d.position as dp, n.id as nid, n.position as np from car_template_items d join car_template_items n on n.category_key = d.category_key
+  where d.text = 'Has a Data Privacy Impact Assessment (DPIA) been conducted?' and n.text = 'Were new technologies or processing introduced in the last year?'
+    and d.status <> 'retired' and n.status <> 'retired' and d.position < n.position)
+update car_template_items t set position = case when t.id = p.did then p.np else p.dp end from p where t.id = p.did or t.id = p.nid;
+with p as (
+  select d.id as did, d.position as dp, n.id as nid, n.position as np from client_car_items d
+    join client_car_items n on n.client_id = d.client_id and n.audit_year = d.audit_year and n.category_key = d.category_key
+  where d.item_text = 'Has a Data Privacy Impact Assessment (DPIA) been conducted?' and n.item_text = 'Were new technologies or processing introduced in the last year?'
+    and d.position < n.position)
+update client_car_items t set position = case when t.id = p.did then p.np else p.dp end from p where t.id = p.did or t.id = p.nid;

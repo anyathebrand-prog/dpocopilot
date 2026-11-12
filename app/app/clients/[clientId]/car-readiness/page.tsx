@@ -203,6 +203,11 @@ export default async function Car({ params, searchParams }: { params: Promise<{ 
       count(*) filter (where client_signed_at is not null)::int as signed, count(*) filter (where answers->>'dpa_status' = 'Signed')::int as dpa,
       count(*) filter (where rating in ('High','Critical'))::int as high, count(*) filter (where next_review <= current_date)::int as due
     from assessments where client_id = $1 and kind = 'tpra'`, [clientId]);
+  // Cross-border transfers (CAR disclosure, GAID Schedule 2) come from the transfer register (Transfer risk).
+  const xfer = await one<{ n: number; approved: number; signed: number; high: number; due: number; nomech: number }>(`select count(*)::int as n, count(*) filter (where status = 'approved')::int as approved,
+      count(*) filter (where client_signed_at is not null)::int as signed, count(*) filter (where rating in ('High','Critical'))::int as high,
+      count(*) filter (where next_review <= current_date)::int as due, count(*) filter (where coalesce(answers->>'mechanism', '') in ('', 'none'))::int as nomech
+    from assessments where client_id = $1 and kind = 'tia'`, [clientId]);
   const openHigh = findings.filter((f) => f.status === "open" && f.risk === "high").length;
   const rep = (await one("select * from car_reports where client_id = $1 and audit_year = $2", [clientId, year])) ?? {};
   const firm = (await one("select ndpc_licence_no, signatory_name from firms where id = $1", [client.firm_id]))!;
@@ -225,7 +230,14 @@ export default async function Car({ params, searchParams }: { params: Promise<{ 
   return (
     <>
       <div className="spread">
-        <h2 style={{ marginTop: 0 }}>CAR readiness · {year}</h2>
+        <h2 style={{ marginTop: 0 }}>Compliance Audit Returns · {year}</h2>
+        <div className="row">
+          <a className="btn" href={exp("car-readiness-doc", "pdf")} target="_blank">Generate Compliance Audit Returns Document</a>
+          <a className="btn secondary" href={exp("car-readiness-doc", "doc")}>Word</a>
+        </div>
+      </div>
+      <div className="spread">
+        <span />
         {items.length > 0 && (
           <div className="row">
             <a className="btn secondary" href={`/export?kind=car&client=${clientId}&year=${year}&format=pdf`} target="_blank">Export PDF</a>
@@ -244,7 +256,7 @@ export default async function Car({ params, searchParams }: { params: Promise<{ 
       </form>
       {items.length === 0 ? (
         <Empty>
-          <p><b>No CAR readiness has been recorded for {year}.</b></p>
+          <p><b>No Compliance Audit Returns checklist has been recorded for {year}.</b></p>
           <p>{years.length ? `Recorded years: ${years.join(", ")}.` : "No years recorded yet."}</p>
           {!ro && <form action={startYear}>{h}<Submit>Start the {year} checklist</Submit></form>}
         </Empty>
@@ -263,6 +275,11 @@ export default async function Car({ params, searchParams }: { params: Promise<{ 
         <div className="spread"><b>Data processors</b><Link href={`/app/clients/${clientId}/assessments/tpra`}>Processor register</Link></div>
         {proc!.n ? <p style={{ margin: "6px 0 0" }}><span className="num">{proc!.approved} of {proc!.n}</span> processors assessed and approved · <span className="num">{proc!.signed}</span> signed off by the client · <span className="num">{proc!.dpa}</span> with a signed DPA{proc!.high ? <> · <b>{proc!.high} rated High or Critical</b></> : null}{proc!.due ? <> · <b>{proc!.due} review{proc!.due > 1 ? "s" : ""} due</b></> : null}</p>
           : <p className="meta" style={{ margin: "6px 0 0" }}>No processors assessed yet. The CAR asks about processor contracts, due diligence and post-termination measures (NDPA s.29): assess each processor in the register.</p>}
+      </section>
+      <section className="panel" style={{ marginBottom: 16 }}>
+        <div className="spread"><b>Cross-border transfers</b><Link href={`/app/clients/${clientId}/assessments/tia`}>Transfer register</Link></div>
+        {xfer!.n ? <p style={{ margin: "6px 0 0" }}><span className="num">{xfer!.approved} of {xfer!.n}</span> transfers assessed and approved · <span className="num">{xfer!.signed}</span> with management approval of residual risk{xfer!.high ? <> · <b>{xfer!.high} rated High or Critical</b></> : null}{xfer!.nomech ? <> · <b>{xfer!.nomech} without a recorded mechanism</b></> : null}{xfer!.due ? <> · <b>{xfer!.due} review{xfer!.due > 1 ? "s" : ""} due</b></> : null}</p>
+          : <p className="meta" style={{ margin: "6px 0 0" }}>No transfers assessed yet. The CAR asks whether personal data leaves Nigeria, the categories, the legal grounds, whether transfers are documented and assessed, and the receiving countries (NDPA ss.41–43): record each transfer in the register.</p>}
       </section>
       <section className="panel" style={{ marginBottom: 24 }}>
         <p style={{ fontSize: 22, margin: "0 0 8px" }}><b className="num">{r.overall.pct}%</b> ready · <span className="num">{r.overall.complete} of {r.overall.applicable}</span> applicable items complete</p>
@@ -307,7 +324,7 @@ export default async function Car({ params, searchParams }: { params: Promise<{ 
                   {!ro && (
                     <form action={setStatus} className="row" style={{ marginTop: 8, alignItems: "flex-end" }}>
                       <Hidden values={{ item_id: i.id }} />
-                      <label className="small">Status <select name="status" defaultValue={i.status} style={{ width: "auto", display: "block" }}>{STATUSES.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></label>
+                      <label className="small">Status <select key={i.status} name="status" defaultValue={i.status} style={{ width: "auto", display: "block" }}>{STATUSES.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></label>
                       <label className="small" style={{ flex: 1, minWidth: 200 }}>Non-Conformity/Observation <input name="na_reason" defaultValue={i.na_reason ?? ""} placeholder="Required when Not applicable" /></label>
                       <label className="small" style={{ flex: "1 1 260px" }}>Answer / facts <input name="answer" defaultValue={i.answer ?? ""} placeholder="Yes, No, or the facts (e.g. a number or name)" /></label>
                       <label className="small" style={{ flex: "1 1 260px" }}>Evidence / documents <input name="evidence_notes" defaultValue={i.evidence_notes ?? ""} placeholder="Documents seen or requested" /></label>
@@ -383,14 +400,14 @@ export default async function Car({ params, searchParams }: { params: Promise<{ 
                 <Hidden values={{ finding_id: f.id }} />
                 <label className="small" style={{ flexBasis: "100%" }}>Finding / observation <textarea name="observation" rows={2} defaultValue={f.observation} required style={{ display: "block" }} /></label>
                 <label className="small">Risk <select name="risk" defaultValue={f.risk} style={{ width: "auto", display: "block" }}>{RISKS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></label>
-                <label className="small">Status <select name="status" defaultValue={f.status} style={{ width: "auto", display: "block" }}><option value="open">Open</option><option value="resolved">Resolved</option></select></label>
+                <label className="small">Status <select key={f.status} name="status" defaultValue={f.status} style={{ width: "auto", display: "block" }}><option value="open">Open</option><option value="resolved">Resolved</option></select></label>
                 <label className="small" style={{ flex: "1 1 300px" }}>Recommendation <input name="recommendation" defaultValue={f.recommendation ?? ""} /></label>
                 <Submit className="btn secondary" name="op" value="save">Save</Submit>
               </form>
             )}
             {!ro && (
               <div style={{ marginTop: 8 }}>
-                <Confirm action={saveFinding} label="Delete" title="Delete this finding?" body="It is removed from this year's CAR readiness, the client portal and exports.">
+                <Confirm action={saveFinding} label="Delete" title="Delete this finding?" body="It is removed from this year's Compliance Audit Returns, the client portal and exports.">
                   <Hidden values={{ finding_id: f.id, op: "delete" }} />
                 </Confirm>
               </div>

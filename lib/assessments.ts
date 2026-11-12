@@ -94,8 +94,8 @@ export const KINDS: Record<Kind, { name: string; short: string; intro: string; o
     ],
   },
   tia: {
-    name: "Cross-Border Transfer Risk Assessment", short: "Transfer risk",
-    intro: "Assesses a transfer of personal data outside Nigeria under NDPA ss.41–43: adequacy of protection, the basis relied on, risks in the destination and supplementary measures.",
+    name: "Cross-Border Data Transfer Risk Assessment", short: "Transfer risk",
+    intro: "Tests whether personal data leaving Nigeria stays protected to the NDPA standard (Part VIII, ss.41–43; GAID Art. 45 and Schedule 5): the destination, the recipient, the mechanism relied on, eight risk categories and the measures needed.",
     outcomes: ["Transfer may proceed", "Transfer may proceed with the supplementary measures recorded", "Transfer must not proceed or must be suspended"],
     sections: [
       { title: "1. Transfer details", questions: [
