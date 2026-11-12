@@ -1141,3 +1141,7 @@ create table if not exists tpra_tasks (
 );
 alter table otp_challenges alter column request_id drop not null;
 alter table otp_challenges add column if not exists assessment_id uuid references assessments on delete cascade;
+
+-- Transfer risk (cross-border transfer risk assessment, lib/tia-model.ts) reuses the TPRA evidence and task tables:
+-- tpra_evidence items index lib/tia-model DOCS, and tpra_tasks rows are the mitigation plan, with a priority.
+alter table tpra_tasks add column if not exists priority text;

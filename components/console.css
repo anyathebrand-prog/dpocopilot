@@ -314,3 +314,27 @@
 .tpra-ropa input[type="checkbox"] { width: 18px; height: 18px; margin: 1px 0 0; }
 .tpra-ropa tbody tr:hover td { background: rgba(255, 255, 255, 0.03); }
 .tpra-ropa tbody tr:has(input:checked) td { background: rgba(168, 220, 255, 0.08); }
+
+/* Transfer risk: mitigation plan grid, rating matrix, CAR disclosure and the risk profile in the summary. */
+.tia-plan { display: grid; gap: 8px; }
+.tia-plan-r { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px 10px; padding: 12px; border: 1px solid var(--cx-line); border-radius: 12px; background: rgba(255, 255, 255, 0.02); }
+.tia-plan-r.new { border-style: dashed; background: none; }
+.tia-plan-r label { display: grid; gap: 3px; min-width: 0; }
+.tia-plan-r label > span { font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: var(--cx-light-muted); }
+.tia-plan-r input:not([type="checkbox"]), .tia-plan-r select { width: 100%; min-width: 0; }
+.tia-plan-action { grid-column: 1 / -1; } .tia-plan-risk { grid-column: span 2; }
+.tia-plan-r label.tia-plan-del { display: flex; align-items: center; gap: 6px; grid-column: 1 / -1; justify-self: end; margin: 0; }
+.tia-plan-r label.tia-plan-del input { width: auto; margin: 0; }
+.tia-cat-head { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; align-items: center; }
+.tia-cat-sel { display: flex; gap: 6px; } .tia-cat-sel select { width: 120px; }
+.tia-ratings { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 8px 0 4px; }
+.tia-ratings > div { display: grid; gap: 4px; justify-items: start; }
+table.tia-matrix { width: 100%; border-collapse: collapse; font-size: 14px; margin-top: 8px; }
+table.tia-matrix th { text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: var(--cx-light-muted); padding: 6px 8px; border-bottom: 1px solid var(--cx-line); }
+table.tia-matrix td { padding: 8px; border-bottom: 1px solid var(--cx-line); color: var(--cx-light); }
+table.tia-matrix tr.on td { background: rgba(168, 220, 255, 0.1); font-weight: 600; }
+.kv.tia-car { display: grid; grid-template-columns: minmax(160px, auto) 1fr; gap: 6px 14px; margin: 8px 0 0; font-size: 14px; }
+.kv.tia-car dt { color: var(--cx-light-muted); } .kv.tia-car dd { margin: 0; }
+.tia-profile { display: grid; gap: 4px; font-size: 12px; }
+.tia-profile div { display: grid; grid-template-columns: 1fr auto auto; gap: 6px; align-items: center; }
+@media (max-width: 700px) { .tia-plan-r { grid-template-columns: 1fr 1fr; } .tia-cat-head { grid-template-columns: 1fr; } .kv.tia-car { grid-template-columns: 1fr; } }

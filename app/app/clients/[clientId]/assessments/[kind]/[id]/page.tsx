@@ -11,6 +11,7 @@ import { Flash, Hidden, Chip } from "@/components/ui";
 import { Submit } from "@/components/client";
 import { storeFile, ACCEPT } from "@/lib/files";
 import TpraPage from "./tpra-page";
+import TiaPage from "./tia-page";
 
 const scale = [1, 2, 3, 4, 5];
 
@@ -61,6 +62,7 @@ export default async function Assessment({ params, searchParams }: { params: Pro
   const k = KINDS[kind as Kind];
   if (!k) notFound();
   if (kind === "tpra") return <TpraPage clientId={clientId} id={id} sp={sp} />;
+  if (kind === "tia") return <TiaPage clientId={clientId} id={id} sp={sp} />;
   const { client } = await requireClient(clientId);
   const a = await one("select a.*, r.purpose, u.name as approver from assessments a left join ropa_entries r on r.id = a.ropa_entry_id left join users u on u.id = a.approved_by where a.id = $1 and a.client_id = $2 and a.kind = $3",
     [/^[0-9a-f-]{36}$/.test(id) ? id : null, clientId, kind]);

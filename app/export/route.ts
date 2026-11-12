@@ -19,6 +19,9 @@ import { tpraReportHtml, tpraRequestHtml } from "@/lib/tpra-report";
 import { loadTpra, evidenceState, firmModel } from "@/lib/tpra";
 import { asModel, score, FACTORS, DOMAINS } from "@/lib/tpra-model";
 import { liaType } from "@/lib/lia-docs";
+import { loadTia } from "@/lib/tia";
+import { tiaReportHtml, tiaRequestHtml } from "@/lib/tia-report";
+import { assess as tiaAssess, mechanismLabel, CATEGORIES } from "@/lib/tia-model";
 import { docType } from "@/lib/dpia-docs";
 import { loadFramework, frameworkHtml } from "@/lib/framework";
 import { planHtml } from "@/lib/training";
@@ -246,6 +249,18 @@ export async function GET(req: Request) {
     await audit(u, "export", kind === "tpra-request" ? "tpra_request" : "assessment_tpra", d.a.id, { client_id: d.a.client_id, details: { format } });
     return page(r.title, r.body, format, slug(r.title), r.css, kind === "tpra-request" ? "" : await cover(d.a.client_id, "tpra", "Data Processor Third Party Risk Assessment"));
   }
+  const tiaId = url.searchParams.get("id") ?? "";
+  if ((kind === "tia-request" && /^[0-9a-f-]{36}$/.test(tiaId)) || (kind === "assessment" && /^[0-9a-f-]{36}$/.test(tiaId) && (await one("select 1 from assessments where id = $1 and kind = 'tia'", [tiaId])))) {
+    // Transfer risk: the assessment report, or the Transfer Readiness Document for one transfer. Contacts may open their own client's.
+    const d = await loadTia(tiaId);
+    if (!d || !((u.kind === "contact" && u.client_id === d.a.client_id) || (await canSeeClient(d.a.client_id)))) return denied();
+    const c = (await one("select name from clients where id = $1", [d.a.client_id]))!;
+    const org = String((await answersOf(d.a.client_id)).org_legal_name || c.name);
+    const r = kind === "tia-request" ? tiaRequestHtml({ org, by: u.name, answers: d.a.answers, docs: d.docs })
+      : tiaReportHtml({ org, by: u.name, a: d.a as any, docs: d.docs, tasks: d.tasks, ropa: d.ropa.map((x) => x.purpose) });
+    await audit(u, "export", kind === "tia-request" ? "tia_request" : "assessment_tia", d.a.id, { client_id: d.a.client_id, details: { format } });
+    return page(r.title, r.body, format, slug(r.title), r.css, kind === "tia-request" ? "" : await cover(d.a.client_id, "tia", "Cross-Border Data Transfer Risk Assessment"));
+  }
   if (kind === "assessment") {
     const id = url.searchParams.get("id") ?? "";
     const a = /^[0-9a-f-]{36}$/.test(id) ? await one("select a.*, u.name as approver from assessments a left join users u on u.id = a.approved_by where a.id = $1", [id]) : null;
@@ -269,6 +284,35 @@ export async function GET(req: Request) {
   const client = await one("select name, car_audit_year from clients where id = $1", [clientId]);
   const stamp = `<p class="meta">${esc(client!.name)} · exported ${fmtWAT(new Date())} by ${esc(u.name)}</p>`;
 
+  if (kind === "tia-request") { // Transfer Readiness Document for all of the client's transfers
+    const ans = await answersOf(clientId);
+    const r = tiaRequestHtml({ org: String(ans.org_legal_name || client!.name), by: u.name, countries: list(ans.transfer_countries) });
+    await audit(u, "export", "tia_request", clientId, { client_id: clientId, details: { format } });
+    return page(r.title, r.body, format, slug(r.title), r.css);
+  }
+  if (kind === "tia-register") { // Cross-Border Data Transfer Register as Excel
+    const rows = await q("select a.*, to_char(a.next_review, 'YYYY-MM-DD') as nr from assessments a where a.client_id = $1 and a.kind = 'tia' order by a.answers->>'destination', a.answers->>'recipient'", [clientId]);
+    await audit(u, "export", "tia_register", clientId, { client_id: clientId, details: { format: "xlsx" } });
+    const ExcelJS = (await import("exceljs")).default;
+    const wb = new ExcelJS.Workbook(), ws = wb.addWorksheet("Transfer register", { views: [{ state: "frozen", ySplit: 4 }] });
+    ws.addRow([client!.name]).font = { bold: true, size: 16, color: { argb: "FF0D1F4A" } };
+    ws.addRow(["Cross-Border Data Transfer Register"]).font = { bold: true, size: 13 };
+    ws.addRow([`Exported ${fmtWAT(new Date())} by ${u.name}`]).font = { italic: true, size: 9 };
+    const cols = ["Recipient", "Role", "Destination", "Data categories", "Sensitive", "Data subjects", "Purpose", "Systems", "Sub-processors", "Mechanism", "Adequacy decision", "Consent obtained",
+      ...CATEGORIES.map((c) => `${c.label} (inherent / residual)`), "Inherent", "Residual", "Recommended action", "Next review", "Status"];
+    const hr = ws.addRow(cols);
+    hr.eachCell((c) => { c.font = { bold: true, color: { argb: "FFFFFFFF" } }; c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF0D1F4A" } }; c.alignment = { wrapText: true, vertical: "middle" }; });
+    for (const a of rows) {
+      const A = a.answers, r = tiaAssess(A);
+      ws.addRow([A.recipient || a.title, A.recipient_role, A.destination, A.data, A.sensitive, A.subjects_count, A.purpose, A.systems, A.subprocessors, mechanismLabel(A.mechanism), A.adequacy_decision, A.consent_obtained,
+        ...CATEGORIES.map((_, i) => [r.inherent[i], r.residual[i]].map((x) => x ?? "–").join(" / ")), r.rating ?? "", r.residualRating ?? "", r.action ?? "", a.nr ?? "",
+        a.client_signed_at ? "Approved by management" : a.status === "approved" ? "Approved" : "Draft"].map((x) => x ?? "")).alignment = { wrapText: true, vertical: "top" };
+    }
+    cols.forEach((_, i) => { ws.getColumn(i + 1).width = i < 12 ? 22 : 16; });
+    return new Response(new Uint8Array(await wb.xlsx.writeBuffer()), { headers: {
+      "content-type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      "content-disposition": `attachment; filename="${slug(`${client!.name}-transfer-register`)}.xlsx"` } });
+  }
   if (kind === "tpra-register") { // processor register as Excel
     const rows = await q("select a.*, to_char(a.next_review, 'YYYY-MM-DD') as nr, a.client_signed_at from assessments a where a.client_id = $1 and a.kind = 'tpra' order by a.answers->>'vendor'", [clientId]);
     await audit(u, "export", "tpra_register", clientId, { client_id: clientId, details: { format: "xlsx" } });

@@ -13,6 +13,7 @@ import { riskLevel } from "@/lib/rules";
 import { Flash, Field, Hidden, Chip, Empty } from "@/components/ui";
 import { Submit } from "@/components/client";
 import TpraRegister from "./tpra-register";
+import TiaRegister from "./tia-register";
 
 async function create(fd: FormData) {
   "use server";
@@ -45,6 +46,7 @@ export default async function Assessments({ params, searchParams }: { params: Pr
   const k = KINDS[kind as Kind];
   if (!k) notFound();
   if (kind === "tpra") return <TpraRegister clientId={clientId} sp={sp} />;
+  if (kind === "tia") return <TiaRegister clientId={clientId} sp={sp} />;
   const { client } = await requireClient(clientId);
   const rows = await q(`select a.*, r.purpose from assessments a left join ropa_entries r on r.id = a.ropa_entry_id where a.client_id = $1 and a.kind = $2 order by a.assessment_year desc, a.created_at desc`, [clientId, kind]);
   // Suggest the activities that need one: legitimate interest (LIA), transfers outside Nigeria (TIA), third-party recipients (TPRA).
