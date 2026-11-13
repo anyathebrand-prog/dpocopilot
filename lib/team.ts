@@ -8,7 +8,7 @@ export const TEAM: Member[] = [
   {
     name: "Anya Victor",
     title: "Founder & CTO",
-    bio: "Victor is a certified Data Protection Officer and the founder of DPO Copilot. He leads the product, engineering and AI, combining hands-on compliance expertise with years of experience in brand and digital design to build compliance software that’s simple to use.",
+    bio: "Victor is a certified Data Protection Officer and the founder of DPO Copilot. He leads the product, engineering and AI, building tools that help compliance teams spend less time on paperwork and more time protecting data.",
     linkedin: "https://www.linkedin.com/in/victoranya/",
     photo: "/images/team/victor.jpg",
   },
