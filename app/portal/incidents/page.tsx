@@ -29,7 +29,7 @@ export default async function Incidents({ searchParams }: { searchParams: Promis
       {rows.length === 0 ? <Empty><p>No incidents logged. <Link href="/portal/incidents/new">Log the first one</Link>.</p></Empty> : (
         <div className="cx-hscroll">
           <table className="register" style={{ minWidth: 900 }}>
-            <thead><tr><th>Incident ID</th><th>Title</th><th>Discovered</th><th>Type</th><th>Severity</th><th>NDPC deadline (72h)</th><th>NDPC notification</th><th>Status</th></tr></thead>
+            <thead><tr><th>Incident ID</th><th>Title</th><th>Discovered</th><th>Type</th><th>Severity</th><th>NDPC deadline (72h)</th><th>NDPC notification</th><th>Status</th><th>Report</th></tr></thead>
             <tbody>{rows.map((r) => { const d = r.data, x = computed(d); return (
               <tr key={r.id}>
                 <td><Link href={`/portal/incidents/${r.id}`}>{r.number}</Link></td>
@@ -40,6 +40,10 @@ export default async function Incidents({ searchParams }: { searchParams: Promis
                 <td data-label="NDPC deadline" className="small">{x.deadline ? fmtDate(x.deadline) : "—"}</td>
                 <td data-label="NDPC notification" className="small">{x.status === "Overdue" || x.status === "Notified late" ? <b style={{ color: "#c62828" }}>{x.status}</b> : x.status}{x.days !== null && <div className="meta">{x.days} day{x.days === 1 ? "" : "s"} to notify</div>}</td>
                 <td data-label="Status" className="small">{d.status}</td>
+                <td data-label="Report"><div className="row" style={{ gap: 6, flexWrap: "nowrap" }}>
+                  <a className="btn secondary" href={`/export?kind=incident-report&id=${r.id}&format=pdf`} target="_blank" aria-label={`Generate report for ${r.number} (PDF)`}>Generate report</a>
+                  <a className="btn quiet" href={`/export?kind=incident-report&id=${r.id}&format=doc`} aria-label={`Report for ${r.number} as Word`}>Word</a>
+                </div></td>
               </tr>); })}</tbody>
           </table>
         </div>

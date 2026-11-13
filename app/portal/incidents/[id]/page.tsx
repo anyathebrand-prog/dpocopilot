@@ -19,7 +19,13 @@ export default async function IncidentPage({ params, searchParams }: { params: P
   return (
     <>
       <nav className="meta"><Link href="/portal/incidents">Incident register</Link> / {r.number}</nav>
-      <h1 style={{ fontSize: 24 }}>{r.number} · {r.data.title}</h1>
+      <div className="spread" style={{ alignItems: "flex-start" }}>
+        <h1 style={{ fontSize: 24 }}>{r.number} · {r.data.title}</h1>
+        <div className="row">
+          <a className="btn secondary" href={`/export?kind=incident-report&id=${r.id}&format=pdf`} target="_blank">Generate report</a>
+          <a className="btn quiet" href={`/export?kind=incident-report&id=${r.id}&format=doc`}>Word</a>
+        </div>
+      </div>
       <p className="meta">NDPC deadline (72h): <b>{x.deadline ? fmtDate(x.deadline) : "not required / not set"}</b> · Notification: <b>{x.status}</b>{x.days !== null && ` · ${x.days} day${x.days === 1 ? "" : "s"} to notify`}</p>
       <Flash sp={sp} />
       <IncidentForm id={r.id} data={r.data} depts={depts} />
