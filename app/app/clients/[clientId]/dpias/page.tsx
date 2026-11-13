@@ -2,7 +2,10 @@ import Link from "next/link";
 import { requireClient, clientBase } from "@/lib/auth";
 import { q } from "@/lib/db";
 import { riskLevel, fmtDate } from "@/lib/rules";
-import { Flash, Chip, Empty } from "@/components/ui";
+import { Flash, Chip, Empty, Field, Hidden } from "@/components/ui";
+import { answersOf } from "@/lib/data";
+import { list } from "@/lib/questionnaire";
+import { departmentOptions } from "@/lib/ropa-fields";
 
 export default async function Dpias({ params, searchParams }: { params: Promise<{ clientId: string }>; searchParams: Promise<Record<string, string>> }) {
   const { clientId } = await params;
@@ -19,14 +22,29 @@ export default async function Dpias({ params, searchParams }: { params: Promise<
     where d.client_id = $1 and ($2::int is null or d.assessment_year = $2) order by d.assessment_year desc, d.created_at desc`, [clientId, year]);
   const start = year ? `${b}/new?year=${year}` : `${b}/new`;
   const gap = await q("select 1 from gap_findings where client_id = $1 and state = 'open' and rule_key in ('sensitive_without_dpia','high_risk_without_dpia') limit 1", [clientId]);
+  const departments = departmentOptions(list((await answersOf(clientId)).org_departments),
+    (await q<{ d: string }>("select distinct department as d from ropa_entries where client_id = $1 and state = 'active' and department is not null", [clientId])).map((r) => r.d));
   const maxRisk = (body: string) => Math.max(0, ...(JSON.parse(body || "{}").risks_list ?? []).map((r: any) => r.likelihood * r.impact));
   return (
     <>
       <div className="spread"><h2 style={{ marginTop: 0 }}>DPIAs{year ? ` · ${year}` : ""}</h2><div className="row">
-        <a className="btn secondary" href={`/export?kind=dpia-readiness&client=${clientId}&format=pdf`} target="_blank">Generate DPIA Readiness Document</a>
-        <a className="btn secondary" href={`/export?kind=dpia-readiness&client=${clientId}&format=doc`}>Word</a>
         {!client.archived_at && <Link className="btn" href={start}>Start DPIA</Link>}</div></div>
       <Flash sp={sp} />
+      <details className="group">
+        <summary>Generate DPIA Readiness Document</summary>
+        <p className="meta" style={{ marginTop: 0 }}>One document per system: it names the system and department and lists the documents the client must provide for that system&apos;s DPIA.</p>
+        <form method="get" action="/export" target="_blank" style={{ maxWidth: 640 }}>
+          <Hidden values={{ kind: "dpia-readiness", client: clientId }} />
+          <Field label="Title" help="For example, the DPIA or project name."><input name="title" maxLength={200} placeholder="e.g. Customer onboarding DPIA" /></Field>
+          <Field label="Department"><input name="department" maxLength={200} list="dpia-rd-depts" /></Field>
+          <datalist id="dpia-rd-depts">{departments.map((d) => <option key={d} value={d} />)}</datalist>
+          <Field label="System name" required><input name="system" maxLength={200} required placeholder="e.g. Core banking application" /></Field>
+          <div className="row">
+            <button className="btn" name="format" value="pdf">Generate (PDF)</button>
+            <button className="btn secondary" name="format" value="doc">Generate (Word)</button>
+          </div>
+        </form>
+      </details>
       <form method="get" className="row" style={{ alignItems: "flex-end", margin: "8px 0 16px" }} aria-label="Assessment year">
         <label className="small">Assessment year <input type="number" name="year" min={2019} max={2100} required defaultValue={year ?? ""} style={{ width: 120, display: "block" }} /></label>
         <button className="btn secondary">Open</button>

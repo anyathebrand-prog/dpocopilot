@@ -1236,3 +1236,15 @@ insert into platform_settings (key, published_value) values ('dpco_fee_starter',
 -- Each subscription payment records the plan it buys: a year ('year') or a move up a plan part-way through the year ('upgrade').
 alter table firm_subscription_payments add column if not exists tier text;
 alter table firm_subscription_payments add column if not exists kind text not null default 'year';
+
+-- Messages from the public Contact page (app/(site)/contact). A copy is emailed to info@dpocopilot.ng; the Secretary sees them on the console home.
+create table if not exists contact_messages (
+  id uuid primary key default gen_random_uuid(),
+  topic text not null,
+  name text not null,
+  email text not null,
+  organisation text,
+  phone text,
+  message text not null,
+  created_at timestamptz not null default now()
+);

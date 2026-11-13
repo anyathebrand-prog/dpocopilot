@@ -136,3 +136,15 @@
   .bh .sp-item, .bh .sp-size, .bh .sp-field input, .bh .sp-field textarea { transition: none; }
 }
 .bh .sp-field .sp-hint { display: block; margin-top: 8px; font-size: 0.82rem; color: #9aa6bd; }
+
+/* Contact page: the ways to reach us, beside the message form (components/contact-view.tsx). */
+.bh .ct-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 22px; }
+.bh .ct-list li { display: flex; gap: 14px; align-items: flex-start; }
+.bh .ct-ic { flex: none; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 12px; background: rgba(61, 217, 180, 0.12); color: #3dd9b4; }
+.bh .ct-ic svg { width: 20px; height: 20px; }
+.bh .ct-list b { display: block; color: #f0f0f5; font-weight: 600; }
+.bh .ct-list p { margin: 3px 0 6px; color: rgba(255, 255, 255, 0.55); font-size: 0.9rem; line-height: 1.55; }
+.bh .ct-list a { display: inline-flex; align-items: center; gap: 6px; min-height: 32px; color: #3dd9b4; font-weight: 500; text-decoration: none; }
+.bh .ct-list a:hover { text-decoration: underline; }
+.bh .ct-list a svg { width: 16px; height: 16px; }
+.bh .ct-meta { margin: 28px 0 0; padding-top: 18px; border-top: 1px solid rgba(255, 255, 255, 0.08); color: rgba(255, 255, 255, 0.45); font-size: 0.85rem; line-height: 1.55; }

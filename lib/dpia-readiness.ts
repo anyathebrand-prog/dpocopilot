@@ -36,12 +36,13 @@ const WHY: Record<string, [string, string]> = {
 };
 
 export type ReadinessInput = {
-  org: string; dpia?: { title: string; system?: string | null; department?: string | null; year: number };
+  org: string; dpia?: { title: string; system?: string | null; department?: string | null; year?: number };
   received?: Map<string, string[]>; // document type → uploaded file names
 };
 
 export function dpiaReadinessHtml(o: ReadinessInput) {
   const system = o.dpia?.system || o.dpia?.title;
+  const named = o.dpia?.title && o.dpia.title !== system ? o.dpia.title : null; // a DPIA title shown beside the system
   const title = `DPIA Readiness Document${system ? ` — ${system}` : ""}`;
   const got = (d: string) => o.received?.get(d) ?? [];
   const known = !!o.received;
@@ -55,13 +56,14 @@ export function dpiaReadinessHtml(o: ReadinessInput) {
 
 <table class="facts"><tr>
   <td><span class="lbl">Organisation</span><br><b>${esc(o.org)}</b></td>
+  ${named ? `<td><span class="lbl">Title</span><br><b>${esc(named)}</b></td>` : ""}
   <td><span class="lbl">System</span><br><b>${system ? esc(system) : "To be confirmed"}</b></td>
   ${o.dpia?.department ? `<td><span class="lbl">Department</span><br><b>${esc(o.dpia.department)}</b></td>` : ""}
   <td><span class="lbl">Date</span><br><b>${fmtDate(todayWAT())}</b></td>
 </tr></table>
 
 <h2>1. Purpose of this document</h2>
-<p>A Data Privacy Impact Assessment (DPIA) is required before processing personal data that is likely to result in high risk to data subjects. This document explains what the law requires a DPIA to contain and lists the documents ${esc(o.org)} should provide${system ? ` for <b>${esc(system)}</b>` : ""} so that the assessment can be carried out completely and on time.</p>
+<p>A Data Privacy Impact Assessment (DPIA) is required before processing personal data that is likely to result in high risk to data subjects. This document explains what the law requires a DPIA to contain and lists the documents ${esc(o.org)} should provide${system ? ` for <b>${esc(system)}</b>` : ""}${o.dpia?.department ? ` (${esc(o.dpia.department)})` : ""} so that the assessment can be carried out completely and on time.</p>
 
 <h2>2. The legal requirement: section 28(4) of the NDPA 2023</h2>
 <div class="law">

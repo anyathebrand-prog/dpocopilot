@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { TOPICS } from "@/lib/contact-topics";
 import { q, one } from "@/lib/db";
 import { fmtWAT } from "@/lib/rules";
 import { pendingSummary } from "@/lib/secretary";
@@ -12,6 +13,7 @@ export default async function SecretaryHome() {
     (select count(*)::int from car_template_items where status = 'published') as car`);
   const pending = await pendingSummary();
   const pilots = await q("select * from pilot_requests order by created_at desc limit 50");
+  const messages = await q("select * from contact_messages order by created_at desc limit 50");
   // Website visits, last 30 days (cookieless counts from app/api/visit).
   const since = "current_date - 29";
   const v = (await one(`select coalesce(sum(landings),0)::int as visits, coalesce(sum(views),0)::int as views from page_views where day >= ${since}`))!;
@@ -49,6 +51,20 @@ export default async function SecretaryHome() {
               <tbody>{sources.map((r) => <tr key={r.source}><td>{r.source}</td><td data-label="Visits" className="num">{r.visits}</td></tr>)}</tbody></table>
           </div>
         </>
+      )}
+      <h2>Website messages</h2>
+      {messages.length === 0 ? <p className="meta">None yet. They arrive from the public Contact page, and a copy goes to info@dpocopilot.ng.</p> : (
+        <table className="register">
+          <thead><tr><th>Topic</th><th>From</th><th>Message</th><th>Received (WAT)</th></tr></thead>
+          <tbody>{messages.map((r) => (
+            <tr key={r.id}>
+              <td>{TOPICS.find(([k]) => k === r.topic)?.[1] ?? r.topic}</td>
+              <td data-label="From">{r.name}{r.organisation && <> · {r.organisation}</>}<div className="meta"><a href={`mailto:${r.email}`}>{r.email}</a>{r.phone && ` · ${r.phone}`}</div></td>
+              <td data-label="Message" className="small" style={{ whiteSpace: "pre-wrap" }}>{r.message}</td>
+              <td data-label="Received" className="small num">{fmtWAT(r.created_at)}</td>
+            </tr>
+          ))}</tbody>
+        </table>
       )}
       <h2>Pilot requests</h2>
       {pilots.length === 0 ? <p className="meta">None yet. They arrive from the public &quot;Request pilot access&quot; form.</p> : (

@@ -10,7 +10,8 @@ export type Finding = { id: string; observation: string; risk: string; recommend
 export type CarReport = NonNullable<Awaited<ReturnType<typeof loadCarReport>>>;
 
 const esc = (s: unknown) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!);
-const cssString = (s: string) => `"${s.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
+// "<" and line breaks as CSS hex escapes, so typed text can never close the <style> element.
+const cssString = (s: string) => `"${s.replace(/\\/g, "\\\\").replace(/"/g, '\\"').replace(/</g, "\\3c ").replace(/[\r\n]+/g, " ")}"`;
 const RISK = { high: "High", medium: "Medium", low: "Low" } as Record<string, string>;
 /** A control as a phrase inside a sentence: no trailing "?", ordinary capitals lowered, acronyms (NDPC, DPO) kept. */
 const phrase = (t: string) => { const x = t.replace(/\?$/, ""); return /^[A-Z][a-z]/.test(x) ? x[0].toLowerCase() + x.slice(1) : x; };

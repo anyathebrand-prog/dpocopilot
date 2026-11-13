@@ -53,13 +53,13 @@ async function page(title: string, inner: string, format: string, filename: stri
   if (letter) { inner = letter; title = `Cover letter - ${title}`; filename = `cover-letter-${filename}`; }
   if (format === "doc") {
     // Native Word: same content as the PDF, with its page header text and orientation.
-    const header = css.match(/@top-center\s*\{\s*content:\s*"((?:[^"\\]|\\.)*)"/)?.[1]?.replace(/\\(.)/g, "$1");
+    const header = css.match(/@top-center\s*\{\s*content:\s*"((?:[^"\\]|\\.)*)"/)?.[1]?.replace(/\\([0-9a-f]{1,6}) ?|\\(.)/gi, (_, hex, ch) => hex ? String.fromCodePoint(parseInt(hex, 16)) : ch);
     const docx = await htmlToDocx(inner, { title, header, landscape: /size:\s*A4 landscape/.test(css) });
     return new Response(new Uint8Array(docx), { headers: {
       "content-type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
       "content-disposition": `attachment; filename="${filename}.docx"` } });
   }
-  const html = `<!doctype html><html lang="${COUNTRY.locale}"><head><meta charset="utf-8"><title>${title}</title><style>${css}</style></head><body>
+  const html = `<!doctype html><html lang="${COUNTRY.locale}"><head><meta charset="utf-8"><title>${esc(title)}</title><style>${css}</style></head><body>
     <div class="noprint"><button onclick="print()">Print or save as PDF</button></div>${inner}</body></html>`;
   return new Response(html, { headers: { "content-type": "text/html; charset=utf-8" } });
 }
@@ -177,8 +177,11 @@ export async function GET(req: Request) {
       }
       department = (await one<{ d: string }>("select string_agg(distinct r.department, ', ') as d from dpia_ropa dr join ropa_entries r on r.id = dr.ropa_entry_id where dr.dpia_id = $1", [dp.id]))?.d ?? null;
     }
-    const r = dpiaReadinessHtml({ org: String(ans.org_legal_name || c.name), received, dpia: dp ? { title: dp.title, system: dp.system_name, department, year: dp.assessment_year } : undefined });
-    await audit(u, "export", "dpia_readiness", dp?.id ?? clientId, { client_id: clientId, details: { format } });
+    // Without a DPIA, the title, department and system typed on the DPIAs page make it a document for that one system.
+    const typed = (k: string) => (url.searchParams.get(k) ?? "").trim().slice(0, 200) || null;
+    const forSystem = !dp && (typed("title") || typed("system") || typed("department")) ? { title: typed("title") ?? "", system: typed("system"), department: typed("department") } : undefined;
+    const r = dpiaReadinessHtml({ org: String(ans.org_legal_name || c.name), received, dpia: dp ? { title: dp.title, system: dp.system_name, department, year: dp.assessment_year } : forSystem });
+    await audit(u, "export", "dpia_readiness", dp?.id ?? clientId, { client_id: clientId, details: { format, ...(forSystem ?? {}) } });
     return page(r.title, r.body, format, slug(r.title), r.css);
   }
 
