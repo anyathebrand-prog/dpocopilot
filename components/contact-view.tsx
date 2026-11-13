@@ -20,7 +20,7 @@ export function ContactView({ action, ok, error }: { action: (fd: FormData) => P
           <h2 className="sp-card-title">Other ways to reach us</h2>
           <ul className="ct-list">
             <li><span className="ct-ic"><Mail aria-hidden /></span><div><b>Email</b><p>For sales, support and anything else.</p><a href="mailto:info@dpocopilot.ng">info@dpocopilot.ng</a></div></li>
-            <li><span className="ct-ic"><ShieldCheck aria-hidden /></span><div><b>Data Protection Officer</b><p>Questions about how we handle personal data, or to exercise your rights.</p><a href="mailto:dpo@copilot.ng">dpo@copilot.ng</a></div></li>
+            <li><span className="ct-ic"><ShieldCheck aria-hidden /></span><div><b>Data Protection Officer</b><p>Questions about how we handle personal data, or to exercise your rights.</p><a href="mailto:dpo@dpocopilot.ng">dpo@dpocopilot.ng</a></div></li>
             <li><span className="ct-ic"><Rocket aria-hidden /></span><div><b>Join the pilot</b><p>DPCO firms we set up personally, with their first year free.</p><Link href="/pilot">Request pilot access <ArrowRight aria-hidden /></Link></div></li>
             <li><span className="ct-ic"><FileDown aria-hidden /></span><div><b>Brochure</b><p>What DPO Copilot does, in a short PDF.</p><a href="/downloads/dpo-copilot-brochure.pdf" download>Download the brochure</a></div></li>
           </ul>

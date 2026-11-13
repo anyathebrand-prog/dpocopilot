@@ -62,7 +62,7 @@ export default function Privacy() {
         <p>If a breach affects data we process for a firm, we notify that firm without undue delay so it can meet its own obligations under NDPA s.40.</p>
 
         <h2>Contact</h2>
-        <p>Data Protection Officer: Anya Victor, <a href="mailto:dpo@copilot.ng">dpo@copilot.ng</a>[, postal address].</p>
+        <p>Data Protection Officer: Anya Victor, <a href="mailto:dpo@dpocopilot.ng">dpo@dpocopilot.ng</a>[, postal address].</p>
         <p className="meta">Last updated: 15 October 2026.</p>
       </article>
     </section>
