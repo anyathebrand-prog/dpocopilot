@@ -4,7 +4,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState, type CSSProperties } from "react";
 import "./dark-header.css";
 
-const NAV: [string, string][] = [["/", "Home"], ["/#product", "Product"], ["/pricing", "Pricing"], ["/blog", "Blog"], ["/pilot", "Contact"]];
+const NAV: [string, string][] = [["/", "Home"], ["/#product", "Product"], ["/pricing", "Pricing"], ["/blog", "Blog"], ["/contact", "Contact"]];
 
 /** Dark-site header shared by the home and pricing pages: logo, white nav pill, Sign in, and the mobile sheet menu. */
 /** `dashboard`: signed-in user's home; swaps the Sign in button for a Dashboard link.
