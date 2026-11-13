@@ -44,11 +44,11 @@ export async function leaveDpco(soloFirmId: string) {
 
 /** DPCO firms a Solo DPO can choose: those whose workspace is open (subscription active or in grace, or no subscription fee applies). */
 export async function availableDpcos(excludeFirmId: string) {
-  const { annualFee } = await import("./subscription");
+  const { feesOn } = await import("./subscription");
   const { subState } = await import("./subscription-math");
   const { todayWAT } = await import("./rules");
   const firms = await q<{ id: string; name: string; e: string | null }>("select id, name, subscription_ends::text as e from firms where plan = 'firm' and id <> $1 order by name", [excludeFirmId]);
-  if (!(await annualFee())) return firms;
+  if (!(await feesOn())) return firms;
   const today = todayWAT();
   return firms.filter((f) => ["active", "grace"].includes(subState(f.e, today)));
 }

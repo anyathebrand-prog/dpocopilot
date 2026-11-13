@@ -28,7 +28,7 @@ export default async function ClientLayout({ children, params }: { children: Rea
   const groups: [string | null, [string, string, number?][]][] = [
     [null, [["", "Overview"]]],
     ["Set up", [["/onboarding", "Onboarding"], ["/data-inventory", "Data inventory"], ["/ropa", "RoPA"]]],
-    ["Assess", [["/dpias", "DPIAs"], ["/assessments/lia", "LIAs"], ["/assessments/tia", "Transfer risk"], ["/assessments/tpra", "Third-party risk"], ["/gaps", "Gaps", s!.gaps], ...(car ? [["/car-readiness", "Compliance Audit Returns"] as [string, string]] : []), ["/remediation", "Remediation", s!.remediation_open]]],
+    ["Assess", [["/dpias", "DPIAs"], ["/assessments/lia", "LIAs"], ["/assessments/tia", "Transfer risk"], ["/assessments/tpra", "Third-party risk"], ["/gaps", "Gaps", s!.gaps], ...(car ? [["/car-readiness", "Compliance Audit Returns"] as [string, string], ["/car-performance", "CAR Performance"] as [string, string]] : []), ["/remediation", "Remediation", s!.remediation_open]]],
     ["Documents and evidence", [["/documents", "Documents"], ["/evidence", "Evidence", s!.evidence_waiting]]],
     ["Respond", [["/breaches", "Breaches", s!.breaches]]],
     [null, [["/settings", "Settings"]]],

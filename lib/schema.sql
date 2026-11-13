@@ -1160,3 +1160,79 @@ with p as (
   where d.item_text = 'Has a Data Privacy Impact Assessment (DPIA) been conducted?' and n.item_text = 'Were new technologies or processing introduced in the last year?'
     and d.position < n.position)
 update client_car_items t set position = case when t.id = p.did then p.np else p.dp end from p where t.id = p.did or t.id = p.nid;
+
+-- CAR Performance Trend (lib/car-perf-model.ts): yearly snapshots of twelve KPIs, scored per CAR category and overall.
+-- KPI definitions are platform constants in code. Draft snapshots refresh their auto values from the modules; a locked
+-- snapshot keeps its values, scores and the weights used, so history never shifts when settings change.
+create table if not exists car_perf_settings (
+  client_id uuid primary key references clients on delete cascade,
+  firm_id uuid not null references firms,
+  weights jsonb not null,
+  tolerances jsonb not null,
+  updated_by uuid references users,
+  updated_at timestamptz not null default now()
+);
+create table if not exists car_perf_snapshots (
+  id uuid primary key default gen_random_uuid(),
+  firm_id uuid not null references firms,
+  client_id uuid not null references clients on delete cascade,
+  car_year int not null check (car_year between 2019 and 2100),
+  filing_date date,
+  filing_status text not null default 'not_filed' check (filing_status in ('on_time','late','not_filed')),
+  score_gov numeric(5,1), score_sec numeric(5,1), score_acc numeric(5,1), score_cbt numeric(5,1), score_dpr numeric(5,1),
+  overall_score numeric(5,1),
+  rating_band text check (rating_band in ('Green','Amber','Red')),
+  weights_used jsonb,
+  tolerances_used jsonb,
+  status text not null default 'draft' check (status in ('draft','locked')),
+  locked_by uuid references users,
+  locked_at timestamptz,
+  summary text,
+  summary_status text not null default 'none' check (summary_status in ('none','draft','approved')),
+  summary_approved_by uuid references users,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique (client_id, car_year)
+);
+create index if not exists car_perf_snapshots_firm on car_perf_snapshots (firm_id);
+create table if not exists car_perf_values (
+  snapshot_id uuid not null references car_perf_snapshots on delete cascade,
+  firm_id uuid not null references firms,
+  kpi_code text not null,
+  numerator numeric,
+  denominator numeric,
+  raw_value text,
+  score numeric(5,1),
+  source text not null default 'auto' check (source in ('auto','manual','import')),
+  override_reason text,
+  updated_by uuid references users,
+  updated_at timestamptz not null default now(),
+  primary key (snapshot_id, kpi_code),
+  check (source <> 'manual' or coalesce(trim(override_reason), '') <> '')
+);
+create table if not exists car_perf_targets (
+  firm_id uuid not null references firms,
+  client_id uuid not null references clients on delete cascade,
+  car_year int not null,
+  scope text not null check (scope in ('kpi','category','overall')),
+  ref_code text not null,
+  target_value numeric(5,1) not null check (target_value between 0 and 100),
+  primary key (client_id, car_year, scope, ref_code)
+);
+
+-- DPCO firm plans (lib/firm-tiers.ts): Starter (3 seats), Growth (10 seats), Firm (unlimited), each with its own yearly fee.
+-- Seats are active members plus pending team invitations. Existing DPCO firms start on the smallest plan that seats their current
+-- active team, so nobody loses access. Solo DPO practices have no tier (one seat, set by plan = 'solo').
+alter table firms add column if not exists tier text;
+do $$ begin
+  if not exists (select 1 from pg_constraint where conname = 'firms_tier_check') then
+    alter table firms add constraint firms_tier_check check (tier is null or tier in ('starter','growth','firm'));
+  end if;
+end $$;
+update firms f set tier = case when n.k <= 3 then 'starter' when n.k <= 10 then 'growth' else 'firm' end
+from (select f2.id, (select count(*) from memberships m where m.firm_id = f2.id and m.status = 'active') as k from firms f2) n
+where n.id = f.id and f.plan = 'firm' and f.tier is null;
+insert into platform_settings (key, published_value) values ('dpco_fee_starter', '500000'), ('dpco_fee_growth', '1500000'), ('dpco_fee_firm', '3000000') on conflict do nothing;
+-- Each subscription payment records the plan it buys: a year ('year') or a move up a plan part-way through the year ('upgrade').
+alter table firm_subscription_payments add column if not exists tier text;
+alter table firm_subscription_payments add column if not exists kind text not null default 'year';

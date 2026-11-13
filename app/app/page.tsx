@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { BAND_COLOR, type Band } from "@/lib/car-perf-model";
 import { naira } from "@/lib/invoice";
 import { money } from "@/lib/proposal";
 import Link from "next/link";
@@ -34,7 +35,10 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
       (select count(*)::int from breaches b where b.client_id = c.id and b.status = 'open') as breaches,
       (select count(*)::int from dsars d where d.client_id = c.id and d.status = 'open') as dsars,
       (select coalesce(round(100.0 * count(*) filter (where status = 'complete') / nullif(count(*) filter (where status <> 'not_applicable'), 0)), 0)::int
-        from client_car_items i where i.client_id = c.id and i.audit_year = c.car_audit_year and i.category_key <> 'data_processors') as readiness
+        from client_car_items i where i.client_id = c.id and i.audit_year = c.car_audit_year and i.category_key <> 'data_processors') as readiness,
+      (select json_build_object('year', s.car_year, 'score', s.overall_score, 'band', s.rating_band, 'locked', s.status = 'locked',
+         'prev', (select p.overall_score from car_perf_snapshots p where p.client_id = c.id and p.car_year < s.car_year and p.overall_score is not null order by p.car_year desc limit 1))
+        from car_perf_snapshots s where s.client_id = c.id and s.overall_score is not null order by s.car_year desc limit 1) as perf
     from clients c where ${scope} and (c.archived_at is not null) = $4 order by c.name`, [...args, today, archived]);
 
   return (
@@ -106,7 +110,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
       ) : (
         <div className="scroll">
           <table className="register">
-            <thead><tr><th>Client</th><th>Status</th><th className="num">Open gaps</th><th className="num">Overdue</th><th className="num">Breaches</th><th style={{ minWidth: 160 }}>Compliance Audit Returns</th></tr></thead>
+            <thead><tr><th>Client</th><th>Status</th><th className="num">Open gaps</th><th className="num">Overdue</th><th className="num">Breaches</th><th style={{ minWidth: 160 }}>Compliance Audit Returns</th><th>CAR score</th></tr></thead>
             <tbody>
               {clients.map((c) => (
                 <tr key={c.id}>
@@ -116,6 +120,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
                   <td data-label="Overdue" className="num">{c.overdue > 0 ? <span className="chip overdue">{c.overdue} overdue</span> : 0}</td>
                   <td data-label="Breaches" className="num">{c.breaches > 0 ? <b style={{ color: "var(--red-700)" }}>{c.breaches} active</b> : 0}</td>
                   <td data-label="Compliance Audit Returns"><Bar pct={c.readiness} /></td>
+                  <td data-label="CAR score" className="small">{c.perf ? <Link href={`/app/clients/${c.id}/car-performance`} style={{ whiteSpace: "nowrap" }}><b className="num">{Number(c.perf.score).toFixed(1)}</b> <i className="perf-dot" style={{ background: BAND_COLOR[c.perf.band as Band] }} title={c.perf.band} /> {c.perf.band}<span className="meta" style={{ display: "block", fontWeight: 400 }}>CAR {c.perf.year}{c.perf.locked ? "" : " · draft"}{c.perf.prev != null ? ` · ${Number(c.perf.score) - Number(c.perf.prev) >= 0 ? "+" : ""}${(Number(c.perf.score) - Number(c.perf.prev)).toFixed(1)}` : ""}</span></Link> : <span className="meta">–</span>}</td>
                 </tr>
               ))}
             </tbody>

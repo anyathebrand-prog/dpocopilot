@@ -1,5 +1,7 @@
 "use server";
 import { redirect } from "next/navigation";
+import { tierForTeam, seatFree, TIER_LABEL } from "./firm-tiers";
+import { firmTier } from "./subscription";
 import { q, one, tx } from "./db";
 import { hashPassword, verifyPassword, sha256, verifyTotp } from "./crypto";
 import { createSession, destroySession, getUser, pendingMfaUser, markMfaPassed, audit, clientIp, home } from "./auth";
@@ -70,10 +72,12 @@ export async function setupMfa(fd: FormData) {
 export async function signUp(fd: FormData) {
   const token = str(fd, "token"), solo = str(fd, "plan") === "solo";
   const back = token ? `/sign-up?token=${encodeURIComponent(token)}` : solo ? "/sign-up?plan=solo" : "/sign-up";
+  const team = Number(str(fd, "team_size"));
   if (!(await signUpOpen(token))) redirect(flash("/sign-in", "This workspace is already set up. Sign in, or ask your firm administrator for an invitation.", "error"));
   const name = str(fd, "name"), email = str(fd, "email").toLowerCase(), password = String(fd.get("password") ?? ""), firm = solo ? str(fd, "name") : str(fd, "firm"); // a Solo DPO's practice carries their own name
   if (!name || !firm || !/^\S+@\S+\.\S+$/.test(email)) redirect(flash(back, solo ? "Enter your name and a valid email." : "Enter your name, a valid email and your firm's name.", "error"));
   if (!validPassword(password)) redirect(flash(back, "Use a password of at least 10 characters.", "error"));
+  if (!solo && (!Number.isInteger(team) || team < 1 || team > 10_000)) redirect(flash(back, "Enter how many people will use DPO Copilot in your firm, including you.", "error"));
   if (await one("select 1 from users where lower(email) = $1", [email])) redirect(flash(back, "An account with this email exists. Sign in instead.", "error"));
   // Solo DPO: professional details, shown to the DPCO they ask to work under.
   let profile: unknown[] | null = null;
@@ -91,7 +95,7 @@ export async function signUp(fd: FormData) {
   }
   const ids = await tx(async (t) => {
     const u = await t.query<{ id: string }>("insert into users (name, email, password_hash) values ($1,$2,$3) returning id", [name, email, hashPassword(password)]);
-    const f = await t.query<{ id: string }>("insert into firms (name, created_by, plan) values ($1,$2,$3) returning id", [firm, u.rows[0].id, solo ? "solo" : "firm"]);
+    const f = await t.query<{ id: string }>("insert into firms (name, created_by, plan, tier) values ($1,$2,$3,$4) returning id", [firm, u.rows[0].id, solo ? "solo" : "firm", solo ? null : tierForTeam(team)]);
     // A Solo DPO signs their documents: start their signatory and contact details from sign-up (editable on My details).
     if (profile) await t.query("update firms set signatory_name = $2, signatory_title = 'Data Protection Officer', signatory_credentials = $3, email = $4, phone = $5 where id = $1",
       [f.rows[0].id, name, str(fd, "certification").slice(0, 300), email, str(fd, "phone").slice(0, 40)]);
@@ -113,6 +117,11 @@ export async function acceptInvite(fd: FormData) {
   if (!name) redirect(flash(self, "Enter your name.", "error"));
   if (!validPassword(password)) redirect(flash(self, "Use a password of at least 10 characters.", "error"));
   if (await one("select 1 from users where lower(email) = lower($1)", [inv.email])) redirect(flash(self, "This email already has an account. Sign in, or ask for an invitation to a different email.", "error"));
+  if (inv.role !== "client_contact") {
+    const active = Number((await one<{ n: number }>("select count(*) as n from memberships where firm_id = $1 and status = 'active'", [inv.firm_id]))!.n);
+    const tier = await firmTier(inv.firm_id);
+    if (!seatFree(tier, active)) redirect(flash(self, `${TIER_LABEL[tier]} plan seats are all taken at this firm. Ask your Firm Admin to move up a plan, then open this link again.`, "error"));
+  }
   const userId = await tx(async (t) => {
     const u = await t.query<{ id: string }>("insert into users (name, email, password_hash) values ($1,$2,$3) returning id", [name, inv.email.toLowerCase(), hashPassword(password)]);
     const id = u.rows[0].id;

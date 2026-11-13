@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { requireClient, audit } from "@/lib/auth";
+import { requireClient, clientBase, audit } from "@/lib/auth";
 import { q, one } from "@/lib/db";
 import { str, flash } from "@/lib/form";
 import { KINDS, RATED, ATTACH, LIA_DOCS, nextNo, type Kind } from "@/lib/assessments";
@@ -18,8 +18,9 @@ const scale = [1, 2, 3, 4, 5];
 async function load(fd: FormData) {
   const a = await one("select * from assessments where id = $1", [/^[0-9a-f-]{36}$/.test(str(fd, "id")) ? str(fd, "id") : null]);
   if (!a) redirect("/forbidden");
-  const { user } = await requireClient(a.client_id, { write: true });
-  return { a, user, back: `/app/clients/${a.client_id}/assessments/${a.kind}/${a.id}` };
+  const { user } = await requireClient(a.client_id, { write: true, portal: true });
+  const B = await clientBase(a.client_id);
+  return { a, user, back: `${B}/assessments/${a.kind}/${a.id}` };
 }
 
 async function save(fd: FormData) {
@@ -63,7 +64,8 @@ export default async function Assessment({ params, searchParams }: { params: Pro
   if (!k) notFound();
   if (kind === "tpra") return <TpraPage clientId={clientId} id={id} sp={sp} />;
   if (kind === "tia") return <TiaPage clientId={clientId} id={id} sp={sp} />;
-  const { client } = await requireClient(clientId);
+  const { client } = await requireClient(clientId, { portal: true });
+  const B = await clientBase(clientId);
   const a = await one("select a.*, r.purpose, u.name as approver from assessments a left join ropa_entries r on r.id = a.ropa_entry_id left join users u on u.id = a.approved_by where a.id = $1 and a.client_id = $2 and a.kind = $3",
     [/^[0-9a-f-]{36}$/.test(id) ? id : null, clientId, kind]);
   if (!a) notFound();
@@ -72,7 +74,7 @@ export default async function Assessment({ params, searchParams }: { params: Pro
   const exp = (f: string) => `/export?kind=assessment&id=${a.id}&format=${f}`;
   return (
     <>
-      <nav className="meta" aria-label="Breadcrumb"><Link href={`/app/clients/${clientId}/assessments/${kind}`}>{k.name}s</Link> / {a.title}</nav>
+      <nav className="meta" aria-label="Breadcrumb"><Link href={`${B}/assessments/${kind}`}>{k.name}s</Link> / {a.title}</nav>
       <div className="spread" style={{ alignItems: "flex-start" }}>
         <h2 style={{ marginTop: 8 }}>{a.title} <span className="meta" style={{ fontSize: "0.7em" }}>· {a.assessment_year}</span> <Chip status={a.status === "approved" ? "approved" : "draft"} /></h2>
         <div className="row" style={{ marginTop: 8 }}>{kind === "lia" && <><a className="btn secondary" href={`/export?kind=lia-readiness&id=${a.id}&format=pdf`} target="_blank">Generate LIA Readiness Document</a><a className="btn secondary" href={`/export?kind=lia-readiness&id=${a.id}&format=doc`}>Readiness (Word)</a></>}<a className="btn" href={exp("pdf")} target="_blank">PDF</a><a className="btn secondary" href={exp("doc")}>Word</a><a className="btn secondary" href={exp("pdf") + "&cover=only"} target="_blank">Cover letter (PDF)</a><a className="btn secondary" href={exp("doc") + "&cover=only"}>Cover letter (Word)</a></div>

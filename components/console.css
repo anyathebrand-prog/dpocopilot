@@ -338,3 +338,112 @@ table.tia-matrix tr.on td { background: rgba(168, 220, 255, 0.1); font-weight: 6
 .tia-profile { display: grid; gap: 4px; font-size: 12px; }
 .tia-profile div { display: grid; grid-template-columns: 1fr auto auto; gap: 6px; align-items: center; }
 @media (max-width: 700px) { .tia-plan-r { grid-template-columns: 1fr 1fr; } .tia-cat-head { grid-template-columns: 1fr; } .kv.tia-car { grid-template-columns: 1fr; } }
+
+/* CAR Performance Trend */
+.perf-head { display: grid; grid-template-columns: 1.2fr repeat(3, 1fr); gap: 16px; }
+.perf-head > div { min-width: 0; }
+.perf-big { font-size: 44px; font-weight: 700; line-height: 1.05; margin: 2px 0 6px; }
+.perf-mid { font-size: 22px; font-weight: 700; line-height: 1.3; }
+.perf-band { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 600; padding: 2px 9px 2px 7px; border-radius: 999px; background: rgba(255,255,255,0.06); box-shadow: inset 0 0 0 1px rgba(255,255,255,0.14); vertical-align: middle; }
+.perf-band i, .perf-dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; }
+.perf-dot { width: 8px; height: 8px; margin-left: 6px; vertical-align: middle; }
+.perf-two { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 16px; margin-bottom: 16px; }
+.perf-two > .panel { margin: 0; }
+.perf-legend { display: flex; flex-wrap: wrap; gap: 6px 14px; margin: 0 0 8px; font-size: 13px; color: var(--cx-light-muted); }
+.perf-legend button, .perf-legend > span { all: unset; cursor: pointer; display: inline-flex; align-items: center; gap: 7px; padding: 2px 4px; border-radius: 6px; color: var(--cx-light); }
+.perf-legend > span { cursor: default; }
+.perf-legend button:focus-visible { outline: 2px solid var(--cx-blue); }
+.perf-legend button.off { opacity: .4; }
+.perf-ln { display: inline-block; width: 16px; height: 3px; border-radius: 2px; margin-right: 6px; vertical-align: middle; }
+.perf-legend .perf-ln { margin: 0; } .perf-ln.bold { height: 5px; }
+.perf-dash { display: inline-block; width: 16px; border-top: 2px dashed; }
+.perf-sq { display: inline-block; width: 10px; height: 10px; border-radius: 2px; }
+.perf-chart { position: relative; }
+.perf-tip { position: absolute; top: 0; pointer-events: none; background: #111a2e; color: var(--cx-light); box-shadow: 0 0 0 1px rgba(255,255,255,0.14), 0 10px 28px rgba(0,0,0,.4); border-radius: 10px; padding: 10px 12px; font-size: 13px; min-width: 210px; opacity: 0; transition: opacity .12s; z-index: 3; }
+.perf-tip.on { opacity: 1; }
+.perf-tip b { display: block; margin-bottom: 4px; }
+.perf-tip .row { display: flex; justify-content: space-between; gap: 12px; }
+.perf-tip .row span:first-child { display: inline-flex; align-items: center; gap: 6px; color: var(--cx-light-muted); }
+.perf-tip .sw { display: inline-block; width: 10px; height: 4px; border-radius: 2px; }
+.perf-scroll { overflow-x: auto; }
+table.perf-kpis, table.perf-cat { width: 100%; border-collapse: collapse; font-size: 14px; }
+table.perf-kpis th, table.perf-kpis td, table.perf-cat th, table.perf-cat td { padding: 8px 10px; border-bottom: 1px solid var(--cx-line); text-align: left; color: var(--cx-light); vertical-align: top; }
+table.perf-kpis th, table.perf-cat th { font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: var(--cx-light-muted); font-weight: 600; }
+table.perf-kpis td.num, table.perf-kpis th.num, table.perf-cat td.num, table.perf-cat th.num { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+table.perf-kpis tr.cat td { background: rgba(255,255,255,0.04); font-weight: 600; }
+table.perf-cat tr.tot td { font-weight: 700; border-top: 2px solid rgba(255,255,255,0.2); }
+table.perf-kpis a { color: var(--cx-light); }
+.perf-kpis .code { font-family: ui-monospace, Consolas, monospace; font-size: 12px; color: var(--cx-light-muted); }
+.perf-src { width: 13px; height: 13px; margin-left: 6px; vertical-align: -2px; color: var(--cx-light-muted); }
+.perf-nd { display: block; font-size: 11px; }
+.perf-key { margin: 10px 0 0; }
+.perf-cards { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; }
+.perf-cards > div { border: 1px solid var(--cx-line); border-radius: 12px; padding: 10px 12px; }
+.perf-actions { display: flex; flex-wrap: wrap; gap: 12px 24px; align-items: flex-end; margin: 12px 0 4px; }
+.perf-ovr summary { cursor: pointer; color: var(--cx-blue); font-size: 13px; }
+.perf-ovr form { margin-top: 6px; display: grid; gap: 4px; min-width: 240px; }
+.perf-targets { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px 12px; }
+.perf-targets label { display: grid; gap: 3px; }
+.perf-stack > .panel { margin-bottom: 16px; }
+@media (max-width: 900px) { .perf-head { grid-template-columns: 1fr 1fr; } .perf-two { grid-template-columns: 1fr; } .perf-cards { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 520px) { .perf-head { grid-template-columns: 1fr; } }
+.perf-stack { display: grid; gap: 16px; margin-bottom: 16px; }
+.perf-stack > .panel, .perf-stack > .perf-two { margin: 0; }
+table.perf-cat td:first-child { white-space: nowrap; }
+.perf-ovr summary { white-space: nowrap; }
+.cx-nav-h { display: block; margin: 14px 12px 4px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: var(--cx-light-muted); }
+
+/* Firm settings: third-party risk model. Numbered sections, aligned field tiles with attached prefixes and units. */
+.cx .panel.rm { max-width: 980px; padding: 8px 24px 20px; }
+.rm-sec { padding: 20px 0; border-bottom: 1px solid var(--cx-line); }
+.rm-sec > header { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 14px; }
+.rm-sec > header > div { flex: 1; min-width: 0; }
+.cx .panel .rm-sec h3 { margin: 2px 0 2px; font-size: 16px; }
+.rm-sec > header .meta { margin: 0; font-size: 13.5px; }
+.rm-step { flex: none; width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; background: rgba(168, 220, 255, 0.12); color: var(--cx-blue); font-size: 13px; font-weight: 700; }
+.rm-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 10px; }
+.rm-grid.c3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.rm-grid.c4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.rm-grid.c5 { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+@media (max-width: 1100px) { .rm-grid.c5 { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 860px) { .rm-grid.c3, .rm-grid.c4 { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.rm-grid.two { grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); }
+.rm-tile { display: flex; flex-direction: column; justify-content: space-between; gap: 8px; padding: 12px; border: 1px solid var(--cx-line); border-radius: 12px; background: rgba(255, 255, 255, 0.02); }
+.rm-tl { display: flex; align-items: center; gap: 8px; font-size: 13.5px; font-weight: 500; color: var(--cx-light); line-height: 1.3; }
+.rm-n { flex: none; width: 20px; height: 20px; border-radius: 6px; display: grid; place-items: center; background: rgba(255, 255, 255, 0.08); font-size: 12px; color: var(--cx-light); }
+.rm-dot { flex: none; width: 10px; height: 10px; border-radius: 50%; }
+.rm-in { display: flex; align-items: stretch; border: 1px solid rgba(255, 255, 255, 0.14); border-radius: 10px; background: #0a0f1a; overflow: hidden; }
+.rm-in:focus-within { border-color: var(--cx-blue); box-shadow: 0 0 0 3px rgba(168, 220, 255, 0.2); }
+.cx .panel .rm-in input, .cx .panel .rm-in select { flex: 1; min-width: 0; width: 100%; min-height: 44px; border: 0; border-radius: 0; background: transparent; box-shadow: none; padding: 0 10px; font-variant-numeric: tabular-nums; }
+.rm-in i { display: flex; align-items: center; padding: 0 10px; font-style: normal; font-size: 13px; color: var(--cx-light-muted); background: rgba(255, 255, 255, 0.04); white-space: nowrap; }
+.rm-last { border-style: dashed; background: transparent; }
+.rm-auto { display: flex; align-items: center; min-height: 44px; font-size: 13px; color: var(--cx-light-muted); }
+.rm-total { flex: none; align-self: center; padding: 6px 12px; border-radius: 999px; font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.rm-total.ok { background: rgba(30, 122, 76, 0.2); color: #7ee2a8; }
+.rm-total.bad { background: rgba(180, 35, 24, 0.22); color: #ffb4ab; }
+.rm-save { display: grid; grid-template-columns: 1fr auto; align-items: end; gap: 12px; padding-top: 20px; }
+.rm-save .field { margin: 0; }
+.rm-foot { margin: 12px 0 0; font-size: 12.5px; }
+@media (max-width: 640px) {
+  .cx .panel.rm { padding: 4px 16px 16px; }
+  .rm-sec > header { flex-wrap: wrap; }
+  .rm-sec > header > div { flex-basis: calc(100% - 38px); }
+  .rm-in i { padding: 0 8px; }
+  .rm-total { margin-left: 38px; }
+  .rm-grid, .rm-grid.c3, .rm-grid.c4, .rm-grid.c5 { grid-template-columns: 1fr 1fr; }
+  .rm-grid.two, .rm-save { grid-template-columns: 1fr; }
+}
+
+/* Subscription page: team size picks the plan (components/plan-picker.tsx). */
+.pp-team { display: block; margin-bottom: 14px; }
+.pp-team > span { display: block; font-weight: 500; margin-bottom: 8px; color: var(--cx-light); }
+.cx .panel .pp-team input { width: 140px; min-height: 44px; font-variant-numeric: tabular-nums; }
+.pp-plans { list-style: none; margin: 0 0 12px; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.pp-plans li { position: relative; display: flex; flex-direction: column; gap: 4px; padding: 14px; border: 1px solid var(--cx-line); border-radius: 12px; background: rgba(255, 255, 255, 0.02); }
+.pp-plans li.on { border-color: #3dd9b4; box-shadow: 0 0 0 1px #3dd9b4 inset; background: rgba(61, 217, 180, 0.08); }
+.pp-plans b { color: #fff; font-size: 15px; }
+.pp-price { font-size: 18px; font-weight: 700; color: #fff; font-variant-numeric: tabular-nums; }
+.pp-price small { font-size: 12px; font-weight: 500; color: var(--cx-light-muted); margin-left: 2px; }
+.pp-seats { font-size: 13px; color: var(--cx-light-muted); }
+.pp-cur { align-self: flex-start; margin-top: 4px; padding: 2px 8px; border-radius: 999px; font-size: 11.5px; background: rgba(168, 220, 255, 0.12); color: var(--cx-blue); }
+@media (max-width: 560px) { .pp-plans { grid-template-columns: 1fr; } }

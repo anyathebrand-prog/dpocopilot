@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { TIERS, TIER_LABEL, TIER_SEATS, isTier, type Tier } from "@/lib/firm-tiers";
 import { requireSecretary, audit, PLAN_LABEL, type Plan } from "@/lib/auth";
 import { q, one } from "@/lib/db";
 import { str, flash } from "@/lib/form";
@@ -16,6 +17,18 @@ async function setPlan(fd: FormData) {
   await q("update firms set plan = $2 where id = $1", [f.id, plan]);
   await audit(u, "update", "firm", f.id, { firm_id: f.id, details: { plan, was: f.plan } });
   redirect(flash("/secretary/firms", `${f.name} is now on the ${PLAN_LABEL[plan]} plan`));
+}
+
+/** A DPCO firm's plan (Starter, Growth, Firm), set by hand. Existing members keep access; the seat limit applies to new invitations. */
+async function setTier(fd: FormData) {
+  "use server";
+  const u = await requireSecretary();
+  const tier = str(fd, "tier");
+  const f = await one("select id, name, tier from firms where id = $1 and plan = 'firm'", [/^[0-9a-f-]{36}$/.test(str(fd, "firm_id")) ? str(fd, "firm_id") : null]);
+  if (!f || !isTier(tier)) redirect("/secretary/firms");
+  await q("update firms set tier = $2 where id = $1", [f.id, tier]);
+  await audit(u, "update", "firm", f.id, { firm_id: f.id, details: { tier, was: f.tier } });
+  redirect(flash("/secretary/firms", `${f.name} is now on the ${TIER_LABEL[tier]} plan`));
 }
 
 /** A Solo DPO's DPCO firm (chosen at first sign-in); the Secretary can change or clear it. */
@@ -58,13 +71,13 @@ async function demoData(fd: FormData) {
 export default async function Firms({ searchParams }: { searchParams: Promise<Record<string, string>> }) {
   await requireSecretary();
   const sp = await searchParams;
-  const firms = await q(`select f.id, f.name, f.plan, f.created_at, f.dpco_firm_id, f.subscription_ends::text as sub_ends,
+  const firms = await q(`select f.id, f.name, f.plan, f.tier, f.created_at, f.dpco_firm_id, f.subscription_ends::text as sub_ends,
       (select count(*)::int from memberships m where m.firm_id = f.id and m.status = 'active') as seats,
       (select count(*)::int from clients c where c.firm_id = f.id and c.archived_at is null) as clients
     from firms f order by f.name`);
   return (
     <>
-      <PageHead title="Firms and plans" sub="Solo DPO: one seat, no team invitations or spreadsheet import. DPCO Firm: every feature." />
+      <PageHead title="Firms and plans" sub="Solo DPO: one seat, no team invitations or spreadsheet import. DPCO firms: Starter up to 3 seats, Growth up to 10, Firm unlimited." />
       <Flash sp={sp} />
       <table className="register">
         <thead><tr><th>Firm</th><th className="num">Active seats</th><th className="num">Clients</th><th>Joined</th><th>Plan</th><th>Solo DPO works with</th><th>Subscription ends</th></tr></thead>
@@ -81,6 +94,13 @@ export default async function Firms({ searchParams }: { searchParams: Promise<Re
                 <Submit className="btn secondary">Save</Submit>
               </form>
               {f.plan === "solo" && f.seats > 1 && <div className="meta">Has {f.seats} seats from before; existing members keep access.</div>}
+              {f.plan === "firm" && (
+                <form action={setTier} className="row" style={{ marginTop: 6 }}>
+                  <Hidden values={{ firm_id: f.id }} />
+                  <select name="tier" defaultValue={f.tier ?? "starter"} aria-label={`DPCO plan for ${f.name}`} style={{ width: "auto" }}>{TIERS.map((t) => <option key={t} value={t}>{TIER_LABEL[t]} ({TIER_SEATS[t] ?? "unlimited"} seats)</option>)}</select>
+                  <Submit className="btn secondary">Save</Submit>
+                </form>)}
+              {f.plan === "firm" && TIER_SEATS[(f.tier ?? "starter") as Tier] !== null && f.seats > TIER_SEATS[(f.tier ?? "starter") as Tier]! && <div className="meta">Over its seat limit; existing members keep access.</div>}
             </td>
             <td data-label="Works with">{f.plan !== "solo" ? <span className="meta">—</span> : (
               <form action={setDpco} className="row">

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { requireClient, audit } from "@/lib/auth";
+import { requireClient, clientBase, audit } from "@/lib/auth";
 import { q, one } from "@/lib/db";
 import { str, opt, flash } from "@/lib/form";
 import { trackerStatus, todayWAT, fmtDate } from "@/lib/rules";
@@ -9,27 +9,29 @@ import { Flash, Hidden, Empty, Banner } from "@/components/ui";
 import { Submit } from "@/components/client";
 
 const validYear = (v: unknown) => { const y = Number(v); return Number.isInteger(y) && y >= 2019 && y <= 2100 ? y : null; };
-const path = (clientId: string, year: number) => `/app/clients/${clientId}/remediation?year=${year}`;
+const path = (base: string, year: number) => `${base}/remediation?year=${year}`;
 const STATUS = [["not_started", "Not Started"], ["in_progress", "In Progress"], ["completed", "Completed"]];
 const isDate = (s: string) => /^\d{4}-\d{2}-\d{2}$/.test(s);
 
 async function build(fd: FormData) {
   "use server";
-  const { user, client } = await requireClient(str(fd, "client_id"), { write: true });
+  const { user, client } = await requireClient(str(fd, "client_id"), { write: true, portal: true });
+  const B = await clientBase(str(fd, "client_id"));
   const year = validYear(str(fd, "year"));
-  if (!year) redirect(`/app/clients/${client.id}/remediation`);
+  if (!year) redirect(`${B}/remediation`);
   const added = await buildTracker(client.id, year, user.id);
-  if (added === null) redirect(flash(path(client.id, year), `No Compliance Audit Returns checklist has been recorded for ${year}.`, "error"));
+  if (added === null) redirect(flash(path(B, year), `No Compliance Audit Returns checklist has been recorded for ${year}.`, "error"));
   await audit(user, "update", "remediation_tracker", client.id, { client_id: client.id, details: { audit_year: year, added } });
-  redirect(flash(path(client.id, year), added ? `${added} action${added > 1 ? "s" : ""} added from the audit` : "Tracker is up to date with the audit"));
+  redirect(flash(path(B, year), added ? `${added} action${added > 1 ? "s" : ""} added from the audit` : "Tracker is up to date with the audit"));
 }
 
 async function save(fd: FormData) {
   "use server";
   const a = await one("select * from remediation_actions where id = $1", [/^[0-9a-f-]{36}$/.test(str(fd, "id")) ? str(fd, "id") : null]);
   if (!a) redirect("/forbidden");
-  const { user } = await requireClient(a.client_id, { write: true });
-  const back = `${path(a.client_id, a.audit_year)}#a-${a.id}`;
+  const { user } = await requireClient(a.client_id, { write: true, portal: true });
+  const B = await clientBase(a.client_id);
+  const back = `${path(B, a.audit_year)}#a-${a.id}`;
   const status = STATUS.some(([s]) => s === str(fd, "status")) ? str(fd, "status") : a.status;
   const target = str(fd, "target_date"), closed = str(fd, "date_closed");
   if ((target && !isDate(target)) || (closed && !isDate(closed))) redirect(flash(back, "Enter dates with the date picker.", "error"));
@@ -44,7 +46,8 @@ async function save(fd: FormData) {
 export default async function Remediation({ params, searchParams }: { params: Promise<{ clientId: string }>; searchParams: Promise<Record<string, string>> }) {
   const { clientId } = await params;
   const sp = await searchParams;
-  const { client } = await requireClient(clientId);
+  const { client } = await requireClient(clientId, { portal: true });
+  const B = await clientBase(clientId);
   const year = validYear(sp.year) ?? client.car_audit_year;
   const years = (await q<{ y: number }>("select distinct audit_year as y from client_car_items where client_id = $1 order by 1 desc", [clientId])).map((r) => r.y);
   const rows = await loadTracker(clientId, year);
@@ -68,10 +71,10 @@ export default async function Remediation({ params, searchParams }: { params: Pr
       </div>
       <Flash sp={sp} />
       <div className="row" style={{ gap: 6, margin: "8px 0 16px" }} aria-label="Audit years">
-        {years.map((y) => <Link key={y} href={path(clientId, y)} className={`btn ${y === year ? "" : "quiet"}`} aria-current={y === year ? "page" : undefined}>{y}{y === client.car_audit_year ? " (active)" : ""}</Link>)}
+        {years.map((y) => <Link key={y} href={path(B, y)} className={`btn ${y === year ? "" : "quiet"}`} aria-current={y === year ? "page" : undefined}>{y}{y === client.car_audit_year ? " (active)" : ""}</Link>)}
       </div>
       {!hasChecklist ? (
-        <Empty><p><b>No Compliance Audit Returns checklist has been recorded for {year}.</b></p><p>The tracker is built from that year&apos;s audit. <Link href={`/app/clients/${clientId}/car-readiness?year=${year}`}>Open Compliance Audit Returns</Link></p></Empty>
+        <Empty><p><b>No Compliance Audit Returns checklist has been recorded for {year}.</b></p><p>The tracker is built from that year&apos;s audit. <Link href={B.startsWith("/portal") ? "/portal/car" : `${B}/car-readiness?year=${year}`}>Open Compliance Audit Returns</Link></p></Empty>
       ) : (
         <>
           {!ro && (

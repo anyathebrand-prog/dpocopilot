@@ -7,6 +7,8 @@ import { str, flash } from "@/lib/form";
 import { fmtWAT } from "@/lib/rules";
 import { Flash, Field, Hidden, Chip, PageHead, Banner } from "@/components/ui";
 import { Submit } from "@/components/client";
+import { seatBlock, seatsUsed } from "@/lib/subscription";
+import { TIER_LABEL, TIER_SEATS } from "@/lib/firm-tiers";
 
 async function inviteMember(fd: FormData) {
   "use server";
@@ -15,6 +17,10 @@ async function inviteMember(fd: FormData) {
   const email = str(fd, "email").toLowerCase(), role = str(fd, "role");
   if (!/^\S+@\S+\.\S+$/.test(email) || !ROLE_LABEL[role]) redirect(flash("/app/settings/team", "Enter an email and choose a role.", "error"));
   if (await one("select 1 from users where lower(email) = $1", [email])) redirect(flash("/app/settings/team", "This email already has an account.", "error"));
+  // A new invitation to an address already invited replaces it, so it takes no extra seat.
+  const again = await one("select 1 from invitations where firm_id = $1 and email = $2 and client_id is null and status = 'pending' and expires_at > now()", [u.firm_id, email]);
+  const block = again ? null : await seatBlock(u.firm_id);
+  if (block) redirect(flash("/app/settings/team", block, "error"));
   await invite({ firm_id: u.firm_id, email, role, invited_by: u.id });
   await audit(u, "invite", "membership", null, { details: { role } });
   redirect(flash("/app/settings/team", `Invitation sent to ${email}`));
@@ -37,9 +43,10 @@ export default async function Team({ searchParams }: { searchParams: Promise<Rec
   const members = await q(`select m.id, m.role, m.status, u.name, u.email, u.mfa_enabled, (select count(*)::int from client_assignments a where a.membership_id = m.id) as clients
     from memberships m join users u on u.id = m.user_id where m.firm_id = $1 order by m.status, u.name`, [u.firm_id]);
   const pending = await q("select * from invitations where firm_id = $1 and client_id is null and status = 'pending' order by created_at desc", [u.firm_id]);
+  const tier = u.tier ?? "starter", limit = TIER_SEATS[tier], used = await seatsUsed(u.firm_id), full = limit !== null && used >= limit;
   return (
     <>
-      <PageHead title="Team" />
+      <PageHead title="Team" sub={<>{TIER_LABEL[tier]} plan: <b>{limit === null ? `${used} seats in use (unlimited)` : `${used} of ${limit} team seats in use`}</b>, counting active members and pending invitations. <Link href="/subscription">{limit === null ? "Manage plan" : "Change plan"}</Link></>} />
       <Flash sp={sp} />
       <table className="register">
         <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Status</th><th className="num">Assigned clients</th></tr></thead>
@@ -65,6 +72,7 @@ export default async function Team({ searchParams }: { searchParams: Promise<Rec
           ))}
         </>
       )}
+      {full && <Banner kind="warn">All {limit} seats on your {TIER_LABEL[tier]} plan are taken. Revoke a pending invitation, deactivate a member, or <Link href="/subscription">move up a plan</Link> to invite someone new.</Banner>}
       <form action={inviteMember} className="panel" style={{ maxWidth: 640, marginTop: 32 }}>
         <h3>Invite a team member</h3>
         <Field label="Email" required><input type="email" name="email" required /></Field>

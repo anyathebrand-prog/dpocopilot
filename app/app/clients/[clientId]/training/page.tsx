@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { requireClient, audit } from "@/lib/auth";
+import { requireClient, clientBase, audit } from "@/lib/auth";
 import { q, one } from "@/lib/db";
 import { str, opt, flash } from "@/lib/form";
 import { TRAININGS, KINDS, sessionDates, type TrainingKind } from "@/lib/training";
@@ -12,8 +12,9 @@ const count = (v: string) => (v === "" ? null : Number.isInteger(Number(v)) && N
 
 async function schedule(fd: FormData) {
   "use server";
-  const { user, client } = await requireClient(str(fd, "client_id"), { write: true });
-  const back = `/app/clients/${client.id}/training`;
+  const { user, client } = await requireClient(str(fd, "client_id"), { write: true, portal: true });
+  const B = await clientBase(str(fd, "client_id"));
+  const back = `${B}/training`;
   const kind = str(fd, "kind") as TrainingKind, starts = str(fd, "starts_on"), ends = opt(fd, "ends_on"), planned = count(str(fd, "planned_participants"));
   if (!KINDS.includes(kind)) redirect(flash(back, "Choose a training.", "error"));
   if (!/^\d{4}-\d{2}-\d{2}$/.test(starts)) redirect(flash(back, "Choose the training date.", "error"));
@@ -29,12 +30,13 @@ async function schedule(fd: FormData) {
 export default async function TrainingPlan({ params, searchParams }: { params: Promise<{ clientId: string }>; searchParams: Promise<Record<string, string>> }) {
   const { clientId } = await params;
   const sp = await searchParams;
-  const { client } = await requireClient(clientId);
+  const { client } = await requireClient(clientId, { portal: true });
+  const B = await clientBase(clientId);
   const years = (await q<{ y: string }>("select distinct extract(year from starts_on)::int::text as y from trainings where client_id = $1 order by 1 desc", [clientId])).map((r) => r.y);
   const year = /^\d{4}$/.test(sp.year ?? "") ? sp.year : years[0] ?? todayWAT().slice(0, 4);
   const rows = await q(`select t.*, (select count(*)::int from files f where f.training_id = t.id) as evidence from trainings t
     where t.client_id = $1 and extract(year from t.starts_on) = $2 order by t.starts_on, t.created_at`, [clientId, Number(year)]);
-  const today = todayWAT(), ro = !!client.archived_at, b = `/app/clients/${clientId}/training`;
+  const today = todayWAT(), ro = !!client.archived_at, b = `${B}/training`;
   const exp = (f: string) => `/export?kind=training-plan&client=${clientId}&year=${year}&format=${f}`;
   return (
     <>

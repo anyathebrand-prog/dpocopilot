@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { requireClient, audit } from "@/lib/auth";
+import { requireClient, clientBase, audit } from "@/lib/auth";
 import { q, tx } from "@/lib/db";
 import { str, all, flash } from "@/lib/form";
 import { answersOf } from "@/lib/data";
@@ -16,12 +16,13 @@ import { DpiaEntries } from "@/components/dpia-entries";
 /** One DPIA per entry (a system or process). Each is drafted straight away from the client's records, all 13 steps. */
 async function create(fd: FormData) {
   "use server";
-  const { user, client } = await requireClient(str(fd, "client_id"), { write: true });
+  const { user, client } = await requireClient(str(fd, "client_id"), { write: true, portal: true });
+  const B = await clientBase(str(fd, "client_id"));
   const year = Number(str(fd, "assessment_year")), picked = all(fd, "ropa");
   const titles = fd.getAll("title").map((x) => String(x).trim().slice(0, 300)), depts = fd.getAll("dept").map((x) => String(x).trim().slice(0, 120));
   const systems = fd.getAll("system").map((x) => String(x).trim().slice(0, 200));
   const entries = titles.map((title, i) => ({ title, system: systems[i] ?? "", dept: depts[i] ?? "", files: fd.getAll(`docs${i}`).filter((f): f is File => f instanceof File && f.size > 0) })).filter((e) => e.title);
-  const self = `/app/clients/${client.id}/dpias/new`;
+  const self = `${B}/dpias/new`;
   if (!entries.length) redirect(flash(self, "Enter the system or process to assess.", "error"));
   if (!Number.isInteger(year) || year < 2019 || year > 2100) redirect(flash(self, "Enter the assessment year as four digits, for example 2026.", "error"));
   const valid = await q("select id from ropa_entries where client_id = $1 and id = any($2::uuid[])", [client.id, picked]);
@@ -55,14 +56,15 @@ async function create(fd: FormData) {
     }));
   }
   const msg = "drafted from the client's records and uploaded documents. Review each step, complete the [To be completed] parts and edit as needed.";
-  if (ids.length === 1) redirect(flash(`/app/clients/${client.id}/dpias/${ids[0]}`, `DPIA started and all 13 steps ${msg}`));
-  redirect(flash(`/app/clients/${client.id}/dpias?year=${year}`, `${ids.length} DPIAs started, each ${msg}`));
+  if (ids.length === 1) redirect(flash(`${B}/dpias/${ids[0]}`, `DPIA started and all 13 steps ${msg}`));
+  redirect(flash(`${B}/dpias?year=${year}`, `${ids.length} DPIAs started, each ${msg}`));
 }
 
 export default async function NewDpia({ params, searchParams }: { params: Promise<{ clientId: string }>; searchParams: Promise<Record<string, string>> }) {
   const { clientId } = await params;
   const sp = await searchParams;
-  await requireClient(clientId, { write: true });
+  await requireClient(clientId, { write: true, portal: true });
+  const B = await clientBase(clientId);
   const ropa = await q("select id, purpose, department, involves_sensitive, is_high_risk from ropa_entries where client_id = $1 and state = 'active' order by purpose", [clientId]);
   const from = ropa.find((r) => r.id === sp.ropa);
   const departments = departmentOptions(list((await answersOf(clientId)).org_departments), ropa.map((r) => r.department));
@@ -88,7 +90,7 @@ export default async function NewDpia({ params, searchParams }: { params: Promis
             ))}
           </fieldset>
         )}
-        <div className="row"><Submit>Create and draft DPIA</Submit><Link className="btn secondary" href={`/app/clients/${clientId}/dpias`}>Cancel</Link></div>
+        <div className="row"><Submit>Create and draft DPIA</Submit><Link className="btn secondary" href={`${B}/dpias`}>Cancel</Link></div>
       </form>
     </>
   );

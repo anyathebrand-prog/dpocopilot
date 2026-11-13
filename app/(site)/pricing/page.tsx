@@ -1,119 +1,186 @@
 import Link from "next/link";
-import { ArrowRight } from "lucide-react";
+import { Check, ArrowRight, Mail } from "lucide-react";
 import { DarkHeader } from "@/components/dark-header";
-import { Reveal } from "@/components/reveal";
-import { HomeFX, SplitHeading } from "@/components/home-motion";
-import { Tiers, ReadinessMock, Faq, CheckMark } from "@/components/pricing-parts";
 import "@/components/site-base.css";
-import "@/components/homepage.css";
-import "@/components/site-pages.css";
+import "@/components/pricing.css";
 
-export const metadata = { title: "Pricing · DPO Copilot" };
+export const metadata = {
+  title: "Pricing · DPO Copilot",
+  description: "Yearly pricing in Naira: one platform fee for your DPCO firm, and one client fee for each organisation you manage, based on its size. NDPA compliance with all data kept in Nigeria.",
+};
 
-const TIERS = [
-  { key: "solo", name: "Solo DPO", who: "Independent DPOs managing a few clients", price: "Contact us", cta: "Get started", note: "Open now", href: "/sign-up?plan=solo" },
-  { key: "firm", name: "DPCO Firm", who: "Licensed compliance firms serving many clients", price: "On request", cta: "Request pilot access", note: "Pilot open now", href: "/pilot" },
-] as const;
+const SIGN_UP = "/sign-up";
+const SALES = "mailto:info@dpocopilot.ng";
 
-// [feature, solo, firm]
-const FEATURES: [string, boolean, boolean][] = [
-  ["Multi-client dashboard and review queue", true, true],
-  ["Onboarding questionnaire and data mapping", true, true],
-  ["RoPA, DPIA workflow and policy generator", true, true],
-  ["Breach management with 72-hour countdown", true, true],
-  ["DSAR tracker with 30-day deadlines", true, true],
-  ["Evidence vault and CAR readiness score", true, true],
-  ["Client portal with verified sign-off", true, true],
-  ["Copilot drafting, gap analysis and cited Q&A", true, true],
-  ["Team seats with Admin, Lead and Associate roles", false, true],
-  ["Import from your existing spreadsheets", false, true],
+type Plan = { key: string; name: string; price: string; who: string; cta: string; lead?: string; features: string[]; popular?: boolean };
+const PLANS: Plan[] = [
+  { key: "starter", name: "Starter", price: "₦500,000", who: "For small DPCOs getting organised.", cta: "Start with Starter",
+    features: ["Up to 3 team seats", "Client register with Excel/CSV import", "CAR readiness checklist", "DSAR tracker with 30-day deadline alerts", "Client portal (view, upload evidence, approve)", "AI regulatory Q&A and NDPA library", "Email support"] },
+  { key: "growth", name: "Growth", price: "₦1,500,000", who: "For established firms with a growing client book.", cta: "Start with Growth", popular: true, lead: "Everything in Starter, plus:",
+    features: ["Up to 10 team seats", "Roles: Firm Admin, Lead Consultant, Associate", "AI drafting for policies, notices and DPIAs", "AI gap analysis for every client", "Third-party (data processor) risk assessments", "E-signature for client sign-off", "Multi-year CAR performance metrics and graphs", "Priority support"] },
+  { key: "firm", name: "Firm", price: "₦3,000,000", who: "For large DPCOs with big teams.", cta: "Start with Firm", lead: "Everything in Growth, plus:",
+    features: ["Unlimited team seats", "Unlimited AI usage (fair use)", "Solo DPO marketplace (hire and assign tasks)", "Client portal with your firm's branding", "Firm-wide reports across all clients", "Team onboarding session", "Dedicated account contact"] },
+];
+
+const SIZES = [
+  { name: "Small", price: "₦600,000", subjects: "Up to 500", depts: "1 to 10" },
+  { name: "Medium", price: "₦1,000,000", subjects: "501 to 1,000", depts: "11 to 20" },
+  { name: "Large", price: "₦2,000,000", subjects: "Over 1,000", depts: "21 and above", note: "A client meeting either condition is classed as Large." },
+];
+
+const STEPS: [string, string][] = [
+  ["Add the client", "Create the workspace and confirm its size from data subjects and departments."],
+  ["Collect the fee", "Your DPCO collects the client fee and pays it to DPO Copilot."],
+  ["Workspace goes live", "Once payment is confirmed, the workspace activates for a full year."],
+  ["Renew yearly", "Reminders go out 30 days before renewal so there's no break in service."],
+];
+
+// [feature, starter, growth, firm]; true = included, false = not included, string = shown as text
+const COMPARE: [string, string | boolean, string | boolean, string | boolean][] = [
+  ["Team seats", "3", "10", "Unlimited"],
+  ["CAR checklist and DSAR tracker", true, true, true],
+  ["Client portal", true, true, "Branded"],
+  ["AI regulatory Q&A", true, true, true],
+  ["AI drafting and gap analysis", false, true, true],
+  ["Third-party risk assessments", false, true, true],
+  ["Multi-year CAR metrics", false, true, true],
+  ["Solo DPO marketplace", false, false, true],
+  ["Firm-wide reports", false, false, true],
+  ["Support", "Email", "Priority", "Dedicated contact"],
 ];
 
 const FAQ: [string, string][] = [
-  ["Is my clients' data used to train AI?", "No. Client data is never used to train AI models."],
-  ["Does DPO Copilot file with the NDPC?", "No. It drafts notifications and prepares your CAR file; you review, approve and submit them."],
-  ["Can I bring my existing records?", "Yes. Import clients, contacts and RoPA registers from spreadsheets, with every row checked before anything is saved."],
-  ["How are AI drafts controlled?", "Every AI draft stays marked as a draft until a Lead Consultant or Firm Admin approves it. Nothing AI-generated reaches a client or an export without that approval, and every generation is logged."],
-  ["Can my clients use it too?", "Yes. Each client gets a portal where their contacts answer onboarding questions, upload evidence, sign documents, report breaches and log data subject requests. They only ever see their own organisation."],
-  ["Is this legal advice?", "No. DPO Copilot supports professional judgement. Regulatory answers cite their sources and carry a 'guidance, not legal advice' notice."],
+  ["Who pays the client fee?", "Your DPCO collects the fee from each client organisation and pays DPO Copilot. The firm plan fee is paid separately by the DPCO."],
+  ["How is a client's size decided?", "By its number of data subjects and departments, confirmed by the consultant when the workspace is created. If a client grows into a bigger tier, the difference is billed for the rest of the year."],
+  ["Where is our data stored?", "In Nigeria, including AI processing. Each firm has its own private account, and no other firm can see its data."],
+  ["What happens if a renewal is missed?", "After a 14-day grace period, the workspace becomes read-only until payment is made. Your records are never deleted."],
+  ["Who qualifies for the launch offer?", "The first 15 DPCOs to sign up get DPO Copilot free for their first year."],
 ];
 
-const ADDON = ["Evidence requests tracked against every checklist item", "Readiness score across all five CAR categories", "Gap check before audit season", "Checklist export to PDF and Word"];
-
-function Head({ kicker, line1, line2, sub, h1 }: { kicker: string; line1: string; line2: string; sub?: string; h1?: boolean }) {
-  return (
-    <div className="hp-head">
-      <Reveal><span className="hp-kicker">{kicker}</span></Reveal>
-      <SplitHeading as={h1 ? "h1" : "h2"} className={`hp-h2 ${h1 ? "big" : ""}`} line1={line1} line2={line2} />
-      {sub && <Reveal delay={0.3}><p className="hp-sub">{sub}</p></Reveal>}
-    </div>
-  );
-}
+const Yes = () => <span className="pr-yes"><Check aria-hidden strokeWidth={3} /><span className="sr-only">Included</span></span>;
+const No = () => <span className="pr-no" aria-label="Not included">—</span>;
+const cell = (v: string | boolean) => (v === true ? <Yes /> : v === false ? <No /> : v);
 
 export default function Pricing() {
   return (
-    <div className="bh">
-      <HomeFX />
+    <div className="bh pr">
       <div className="bh-top"><DarkHeader /></div>
 
-      <section className="hp-card hp-bare hp-grid-bg">
-        <div className="hp-inner">
-          <Head h1 kicker="Pricing" line1="Simple" line2="pricing" sub="Per-seat pricing for your NDPA compliance practice. We're agreeing pilot terms with a small group of DPCO firms first." />
-          <Tiers tiers={TIERS} />
+      <section className="pr-hero" aria-labelledby="pr-title">
+        <div className="pr-wrap">
+          <span className="pr-label">Pricing</span>
+          <h1 id="pr-title">Simple pricing for every DPCO and every client</h1>
+          <p className="pr-lede">One platform fee for your firm. One client fee for each organisation you manage, based on its size. Built for NDPA compliance, with all data kept in Nigeria.</p>
+          <p className="pr-offer"><span className="pr-pill">Launch offer</span><span>The first 15 DPCOs to sign up get DPO Copilot free for their first year.</span></p>
         </div>
       </section>
 
-      <section className="hp-card hp-bare">
-        <div className="hp-inner">
-          <Head kicker="Compare plans" line1="Key" line2="features" />
-          <Reveal className="sp-card sp-table-wrap">
-            <table className="sp-table">
-              <thead><tr><th scope="col"><span className="sr-only">Feature</span></th>{TIERS.map((t) => <th key={t.key} scope="col" className={t.key === "firm" ? "main" : undefined}>{t.name}</th>)}</tr></thead>
+      <section className="pr-plans" aria-labelledby="pr-plans-h">
+        <h2 id="pr-plans-h" className="sr-only">Firm plans</h2>
+        <div className="pr-wrap">
+          <div className="pr-plan-grid">
+            {PLANS.map((p) => (
+              <article key={p.key} className={`pr-plan${p.popular ? " pop" : ""}`} aria-labelledby={`plan-${p.key}`}>
+                {p.popular && <span className="pr-badge">Most popular</span>}
+                <h3 id={`plan-${p.key}`}>{p.name}</h3>
+                <p className="pr-price"><b>{p.price}</b><span>/year</span></p>
+                <p className="pr-who">{p.who}</p>
+                <Link href={`${SIGN_UP}?plan=${p.key}`} className={`pr-btn ${p.popular ? "mint" : "navy"}`}>{p.cta}</Link>
+                {p.lead && <p className="pr-lead">{p.lead}</p>}
+                <ul className="pr-feats">{p.features.map((f) => <li key={f}><Check aria-hidden strokeWidth={2.5} />{f}</li>)}</ul>
+              </article>
+            ))}
+          </div>
+          <div className="pr-enterprise">
+            <div><h3>Enterprise</h3><p>For firms managing 150+ clients or needing custom integrations, extra security reviews or bulk data migration.</p></div>
+            <a href={SALES} className="pr-btn outline-dark"><Mail aria-hidden />Talk to us</a>
+          </div>
+        </div>
+      </section>
+
+      <section className="pr-section" aria-labelledby="pr-fees-h">
+        <div className="pr-wrap">
+          <div className="pr-head">
+            <span className="pr-label light">Client fees</span>
+            <h2 id="pr-fees-h">Each client workspace is priced by size</h2>
+            <p>Every organisation you manage gets its own private workspace. The fee depends on how many data subjects and departments it has. Your DPCO collects the fee from the client and pays DPO Copilot.</p>
+          </div>
+          <div className="pr-size-grid">
+            {SIZES.map((s) => (
+              <article key={s.name} className="pr-size" aria-labelledby={`size-${s.name}`}>
+                <h3 id={`size-${s.name}`}>{s.name}</h3>
+                <p className="pr-price"><b>{s.price}</b><span>/year per client</span></p>
+                <dl>
+                  <div><dt>Data subjects</dt><dd>{s.subjects}</dd></div>
+                  <div><dt>Departments</dt><dd>{s.depts}</dd></div>
+                </dl>
+                {s.note && <p className="pr-note">{s.note}</p>}
+              </article>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="pr-section alt" aria-labelledby="pr-billing-h">
+        <div className="pr-wrap">
+          <div className="pr-head">
+            <span className="pr-label light">Billing</span>
+            <h2 id="pr-billing-h">How client billing works</h2>
+          </div>
+          <ol className="pr-steps">
+            {STEPS.map(([t, d], i) => (
+              <li key={t}><span className="pr-num" aria-hidden>{i + 1}</span><h3>{t}</h3><p>{d}</p></li>
+            ))}
+          </ol>
+        </div>
+      </section>
+
+      <section className="pr-section" aria-labelledby="pr-compare-h">
+        <div className="pr-wrap">
+          <div className="pr-head">
+            <span className="pr-label light">Compare</span>
+            <h2 id="pr-compare-h">Compare firm plans</h2>
+          </div>
+          <div className="pr-table-wrap" role="region" aria-labelledby="pr-compare-h" tabIndex={0}>
+            <table className="pr-table">
+              <thead><tr><th scope="col">Feature</th><th scope="col">Starter</th><th scope="col" className="pop">Growth</th><th scope="col">Firm</th></tr></thead>
               <tbody>
-                {FEATURES.map(([f, ...on]) => (
-                  <tr key={f}><th scope="row">{f}</th>{on.map((x, i) => <td key={i} className={i === 1 ? "main" : undefined}>{x ? <CheckMark /> : <span className="sp-dash" aria-label="Not included">–</span>}</td>)}</tr>
+                {COMPARE.map(([f, a, b, c]) => (
+                  <tr key={f}><th scope="row">{f}</th><td>{cell(a)}</td><td className="pop">{cell(b)}</td><td>{cell(c)}</td></tr>
                 ))}
               </tbody>
             </table>
-          </Reveal>
-          <p className="sp-foot">Both plans are open now.</p>
-        </div>
-      </section>
-
-      <section className="hp-card hp-bare">
-        <div className="hp-inner sp-split">
-          <div className="sp-left">
-            <Reveal><span className="hp-kicker">Add-on</span></Reveal>
-            <SplitHeading className="hp-h2" line1="CAR preparation" line2="package" />
-            <Reveal delay={0.2}>
-              <p className="hp-sub">Hands-on help getting a client&apos;s Compliance Audit Return file ready, priced per audit. DPO Copilot prepares the evidence and readiness checklist; filing with the NDPC stays with you.</p>
-              <ul className="sp-list">{ADDON.map((x) => <li key={x}><CheckMark />{x}</li>)}</ul>
-              <Link href="/pilot" className="btn-cta">Ask about the package <ArrowRight aria-hidden /></Link>
-            </Reveal>
           </div>
-          <Reveal delay={0.15}><ReadinessMock /></Reveal>
         </div>
       </section>
 
-      <section className="hp-card hp-bare">
-        <div className="hp-inner">
-          <Head kicker="Questions" line1="Before" line2="you ask" />
-          <Faq items={FAQ} />
+      <section className="pr-section alt" aria-labelledby="pr-faq-h">
+        <div className="pr-wrap narrow">
+          <div className="pr-head">
+            <span className="pr-label light">FAQ</span>
+            <h2 id="pr-faq-h">Questions about pricing</h2>
+          </div>
+          <div className="pr-faq">
+            {FAQ.map(([q, a], i) => (
+              <details key={q} open={i === 0}>
+                <summary><span>{q}</span><span className="pr-plus" aria-hidden /></summary>
+                <p>{a}</p>
+              </details>
+            ))}
+          </div>
         </div>
       </section>
 
-      <section className="hp-card hp-cta">
-        <div className="hp-cta-grid" aria-hidden="true" />
-        <div className="hp-inner">
-          <Reveal>
-            <span className="hp-kicker">Pilot</span>
-            <SplitHeading className="hp-h2 big" line1="Join" line2="the pilot" />
-            <p className="hp-sub">Bring your existing client registers and we&apos;ll help you get your first client to an audit-ready file.</p>
-            <div className="hp-actions">
-              <Link href="/pilot" className="btn-cta">Get Started</Link>
-              <Link href="/" className="hp-ghost">Back to home <ArrowRight aria-hidden /></Link>
+      <section className="pr-section" aria-labelledby="pr-cta-h">
+        <div className="pr-wrap">
+          <div className="pr-cta">
+            <h2 id="pr-cta-h">Run every client&apos;s compliance from one place</h2>
+            <p>Join as one of the first 15 DPCOs and use DPO Copilot free for your first year.</p>
+            <div className="pr-cta-actions">
+              <Link href={SIGN_UP} className="pr-btn mint">Claim your free year <ArrowRight aria-hidden /></Link>
+              <a href={SALES} className="pr-btn outline-light"><Mail aria-hidden />Contact sales</a>
             </div>
-          </Reveal>
+          </div>
         </div>
       </section>
     </div>

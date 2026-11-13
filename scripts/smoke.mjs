@@ -42,7 +42,7 @@ const lastMatch = (re) => [...logText().matchAll(new RegExp(re.source, "g"))].po
 const run = Date.now().toString(36);
 const admin = new S();
 console.log("Firm sign-up and client onboarding");
-let r = await admin.submit("/sign-up", "Create firm", { name: "Adaeze Okafor", email: `ada-${run}@firm.ng`, password: "correct-horse-1", firm: "Lagos Privacy Partners" });
+let r = await admin.submit("/sign-up", "Create firm", { name: "Adaeze Okafor", email: `ada-${run}@firm.ng`, password: "correct-horse-1", firm: "Lagos Privacy Partners", team_size: "5" });
 assert.match(r.loc ?? "", /\/app/); ok("sign-up creates firm and lands on /app");
 let p = await admin.get("/app");
 assert.match(p.html, /Add your first client/); ok("empty dashboard");
@@ -145,7 +145,7 @@ assert.match(r.loc, /Add a comment/); ok("rejecting evidence requires a comment"
 
 console.log("Tenant isolation and roles");
 const other = new S();
-await other.submit("/sign-up", "Create firm", { name: "Other Admin", email: `other-${run}@x.ng`, password: "another-pass-1", firm: "Other DPCO" });
+await other.submit("/sign-up", "Create firm", { name: "Other Admin", email: `other-${run}@x.ng`, password: "another-pass-1", firm: "Other DPCO", team_size: "3" });
 p = await other.get(C); assert.equal(p.path, "/forbidden"); ok("another firm is denied the client by direct URL");
 p = await other.get(docPath); assert.equal(p.path, "/forbidden");
 const ex2 = await fetch(`${BASE}/export?kind=ropa&client=${clientId}&format=pdf`, { headers: { cookie: other.c() } }); assert.equal(ex2.status, 404); ok("another firm cannot export the client's RoPA");

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { requireClient } from "@/lib/auth";
+import { requireClient, clientBase } from "@/lib/auth";
 import { q } from "@/lib/db";
 import { todayWAT, fmtDate } from "@/lib/rules";
 import { RATINGS, RATING_COLOR } from "@/lib/tpra-model";
@@ -20,7 +20,8 @@ const STATUS: [string, string][] = [["draft", "Draft"], ["approved", "Approved, 
 
 /** Processor register: every processor the client uses, with its rating, DPA status and next review. */
 export default async function TpraRegister({ clientId, sp }: { clientId: string; sp: Record<string, string> }) {
-  const { client } = await requireClient(clientId);
+  const { client } = await requireClient(clientId, { portal: true });
+  const B = await clientBase(clientId);
   const today = todayWAT();
   const rows = await q(`select a.id, a.title, a.status, a.rating, a.residual, a.answers, to_char(a.next_review, 'YYYY-MM-DD') as next_review, a.client_signed_at, a.assessment_year,
       (select count(*)::int from tpra_evidence e where e.assessment_id = a.id and e.expires_on < $2::date) as expired,
@@ -31,7 +32,7 @@ export default async function TpraRegister({ clientId, sp }: { clientId: string;
   const due = (r: any) => (!!r.next_review && r.next_review <= today) || r.expired > 0;
   const shown = rows.filter((r) => (!sp.rating || r.rating === sp.rating || (sp.rating === "none" && !r.rating)) && (!sp.status || (sp.status === "due" ? due(r) : st(r) === sp.status)));
   const counts = Object.fromEntries(RATINGS.map((k) => [k, rows.filter((r) => r.rating === k).length]));
-  const b = `/app/clients/${clientId}/assessments/tpra`;
+  const b = `${B}/assessments/tpra`;
   const link = (k: string, v: string) => { const p = new URLSearchParams({ ...(sp.rating ? { rating: sp.rating } : {}), ...(sp.status ? { status: sp.status } : {}) }); if (v) p.set(k, v); else p.delete(k); const s = p.toString(); return s ? `${b}?${s}` : b; };
   const unassessed = ropa.filter((r) => r.recipients?.trim()).length;
   return (

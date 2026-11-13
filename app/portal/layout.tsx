@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { House, ListChecks, Database, CalendarClock, FileText, Upload, Receipt, ClipboardList, ShieldAlert, UserSearch, BadgeCheck, NotebookPen, Menu, LogOut, Building, Globe } from "lucide-react";
+import { House, ListChecks, Database, CalendarClock, FileText, Upload, Receipt, ClipboardList, ShieldAlert, UserSearch, BadgeCheck, NotebookPen, Menu, LogOut, Building, Globe, TrendingUp, FileSearch, Scale, Wrench, GraduationCap } from "lucide-react";
 import { requireContact } from "@/lib/auth";
 import { one } from "@/lib/db";
 import { signOut } from "@/lib/auth-actions";
@@ -42,11 +42,18 @@ export default async function PortalLayout({ children }: { children: ReactNode }
           <nav className="nav" aria-label="Main">
             <NavLink href="/portal" exact><House aria-hidden />Home</NavLink>
             <NavLink href="/portal/car"><ListChecks aria-hidden />CAR checklist</NavLink>
+            <NavLink href="/portal/performance"><TrendingUp aria-hidden />CAR performance</NavLink>
             <NavLink href="/portal/ropa"><Database aria-hidden />Data inventory (RoPA)</NavLink>
             <NavLink href="/portal/deadlines"><CalendarClock aria-hidden />Deadlines</NavLink>
             <NavLink href="/portal/documents"><FileText aria-hidden /><span>Documents</span>{badge(c!.signoffs)}</NavLink>
-            <NavLink href="/portal/processors"><Building aria-hidden /><span>Processors</span>{badge(c!.processors)}</NavLink>
-            <NavLink href="/portal/transfers"><Globe aria-hidden /><span>Transfers</span>{badge(c!.transfers)}</NavLink>
+            <span className="cx-nav-h">Your compliance work</span>
+            <NavLink href="/portal/c/dpias"><FileSearch aria-hidden />DPIAs</NavLink>
+            <NavLink href="/portal/c/assessments/lia"><Scale aria-hidden />LIAs</NavLink>
+            <NavLink href="/portal/c/assessments/tia"><Globe aria-hidden /><span>Transfer risk</span>{badge(c!.transfers)}</NavLink>
+            <NavLink href="/portal/c/assessments/tpra"><Building aria-hidden /><span>Third-party risk</span>{badge(c!.processors)}</NavLink>
+            <NavLink href="/portal/c/remediation"><Wrench aria-hidden />Remediation</NavLink>
+            <NavLink href="/portal/c/training"><GraduationCap aria-hidden />Training plan</NavLink>
+            <span className="cx-nav-h">More</span>
             <NavLink href="/portal/evidence"><Upload aria-hidden /><span>Evidence</span>{badge(c!.evidence)}</NavLink>
             <NavLink href="/portal/invoices"><Receipt aria-hidden /><span>Invoices</span>{badge(c!.invoices)}</NavLink>
             <NavLink href="/portal/questionnaire"><ClipboardList aria-hidden />Onboarding answers</NavLink>

@@ -6,6 +6,7 @@ import { q, one } from "@/lib/db";
 import { reference } from "@/lib/breach";
 import { fmtDate, fmtWAT, todayWAT, carReminderStage } from "@/lib/rules";
 import { Flash, Deadline, Chip, Banner, Bar } from "@/components/ui";
+import { BAND_COLOR, type Band } from "@/lib/car-perf-model";
 
 export default async function PortalHome({ searchParams }: { searchParams: Promise<Record<string, string>> }) {
   const u = await requireContact();
@@ -21,6 +22,10 @@ export default async function PortalHome({ searchParams }: { searchParams: Promi
   // FLAG-6 default: contacts see the status of what they reported, nothing more.
   const reports = await q(`(select 'breach' as kind, id, created_at, status, null as label from breaches where client_id = $1 and reported_by = $2)
     union all (select 'dsar', id, created_at, status, requester_name from dsars where client_id = $1 and logged_by = $2) order by created_at desc limit 5`, [id, u.id]);
+  const perf = await one<{ car_year: number; overall_score: string; rating_band: string; first_year: number; first_score: string }>(`select s.car_year, s.overall_score, s.rating_band,
+      f.car_year as first_year, f.overall_score as first_score from car_perf_snapshots s
+    left join lateral (select car_year, overall_score from car_perf_snapshots x where x.client_id = s.client_id and x.status = 'locked' and x.overall_score is not null and x.car_year >= s.car_year - 4 order by car_year limit 1) f on true
+    where s.client_id = $1 and s.status = 'locked' and s.overall_score is not null order by s.car_year desc limit 1`, [id]);
   const todo = (qn!.status !== "completed" ? 1 : 0) + evidence.length + signoffs.length;
 
   if (client!.archived_at) return <Banner kind="warn">{client!.name}&apos;s compliance file is archived. Contact {u.firm_name} if you need anything.</Banner>;
@@ -42,6 +47,12 @@ export default async function PortalHome({ searchParams }: { searchParams: Promi
             </div>
           ))}
           <p className="caption" style={{ margin: 0 }}>The score is the average of the parts that can be measured. It updates as {u.firm_name} records your compliance work.</p>
+        </section>
+      )}
+      {perf && (
+        <section className="panel" style={{ marginBottom: 16 }} aria-label="CAR performance">
+          <div className="spread"><b>CAR performance</b><Link href="/portal/performance">View the trend</Link></div>
+          <p style={{ margin: "6px 0 0" }}><span className="num" style={{ fontSize: 26, fontWeight: 700 }}>{Number(perf.overall_score).toFixed(1)}</span> <span className="perf-band"><i style={{ background: BAND_COLOR[perf.rating_band as Band] }} />{perf.rating_band}</span> <span className="meta">CAR {perf.car_year}{perf.first_year < perf.car_year ? ` · ${Number(perf.overall_score) - Number(perf.first_score) >= 0 ? "+" : ""}${(Number(perf.overall_score) - Number(perf.first_score)).toFixed(1)} pts since ${perf.first_year}` : ""}</span></p>
         </section>
       )}
       <p className="meta">Managed by {u.firm_name}</p>

@@ -8,17 +8,40 @@ import { paymentsOn } from "./checkout";
 import { todayWAT, fmtDate } from "./rules";
 import { subState, nextEnd, reminderStage, GRACE_DAYS, type SubState } from "./subscription-math";
 import { money } from "./country";
+import { TIERS, TIER_LABEL, TIER_SEATS, isTier, seatFree, type Tier } from "./firm-tiers";
 
 const PAYSTACK = process.env.PAYSTACK_BASE_URL ?? "https://api.paystack.co"; // override only for tests
 const KEY = () => process.env.PAYSTACK_SECRET_KEY;
+const seatTextLower = (t: Tier) => (TIER_SEATS[t] === null ? "unlimited team seats" : `up to ${TIER_SEATS[t]} team seats`);
 const BASE = () => process.env.APP_URL ?? "http://localhost:3000";
 const addDays = (d: string, n: number) => { const x = new Date(d + "T00:00:00Z"); x.setUTCDate(x.getUTCDate() + n); return x.toISOString().slice(0, 10); };
 
-/** The annual fee in naira, or 0 when none is set or Paystack isn't configured (no subscription is then required). */
-export async function annualFee() {
-  if (!paymentsOn()) return 0;
-  const n = Number(await setting("dpco_annual_fee"));
-  return Number.isFinite(n) && n > 0 ? n : 0;
+/** Each plan's yearly fee in naira (platform settings dpco_fee_<tier>); all 0 when Paystack isn't configured. */
+export async function tierFees(): Promise<Record<Tier, number>> {
+  const on = paymentsOn();
+  const out = {} as Record<Tier, number>;
+  for (const t of TIERS) { const n = Number(await setting(`dpco_fee_${t}`)); out[t] = on && Number.isFinite(n) && n > 0 ? n : 0; }
+  return out;
+}
+/** A plan's yearly fee in naira, or 0 when none is set or Paystack isn't configured. */
+export const annualFee = async (tier: Tier) => (await tierFees())[tier];
+/** Whether DPCOs pay a subscription at all (any plan has a fee). While none does, every workspace stays open. */
+export const feesOn = async () => Object.values(await tierFees()).some((n) => n > 0);
+
+/** A DPCO firm's plan (Starter when unset). */
+export async function firmTier(firmId: string): Promise<Tier> {
+  const t = (await one<{ tier: string | null }>("select tier from firms where id = $1", [firmId]))?.tier;
+  return isTier(t) ? t : "starter";
+}
+/** Seats in use: active members plus pending, unexpired team invitations (an invitation holds its seat until accepted or revoked). */
+export async function seatsUsed(firmId: string) {
+  return Number((await one<{ n: number }>(`select (select count(*) from memberships where firm_id = $1 and status = 'active')
+    + (select count(*) from invitations where firm_id = $1 and client_id is null and status = 'pending' and expires_at > now()) as n`, [firmId]))!.n);
+}
+/** Null when the firm can add a member; otherwise the reason, naming the plan and its limit. `used` defaults to seatsUsed. */
+export async function seatBlock(firmId: string, used?: number) {
+  const tier = await firmTier(firmId), n = used ?? (await seatsUsed(firmId));
+  return seatFree(tier, n) ? null : `Your ${TIER_LABEL[tier]} plan has ${TIER_SEATS[tier]} team seats, and all are taken (members and pending invitations). Move up a plan on the Subscription page to add more.`;
 }
 
 export type Sub = { state: SubState; ends: string | null; graceEnds: string | null; firmId: string; own: boolean };
@@ -33,19 +56,18 @@ export async function subscriptionOf(u: { firm_id: string; plan?: string; dpco_f
   if (!firmId) return { state: "active", ends: null, graceEnds: null, firmId: u.firm_id, own: !solo };
   const ends = (await one<{ e: string | null }>("select subscription_ends::text as e from firms where id = $1", [firmId]))?.e ?? null;
   let state = subState(ends, today);
-  if (state !== "active" && !(await annualFee())) state = "active";
+  if (state !== "active" && !(await feesOn())) state = "active";
   return { state, ends, graceEnds: ends ? addDays(ends, GRACE_DAYS) : null, firmId, own: !solo };
 }
 
-/** Starts a Paystack transaction for a year's subscription and returns its payment page URL. */
-export async function startSubscription(firmId: string, payer: { id: string; email: string }) {
-  const amount = await annualFee();
-  if (!amount) throw new Error("No subscription fee is set.");
+/** Starts a Paystack transaction for a plan (a year, or a move up a plan for the rest of the year) and returns its payment page URL. */
+export async function startSubscription(firmId: string, payer: { id: string; email: string }, o: { tier: Tier; kind: "year" | "upgrade"; amount: number }) {
+  if (!(o.amount > 0)) throw new Error("No subscription fee is set.");
   const reference = `DPOS-${randomUUID()}`;
-  await q("insert into firm_subscription_payments (firm_id, reference, amount, created_by) values ($1,$2,$3,$4)", [firmId, reference, amount, payer.id]);
+  await q("insert into firm_subscription_payments (firm_id, reference, amount, created_by, tier, kind) values ($1,$2,$3,$4,$5,$6)", [firmId, reference, o.amount, payer.id, o.tier, o.kind]);
   const r = await fetch(`${PAYSTACK}/transaction/initialize`, {
     method: "POST", headers: { Authorization: `Bearer ${KEY()}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ email: payer.email, amount: Math.round(amount * 100), currency: "NGN", reference, callback_url: `${BASE()}/subscription`, metadata: { firm_id: firmId, kind: "dpco_subscription" } }),
+    body: JSON.stringify({ email: payer.email, amount: Math.round(o.amount * 100), currency: "NGN", reference, callback_url: `${BASE()}/subscription`, metadata: { firm_id: firmId, kind: "dpco_subscription", tier: o.tier, payment: o.kind } }),
   });
   const j = await r.json().catch(() => ({}));
   if (!r.ok || !j.status || !j.data?.authorization_url) throw new Error(j.message ?? `Paystack error ${r.status}`);
@@ -65,10 +87,17 @@ export async function confirmSubscription(reference: string): Promise<"paid" | "
   const won = await one("update firm_subscription_payments set status = 'paid', paid_at = now() where id = $1 and status <> 'paid' returning id", [p.id]);
   if (!won) return "paid"; // the redirect and the webhook can race; only one extends
   const f = (await one<{ e: string | null; name: string }>("select subscription_ends::text as e, name from firms where id = $1", [p.firm_id]))!;
+  const tier: Tier | null = isTier(p.tier) ? p.tier : null;
+  if (p.kind === "upgrade" && tier) { // a move up a plan: the new seat limit now, the same end date
+    await q("update firms set tier = $2 where id = $1", [p.firm_id, tier]);
+    await q("update firm_subscription_payments set period_end = $2 where id = $1", [p.id, f.e]);
+    await tellAdmins(p.firm_id, `Payment of ${money(Number(p.amount))} received. ${f.name} is now on the ${TIER_LABEL[tier]} plan (${seatTextLower(tier)})${f.e ? ` until ${fmtDate(f.e)}` : ""}.`);
+    return "paid";
+  }
   const end = nextEnd(f.e, todayWAT());
-  await q("update firms set subscription_ends = $2 where id = $1", [p.firm_id, end]);
+  await q("update firms set subscription_ends = $2, tier = coalesce($3, tier) where id = $1", [p.firm_id, end, tier]);
   await q("update firm_subscription_payments set period_end = $2 where id = $1", [p.id, end]);
-  await tellAdmins(p.firm_id, `Payment of ${money(Number(p.amount))} received. ${f.name}'s DPO Copilot subscription now runs to ${fmtDate(end)}.`);
+  await tellAdmins(p.firm_id, `Payment of ${money(Number(p.amount))} received. ${f.name}'s DPO Copilot subscription${tier ? ` (${TIER_LABEL[tier]} plan)` : ""} now runs to ${fmtDate(end)}.`);
   return "paid";
 }
 
@@ -130,17 +159,18 @@ async function clientReminders(now: Date) {
 }
 
 async function dpcoReminders(now: Date) {
-  const fee = await annualFee();
-  if (!fee) return { sent: 0, note: "no subscription fee" };
+  const fees = await tierFees();
+  if (!Object.values(fees).some((n) => n > 0)) return { sent: 0, note: "no subscription fee" };
   const today = todayWAT(now);
-  const firms = await q<{ id: string; e: string }>("select id, subscription_ends::text as e from firms where plan = 'firm' and subscription_ends is not null and subscription_ends <= $1::date + 30", [today]);
+  const firms = await q<{ id: string; e: string; tier: string | null }>("select id, tier, subscription_ends::text as e from firms where plan = 'firm' and subscription_ends is not null and subscription_ends <= $1::date + 30", [today]);
   let sent = 0;
   for (const f of firms) {
     const stage = reminderStage(f.e, today);
     if (!stage) continue;
     const claimed = await q("insert into firm_subscription_reminders (firm_id, period_end, stage) values ($1,$2,$3) on conflict do nothing returning 1", [f.id, f.e, stage]);
     if (!claimed.length) continue;
-    await tellAdmins(f.id, REMINDER[stage](f.e, addDays(f.e, GRACE_DAYS), money(fee)));
+    const t: Tier = isTier(f.tier) ? f.tier : "starter";
+    await tellAdmins(f.id, REMINDER[stage](f.e, addDays(f.e, GRACE_DAYS), `${money(fees[t])} (${TIER_LABEL[t]} plan)`));
     sent++;
   }
   return { sent };

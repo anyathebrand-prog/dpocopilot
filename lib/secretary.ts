@@ -1,5 +1,6 @@
 "use server";
 import { redirect } from "next/navigation";
+import { TIERS, type Tier } from "./firm-tiers";
 import { SIZES } from "./checkout";
 import { q, one, tx } from "./db";
 import { requireSecretary, audit } from "./auth";
@@ -67,14 +68,14 @@ export async function saveClientFees(fd: FormData) {
   redirect(flash("/secretary/settings", "Client fees saved. They apply to clients added from now on."));
 }
 
-/** The DPCO annual subscription fee (naira). Applies to payments started from now on. */
+/** The DPCO plans' yearly fees (naira): Starter, Growth and Firm. Apply to payments started from now on. */
 export async function saveAnnualFee(fd: FormData) {
   await requireSecretary();
-  const n = Number(str(fd, "fee").replace(/,/g, "") || 0);
-  if (!Number.isFinite(n) || n < 0 || n > 100_000_000) redirect(flash("/secretary/settings", "Enter the fee as an amount in naira (0 for no subscription).", "error"));
-  await q("update platform_settings set published_value = $2 where key = $1", ["dpco_annual_fee", String(Math.round(n * 100) / 100)]);
-  await log("update", "platform_setting", "dpco_annual_fee", { fee: n });
-  redirect(flash("/secretary/settings", "DPCO subscription fee saved."));
+  const fees: [Tier, number][] = TIERS.map((t) => [t, Number(str(fd, `fee_${t}`).replace(/,/g, "") || 0)]);
+  if (fees.some(([, n]) => !Number.isFinite(n) || n < 0 || n > 100_000_000)) redirect(flash("/secretary/settings", "Enter each plan's fee as an amount in naira (0 for no fee).", "error"));
+  for (const [t, n] of fees) await q("insert into platform_settings (key, published_value) values ($1,$2) on conflict (key) do update set published_value = excluded.published_value", [`dpco_fee_${t}`, String(Math.round(n * 100) / 100)]);
+  await log("update", "platform_setting", "dpco_plan_fees", Object.fromEntries(fees));
+  redirect(flash("/secretary/settings", "DPCO plan fees saved. They apply to payments started from now on."));
 }
 
 export async function addCarItem(fd: FormData) {

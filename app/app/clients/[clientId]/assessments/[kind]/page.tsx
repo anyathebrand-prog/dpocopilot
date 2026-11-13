@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { requireClient, audit } from "@/lib/auth";
+import { requireClient, clientBase, audit } from "@/lib/auth";
 import { q, one } from "@/lib/db";
 import { str, flash } from "@/lib/form";
 import { answersOf } from "@/lib/data";
@@ -17,10 +17,11 @@ import TiaRegister from "./tia-register";
 
 async function create(fd: FormData) {
   "use server";
-  const { user, client } = await requireClient(str(fd, "client_id"), { write: true });
+  const { user, client } = await requireClient(str(fd, "client_id"), { write: true, portal: true });
+  const B = await clientBase(str(fd, "client_id"));
   const kind = str(fd, "kind") as Kind;
   if (!KINDS[kind]) redirect("/forbidden");
-  const base = `/app/clients/${client.id}/assessments/${kind}`;
+  const base = `${B}/assessments/${kind}`;
   const title = str(fd, "title"), year = Number(str(fd, "year"));
   if (!title || !Number.isInteger(year) || year < 2019 || year > 2100) redirect(flash(base, "Enter a title and a four-digit year.", "error"));
   const ropa = str(fd, "ropa") ? await one("select * from ropa_entries where id = $1 and client_id = $2", [str(fd, "ropa"), client.id]) : null;
@@ -47,12 +48,13 @@ export default async function Assessments({ params, searchParams }: { params: Pr
   if (!k) notFound();
   if (kind === "tpra") return <TpraRegister clientId={clientId} sp={sp} />;
   if (kind === "tia") return <TiaRegister clientId={clientId} sp={sp} />;
-  const { client } = await requireClient(clientId);
+  const { client } = await requireClient(clientId, { portal: true });
+  const B = await clientBase(clientId);
   const rows = await q(`select a.*, r.purpose from assessments a left join ropa_entries r on r.id = a.ropa_entry_id where a.client_id = $1 and a.kind = $2 order by a.assessment_year desc, a.created_at desc`, [clientId, kind]);
   // Suggest the activities that need one: legitimate interest (LIA), transfers outside Nigeria (TIA), third-party recipients (TPRA).
   const ropa = await q(`select id, purpose, lawful_basis, has_transfer, recipients from ropa_entries where client_id = $1 and state = 'active' order by purpose`, [clientId]);
   const needs = ropa.filter((r) => (kind === "lia" ? r.lawful_basis === "legitimate_interest" : kind === "tpra" ? !!r.recipients?.trim() : r.has_transfer));
-  const b = `/app/clients/${clientId}/assessments/${kind}`;
+  const b = `${B}/assessments/${kind}`;
   return (
     <>
       <div className="spread"><h2 style={{ marginTop: 0 }}>{k.name}s</h2>

@@ -13,7 +13,7 @@ type Copilot = { at: string; source: string; summary: string; schedule5: { key: 
 export type TiaProps = {
   id: string; status: string; answers: Record<string, string>; ropaIds: string[]; history: { at: string; by: string; what: string }[];
   nextReview: string | null; approver: string | null; approvedAt: string | null; signedName: string | null; signedAt: string | null; requestedAt: string | null;
-  docs: Doc[]; tasks: Task[]; ropa: { id: string; purpose: string; department: string | null }[]; readOnly: boolean; canApprove: boolean;
+  docs: Doc[]; tasks: Task[]; ropa: { id: string; purpose: string; department: string | null }[]; readOnly: boolean; canApprove: boolean; selfService?: boolean;
   accept: string; dpiaHref: string; reportHref: string; requestHref: string; legacy: [string, string][];
   actions: { save: Act; approve: Act; requestDocs: Act; copilot: Act; addMeasures: Act; narrative: Act; reassess: Act };
 };
@@ -224,8 +224,8 @@ export default function TiaForm(p: TiaProps) {
             <section className="panel" {...show(6)}>
               <h3>7. Sign-off and review</h3>
               <ol className="tpra-sign">
-                <li><b>Lead Consultant approval.</b> {p.status === "approved" ? <>Approved{p.approver ? ` by ${p.approver}` : ""}{p.approvedAt ? ` on ${fmt(p.approvedAt)}` : ""}.</> : r.rating && r.residualRating ? <>Ready to approve: inherent <b>{r.rating}</b>, residual <b>{r.residualRating}</b>. {r.action}.</> : "Record the mechanism and rate all eight categories, inherent and residual, first."}
-                  {!ro && p.status !== "approved" && (p.canApprove ? <div style={{ marginTop: 8 }}><Btn action={p.actions.approve}>Approve and send to the client</Btn></div> : <span className="meta"> Only a Lead Consultant or Firm Admin can approve.</span>)}</li>
+                <li><b>{p.selfService ? "Approval." : "Lead Consultant approval."}</b> {p.status === "approved" ? <>Approved{p.approver ? ` by ${p.approver}` : ""}{p.approvedAt ? ` on ${fmt(p.approvedAt)}` : ""}.</> : r.rating && r.residualRating ? <>Ready to approve: inherent <b>{r.rating}</b>, residual <b>{r.residualRating}</b>. {r.action}.</> : "Record the mechanism and rate all eight categories, inherent and residual, first."}
+                  {!ro && p.status !== "approved" && (p.canApprove ? <div style={{ marginTop: 8 }}><Btn action={p.actions.approve}>{p.selfService ? "Approve" : "Approve and send to the client"}</Btn></div> : <span className="meta"> Only a Lead Consultant or Firm Admin can approve.</span>)}</li>
                 <li><b>Management approval of residual risk.</b> {p.signedAt ? <>Approved by {p.signedName} on {fmt(p.signedAt)} (typed name and email code).</> : p.status === "approved" ? "Waiting for the client's management to approve in the portal." : "After approval, the client's management approves the residual risk in the portal."}</li>
               </ol>
               {t("residual_acceptance", "Residual risk accepted, and on what conditions", "e.g. Residual risk Medium accepted subject to SCCs being signed by 31 January and quarterly access reviews")}
