@@ -14,7 +14,7 @@ export const TEAM: Member[] = [
   },
   {
     name: "Gift Paul",
-    title: "Operations, Customer Success & Content Lead",
+    title: "Growth Lead",
     bio: "Gift is the main point of contact for DPO Copilot’s partner firms. She leads onboarding, support and training, and runs DPO Copilot’s content across LinkedIn, Instagram and the blog.",
     linkedin: "https://www.linkedin.com/in/gift-paul-345619297/",
     photo: "/images/team/gift.jpg",
