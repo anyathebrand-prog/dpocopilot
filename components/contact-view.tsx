@@ -24,7 +24,7 @@ export function ContactView({ action, ok, error }: { action: (fd: FormData) => P
             <li><span className="ct-ic"><Rocket aria-hidden /></span><div><b>Join the pilot</b><p>DPCO firms we set up personally, with their first year free.</p><Link href="/pilot">Request pilot access <ArrowRight aria-hidden /></Link></div></li>
             <li><span className="ct-ic"><FileDown aria-hidden /></span><div><b>Brochure</b><p>What DPO Copilot does, in a short PDF.</p><a href="/downloads/dpo-copilot-brochure.pdf" download>Download the brochure</a></div></li>
           </ul>
-          <p className="ct-meta">Business Intelligence Technologies Limited, Lagos, Nigeria. We reply within one working day, Monday to Friday.</p>
+          <p className="ct-meta">We reply within one working day, Monday to Friday.</p>
         </aside>
 
         <div className="sp-card">
