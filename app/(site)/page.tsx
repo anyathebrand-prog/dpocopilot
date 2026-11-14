@@ -8,6 +8,7 @@ import { getUser, home } from "@/lib/auth";
 import { VideoHero } from "@/components/video-hero";
 import { Reveal } from "@/components/reveal";
 import { HomeFX, SplitHeading, Flicker, CountUp } from "@/components/home-motion";
+import { TeamPreview } from "@/components/team-section";
 import "@/components/site-base.css";
 import "@/components/homepage.css";
 
@@ -182,6 +183,8 @@ export default async function Home() {
           </Reveal>
         </div>
       </section>
+
+      <div className="tm-page tm-page-home"><TeamPreview /></div>
 
       <section className="hp-card hp-cta">
         <div className="hp-cta-grid" aria-hidden="true" />

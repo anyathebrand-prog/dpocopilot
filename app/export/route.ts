@@ -32,6 +32,7 @@ import { projectPlanHtml } from "@/lib/project-plan";
 import { proposalHtml, coverLetterHtml } from "@/lib/proposal";
 import { reportCover } from "@/lib/cover-letter";
 import { registerXlsx } from "@/lib/incidents";
+import { incidentReportHtml } from "@/lib/incident-report";
 import { loadAuditNotice, auditNoticeHtml } from "@/lib/audit-notice";
 import { loadReadinessLetter, readinessLetterHtml } from "@/lib/readiness-letter";
 import { clientDepartments, workplanFor } from "@/lib/audit-workplan";
@@ -204,6 +205,16 @@ export async function GET(req: Request) {
     return new Response(new Uint8Array(await registerXlsx(org, String(ans.dpo_name ?? ""), rows)), { headers: {
       "content-type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
       "content-disposition": `attachment; filename="${slug(`${org} Data Privacy Incident Register`)}.xlsx"` } });
+  }
+  if (kind === "incident-report") { // one incident from the client's register, as PDF or Word; contacts only, their own client
+    if (u.kind !== "contact") return denied();
+    const id = url.searchParams.get("id") ?? "";
+    const r = /^[0-9a-f-]{36}$/.test(id) ? await one<{ id: string; number: string; data: Record<string, string> }>("select id, number, data from incidents where id = $1 and client_id = $2", [id, u.client_id]) : null;
+    if (!r) return denied();
+    const ans = await answersOf(u.client_id!), c = (await one("select name from clients where id = $1", [u.client_id]))!;
+    const doc = incidentReportHtml({ org: String(ans.org_legal_name || c.name), dpo: String(ans.dpo_name ?? ""), number: r.number, data: r.data });
+    await audit(u, "export", "incident_report", r.id, { client_id: u.client_id, details: { format, number: r.number } });
+    return page(doc.title, doc.body, format, slug(doc.title), doc.css);
   }
   if (kind === "audit-notice") { // letter + attached invoice; contacts may open their own once sent
     const id = url.searchParams.get("id") ?? "";

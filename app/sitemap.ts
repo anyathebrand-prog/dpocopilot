@@ -9,7 +9,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   if (INSTALL.singleFirm) return []; // a DPCO's own install has no public site
   const posts = await q("select slug, coalesce(updated_at, published_at) as at from blog_posts where status = 'published'");
   return [
-    ...["", "/pricing", "/pilot", "/contact", "/blog", "/privacy", "/terms"].map((p) => ({ url: SITE_URL + p })),
+    ...["", "/pricing", "/pilot", "/about", "/contact", "/blog", "/privacy", "/terms"].map((p) => ({ url: SITE_URL + p })),
     ...posts.map((p) => ({ url: `${SITE_URL}/blog/${p.slug}`, lastModified: p.at })),
   ];
 }
