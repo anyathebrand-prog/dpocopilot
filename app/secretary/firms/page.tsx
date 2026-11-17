@@ -79,7 +79,8 @@ export default async function Firms({ searchParams }: { searchParams: Promise<Re
     <>
       <PageHead title="Firms and plans" sub="Solo DPO: one seat, no team invitations or spreadsheet import. DPCO firms: Starter up to 3 seats, Growth up to 10, Firm unlimited." />
       <Flash sp={sp} />
-      <table className="register">
+      <div className="cx-hscroll">
+      <table className="register sec-firms">
         <thead><tr><th>Firm</th><th className="num">Active seats</th><th className="num">Clients</th><th>Joined</th><th>Plan</th><th>Solo DPO works with</th><th>Subscription ends</th></tr></thead>
         <tbody>{firms.map((f) => (
           <tr key={f.id}>
@@ -90,14 +91,14 @@ export default async function Firms({ searchParams }: { searchParams: Promise<Re
             <td data-label="Plan">
               <form action={setPlan} className="row">
                 <Hidden values={{ firm_id: f.id }} />
-                <select name="plan" defaultValue={f.plan} aria-label={`Plan for ${f.name}`} style={{ width: "auto" }}>{Object.entries(PLAN_LABEL).map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select>
+                <select name="plan" defaultValue={f.plan} aria-label={`Plan for ${f.name}`} style={{ width: "auto", maxWidth: 220 }}>{Object.entries(PLAN_LABEL).map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select>
                 <Submit className="btn secondary">Save</Submit>
               </form>
               {f.plan === "solo" && f.seats > 1 && <div className="meta">Has {f.seats} seats from before; existing members keep access.</div>}
               {f.plan === "firm" && (
                 <form action={setTier} className="row" style={{ marginTop: 6 }}>
                   <Hidden values={{ firm_id: f.id }} />
-                  <select name="tier" defaultValue={f.tier ?? "starter"} aria-label={`DPCO plan for ${f.name}`} style={{ width: "auto" }}>{TIERS.map((t) => <option key={t} value={t}>{TIER_LABEL[t]} ({TIER_SEATS[t] ?? "unlimited"} seats)</option>)}</select>
+                  <select name="tier" defaultValue={f.tier ?? "starter"} aria-label={`DPCO plan for ${f.name}`} style={{ width: "auto", maxWidth: 220 }}>{TIERS.map((t) => <option key={t} value={t}>{TIER_LABEL[t]} ({TIER_SEATS[t] ?? "unlimited"} seats)</option>)}</select>
                   <Submit className="btn secondary">Save</Submit>
                 </form>)}
               {f.plan === "firm" && TIER_SEATS[(f.tier ?? "starter") as Tier] !== null && f.seats > TIER_SEATS[(f.tier ?? "starter") as Tier]! && <div className="meta">Over its seat limit; existing members keep access.</div>}
@@ -105,7 +106,7 @@ export default async function Firms({ searchParams }: { searchParams: Promise<Re
             <td data-label="Works with">{f.plan !== "solo" ? <span className="meta">—</span> : (
               <form action={setDpco} className="row">
                 <Hidden values={{ firm_id: f.id }} />
-                <select name="dpco_firm_id" defaultValue={f.dpco_firm_id ?? ""} aria-label={`DPCO firm for ${f.name}`} style={{ width: "auto" }}>
+                <select name="dpco_firm_id" defaultValue={f.dpco_firm_id ?? ""} aria-label={`DPCO firm for ${f.name}`} style={{ width: "auto", maxWidth: 220 }}>
                   <option value="">Not chosen yet</option>
                   {firms.filter((d) => d.plan === "firm").map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
                 </select>
@@ -114,13 +115,14 @@ export default async function Firms({ searchParams }: { searchParams: Promise<Re
             <td data-label="Subscription ends">{f.plan === "solo" ? <span className="meta">Follows its DPCO</span> : (
               <form action={setSubEnd} className="row">
                 <Hidden values={{ firm_id: f.id }} />
-                <input type="date" name="ends" defaultValue={f.sub_ends ?? ""} aria-label={`Subscription end for ${f.name}`} style={{ width: "auto" }} />
+                <input type="date" name="ends" defaultValue={f.sub_ends ?? ""} aria-label={`Subscription end for ${f.name}`} style={{ width: "auto", maxWidth: 220 }} />
                 <Submit className="btn secondary">Save</Submit>
               </form>)}
               {f.plan === "firm" && <form action={demoData} style={{ marginTop: 6 }}><Hidden values={{ firm_id: f.id }} /><Submit className="btn secondary">Fill with demo data</Submit></form>}</td>
           </tr>
         ))}</tbody>
       </table>
+      </div>
     </>
   );
 }
